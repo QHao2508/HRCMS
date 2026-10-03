@@ -20,3 +20,5 @@ jobs:
         run: dotnet restore HorseClub.slnx
       - name: Build
         run: dotnet build HorseClub.slnx --configuration Release --no-restore
+      - name: Integration tests
+        run: dotnet test HorseClub.slnx --configuration Release --no-build --logger trx --results-directory TestResults

@@ -1,21 +1,21 @@
-# Kiến trúc dự kiến
+# Kiến trúc HorseClub
 
-Đề xuất monorepo để nhóm phối hợp FE/BE và API contract trong cùng PR. Giữ backend hiện tại; không di chuyển project cho đến khi nhóm thống nhất.
+Monorepo để nhóm phối hợp FE/BE và API contract trong cùng PR. Backend đã triển khai theo cấu trúc bên dưới; frontend vẫn là phần dự kiến. Xem BACKEND_GUIDE.md để biết cấu hình và giới hạn thực tế.
 
 ```text
 HorseClub/
   Horse_BackEnd/          ASP.NET Core API hiện có
   Horse_FrontEnd/         React + TypeScript, dự kiến tạo sau
-  tests/                 integration và E2E, dự kiến
+  tests/                 integration tests backend; E2E UI chưa có
   docs/                  kế hoạch, contract, ERD, quyết định
   .github/               CI và mẫu issue/PR
 ```
 
-## Công nghệ đề xuất
+## Công nghệ
 
-React + TypeScript + Vite cho frontend; ASP.NET Core với EF Core và SQL Server cho backend/database. Dùng framework identity phù hợp, password hashing chuẩn, email OTP/reset, access control ở server. Storage cho attachments tách khỏi public webroot; truy cập qua endpoint có quyền hoặc URL ngắn hạn. Không triển khai microservices cho quy mô này.
+React + TypeScript + Vite vẫn là đề xuất frontend. Backend dùng ASP.NET Core, EF Core, SQLite local và hỗ trợ SQL Server qua provider/context/migration riêng. ASP.NET Core PasswordHasher và opaque bearer tokens bảo vệ đăng nhập; email OTP/reset và staff invitation có expiry/attempt limit. Upload được đọc qua endpoint có quyền, tách khỏi webroot. Không triển khai microservices cho quy mô này.
 
-Đây là đề xuất. Database, frontend, authentication transport và hosting chưa được triển khai. Nếu dùng cookie cần CSRF protection; nếu dùng token cần chốt lưu trữ/refresh/revocation. Không dùng token trong localStorage như quyết định mặc định chưa đánh giá.
+Backend có refresh token và account-wide revocation qua security stamp. Frontend cần chốt chiến lược lưu token trước khi tích hợp. Hosting và SMTP thật chưa triển khai; SQL Server chưa được test trên server thật.
 
 ## Module và dữ liệu
 
@@ -31,7 +31,7 @@ React + TypeScript + Vite cho frontend; ASP.NET Core với EF Core và SQL Serve
 | Inventory | Item, StockMovement, ReplenishmentRequest; tồn kho dựa trên movement, không sửa số mà mất history |
 | Common | Notification, AuditEvent, attachment metadata, report projections và preventive care schedules |
 
-ERD vật lý và tên entity cuối cùng cần chốt tuần 1. Reports đọc dữ liệu nguồn theo quyền, không tạo bản sao y tế công khai. Danh sách trên không phải schema đã có.
+Schema vật lý hiện nằm trong Data/ClubDbContext.cs và migrations theo provider. Reports đọc dữ liệu nguồn theo quyền, không tạo bản sao y tế công khai. Bảng trên là bản đồ module; tên table thực tế theo DbSet trong context.
 
 ## API contract và tính nhất quán
 

@@ -34,3 +34,8 @@ TestResults/
 Thumbs.db
 .codebase-memory/
 github-setup-proof.png
+**/App_Data/
+*.db
+*.db-shm
+*.db-wal
+horseclub-sqlserver.sql

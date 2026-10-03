@@ -1,6 +1,46 @@
-@Horse_BackEnd_HostAddress = http://localhost:5299
+@baseUrl = http://localhost:5299
+@accessToken = REPLACE_WITH_ACCESS_TOKEN
+@email = REPLACE_WITH_EMAIL
+@password = REPLACE_WITH_PASSWORD
 
-GET {{Horse_BackEnd_HostAddress}}/weatherforecast/
-Accept: application/json
+# Never commit real passwords or tokens to this file.
+# See docs/BACKEND_GUIDE.md for Manager bootstrap and owner email verification.
 
-###
+### Health
+GET {{baseUrl}}/health
+
+### OpenAPI (Development)
+GET {{baseUrl}}/openapi/v1.json
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Current account
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+### Enum names for frontend selects
+GET {{baseUrl}}/api/metadata/enums
+Authorization: Bearer {{accessToken}}
+
+### Horses in current user's scope
+GET {{baseUrl}}/api/horses?page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+
+### Dashboard
+GET {{baseUrl}}/api/dashboard
+Authorization: Bearer {{accessToken}}
+
+### Scoped report
+GET {{baseUrl}}/api/reports?groupBy=Week
+Authorization: Bearer {{accessToken}}
+
+### Notifications
+GET {{baseUrl}}/api/notifications?unread=true
+Authorization: Bearer {{accessToken}}

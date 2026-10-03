@@ -9,6 +9,7 @@ Hệ thống quản lý huấn luyện ngựa đua dành cho Horse Owner, Club M
 - [Kiến trúc và dữ liệu dự kiến](docs/ARCHITECTURE.md)
 - [Quy trình đóng góp](CONTRIBUTING.md)
 - [Thiết lập GitHub](docs/GITHUB_SETUP.md)
+- [Chạy backend và tài liệu API](docs/BACKEND_GUIDE.md)
 
 Đặc tả nguồn: Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx. Quyết định nghiệp vụ V2 được ưu tiên khi xung đột với V1.
 
@@ -16,7 +17,7 @@ Hệ thống quản lý huấn luyện ngựa đua dành cho Horse Owner, Club M
 
 ## Hiện trạng
 
-Backend ASP.NET Core nhắm .NET 10, hiện mới có mẫu WeatherForecast. Chưa có chức năng nghiệp vụ, frontend hay cơ sở dữ liệu. Công nghệ frontend và database trong kế hoạch là đề xuất cần nhóm chốt.
+Backend ASP.NET Core .NET 10 với EF Core, migration SQLite/SQL Server, auth/OTP và 7 role, hồ sơ/phân công, training, medical guards, care/stable/inventory, reports, notifications và audit. Các role/status/type dùng enum; cấu hình và secrets tách khỏi business code. Frontend chưa được triển khai.
 
 ## Chạy backend
 
@@ -24,8 +25,10 @@ Cài .NET SDK 10 phù hợp với project, sau đó chạy:
 
 ```powershell
 dotnet restore HorseClub.slnx
+dotnet tool restore
 dotnet build HorseClub.slnx
-dotnet run --project Horse_BackEnd/Horse_BackEnd.csproj
+dotnet test HorseClub.slnx
+dotnet run --project Horse_BackEnd --launch-profile http
 ```
 
-Xem địa chỉ chạy trong console. Không commit mật khẩu, token, OTP, connection string có credentials hoặc dữ liệu cá nhân thật. Dùng user-secrets hoặc biến môi trường cho cấu hình nhạy cảm.
+API: `http://localhost:5299`, OpenAPI development: `/openapi/v1.json`, health: `/health`. Cấu hình Manager đầu tiên và SMTP theo [hướng dẫn backend](docs/BACKEND_GUIDE.md). Không có mật khẩu mặc định; không commit credentials hoặc dữ liệu cá nhân thật.
