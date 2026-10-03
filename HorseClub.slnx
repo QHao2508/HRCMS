@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="HorseClub.DAL/HorseClub.DAL.csproj" />
+  <Project Path="HorseClub.BLL/HorseClub.BLL.csproj" />
   <Project Path="Horse_BackEnd/Horse_BackEnd.csproj" />
   <Project Path="tests/Horse_BackEnd.Tests/Horse_BackEnd.Tests.csproj" />
 </Solution>

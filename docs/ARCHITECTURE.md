@@ -4,7 +4,9 @@ Monorepo để nhóm phối hợp FE/BE và API contract trong cùng PR. Backend
 
 ```text
 HorseClub/
-  Horse_BackEnd/          ASP.NET Core API hiện có
+  Horse_BackEnd/          API: routes, HTTP pipeline, composition root
+  HorseClub.BLL/         BLL: workflows, services, contracts, messages
+  HorseClub.DAL/         DAL: entities, enums, EF context, migrations
   Horse_FrontEnd/         React + TypeScript, dự kiến tạo sau
   tests/                 integration tests backend; E2E UI chưa có
   docs/                  kế hoạch, contract, ERD, quyết định
@@ -12,6 +14,8 @@ HorseClub/
 ```
 
 ## Công nghệ
+
+Backend có ba project theo luồng API → BLL → DAL. Xem [THREE_LAYER_AND_MESSAGES.md](THREE_LAYER_AND_MESSAGES.md) để biết quy tắc đặt code và sử dụng catalog thông báo chung.
 
 React + TypeScript + Vite vẫn là đề xuất frontend. Backend dùng ASP.NET Core, EF Core, SQLite local và hỗ trợ SQL Server qua provider/context/migration riêng. ASP.NET Core PasswordHasher và opaque bearer tokens bảo vệ đăng nhập; email OTP/reset và staff invitation có expiry/attempt limit. Upload được đọc qua endpoint có quyền, tách khỏi webroot. Không triển khai microservices cho quy mô này.
 
@@ -31,7 +35,7 @@ Backend có refresh token và account-wide revocation qua security stamp. Fronte
 | Inventory | Item, StockMovement, ReplenishmentRequest; tồn kho dựa trên movement, không sửa số mà mất history |
 | Common | Notification, AuditEvent, attachment metadata, report projections và preventive care schedules |
 
-Schema vật lý hiện nằm trong Data/ClubDbContext.cs và migrations theo provider. Reports đọc dữ liệu nguồn theo quyền, không tạo bản sao y tế công khai. Bảng trên là bản đồ module; tên table thực tế theo DbSet trong context.
+Schema vật lý hiện nằm trong HorseClub.DAL/Data/ClubDbContext.cs và migrations theo provider. Reports đọc dữ liệu nguồn theo quyền, không tạo bản sao y tế công khai. Bảng trên là bản đồ module; tên table thực tế theo DbSet trong context.
 
 ## API contract và tính nhất quán
 

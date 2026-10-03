@@ -1,3 +1,4 @@
+using HorseClub.BLL.Messaging;
 using Horse_BackEnd.Contracts;
 using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
@@ -20,7 +21,7 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
     public async Task<HorseRegistration> Edit(Guid id, RegistrationRequest r)
     {
         var reg = await access.Registration(id); var u = await current.Get();
-        Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired || (u.Role == Role.ClubManager && reg.Status == RegistrationStatus.PendingReview), "Registration cannot be edited in this state.", 409, "invalid_state");
+        Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired || (u.Role == Role.ClubManager && reg.Status == RegistrationStatus.PendingReview), Messages.Get(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
         await Apply(reg, r); await events.Audit(AuditAction.RegistrationEdited, reg.Id);
         await db.SaveChangesAsync(); return reg;
     }
@@ -28,11 +29,11 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
     {
         Ensure.Role(await current.Get(), Role.HorseOwner);
         var r = await access.Registration(id);
-        Ensure.That(r.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, "Only drafts or revisions may be submitted.", 409, "invalid_state");
-        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == id && x.Type == AttachmentType.HorsePhoto), "Add a horse photo before submission.");
-        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == id && x.Type == AttachmentType.Certificate), "Add a certificate before submission.");
+        Ensure.That(r.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.OnlyDraftsOrRevisionsMayBeSubmitted), 409, "invalid_state");
+        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == id && x.Type == AttachmentType.HorsePhoto), Messages.Get(MessageKey.AddAHorsePhotoBeforeSubmission));
+        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == id && x.Type == AttachmentType.Certificate), Messages.Get(MessageKey.AddACertificateBeforeSubmission));
         r.Status = RegistrationStatus.PendingReview; r.ReviewReason = null;
-        await events.Managers(NotificationType.RegistrationReview, "A horse registration requires review.", id);
+        await events.Managers(NotificationType.RegistrationReview, MessageKey.AHorseRegistrationRequiresReview, id);
         await events.Audit(AuditAction.RegistrationSubmitted, id);
         await db.SaveChangesAsync();
     }
@@ -40,13 +41,13 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
         var r = await access.Registration(id);
-        Ensure.That(r.Status == RegistrationStatus.PendingReview, "Registration is not pending review.", 409, "invalid_state");
+        Ensure.That(r.Status == RegistrationStatus.PendingReview, Messages.Get(MessageKey.RegistrationIsNotPendingReview), 409, "invalid_state");
         r.ReviewedBy = u.Id;
         if (!request.Approve)
         {
-            Ensure.That(!string.IsNullOrWhiteSpace(request.Reason), "A revision reason is required.");
+            Ensure.That(!string.IsNullOrWhiteSpace(request.Reason), Messages.Get(MessageKey.ARevisionReasonIsRequired));
             r.Status = RegistrationStatus.RevisionRequired; r.ReviewReason = request.Reason;
-            events.Notify(r.OwnerId, NotificationType.RegistrationRevision, "Your horse registration requires revision.", id);
+            events.Notify(r.OwnerId, NotificationType.RegistrationRevision, MessageKey.YourHorseRegistrationRequiresRevision, id);
             await events.Audit(AuditAction.RegistrationRevisionRequested, id);
             await db.SaveChangesAsync(); return new { registration = r, horseId = (Guid?)null };
         }
@@ -56,39 +57,39 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
         // Owner health is a declaration, not medical clearance; official status starts Monitoring.
         db.Horses.Add(horse);
         db.Measurements.Add(new Measurement { HorseId = horse.Id, Date = r.MeasurementDate, HeightCm = r.HeightCm, WeightKg = r.WeightKg });
-        events.Notify(r.OwnerId, NotificationType.RegistrationApproved, "Your horse registration was approved.", horse.Id);
+        events.Notify(r.OwnerId, NotificationType.RegistrationApproved, MessageKey.YourHorseRegistrationWasApproved, horse.Id);
         await events.Audit(AuditAction.RegistrationApproved, id);
         await db.SaveChangesAsync(); return new { registration = r, horseId = (Guid?)horse.Id };
     }
     public async Task<StaffAssignment> Assign(Guid horseId, AssignmentRequest r)
     {
         var u = await current.Get(); var horse = await access.Horse(horseId);
-        Ensure.That(r.StartDate != default && r.StartDate <= calendar.Today(clock), "Assignments start today or earlier; future scheduling is not supported.");
+        Ensure.That(r.StartDate != default && r.StartDate <= calendar.Today(clock), Messages.Get(MessageKey.AssignmentsStartTodayOrEarlierFutureSchedulingIsNot));
         if (r.Role == Role.Trainer)
         {
             Ensure.Role(u, Role.HeadTrainer);
-            Ensure.That(await db.Assignments.AnyAsync(x => x.HorseId == horseId && x.StaffId == u.Id && x.Active && x.Role == Role.HeadTrainer), "Only the assigned Head Trainer can assign a Trainer.", 403, "forbidden");
+            Ensure.That(await db.Assignments.AnyAsync(x => x.HorseId == horseId && x.StaffId == u.Id && x.Active && x.Role == Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
         }
-        else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, "Unsupported administrative assignment role."); }
+        else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Get(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
         await access.Staff(r.StaffId, r.Role);
         foreach (var old in await db.Assignments.Where(x => x.HorseId == horseId && x.Role == r.Role && x.Active).ToListAsync())
         {
-            Ensure.That(r.StartDate >= old.StartDate, "Replacement assignment cannot precede the current assignment.");
+            Ensure.That(r.StartDate >= old.StartDate, Messages.Get(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
             old.Active = false; old.EndDate = r.StartDate;
         }
         var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, Notes = r.Notes };
         db.Assignments.Add(a);
-        events.Notify(r.StaffId, NotificationType.HorseAssignment, "You have been assigned to a horse.", horseId);
-        events.Notify(horse.OwnerId, NotificationType.HorseAssignment, "Official horse staff assignment changed.", horseId);
+        events.Notify(r.StaffId, NotificationType.HorseAssignment, MessageKey.YouHaveBeenAssignedToAHorse, horseId);
+        events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
         await events.Audit(AuditAction.HorseStaffAssigned, horseId, r.Role.ToString());
         await db.SaveChangesAsync(); return a;
     }
     private async Task Apply(HorseRegistration entity, RegistrationRequest r)
     {
         var today = calendar.Today(clock);
-        Ensure.That(r.DateOfBirth != default && r.DateOfBirth <= today, "Date of birth must be valid and not in the future.");
-        Ensure.That(r.MeasurementDate >= r.DateOfBirth && r.MeasurementDate <= today, "Measurement date is invalid.");
-        Ensure.That(r.BoardingStart != default && (!r.BoardingEnd.HasValue || r.BoardingEnd >= r.BoardingStart), "Boarding dates are invalid.");
+        Ensure.That(r.DateOfBirth != default && r.DateOfBirth <= today, Messages.Get(MessageKey.DateOfBirthMustBeValidAndNotIn));
+        Ensure.That(r.MeasurementDate >= r.DateOfBirth && r.MeasurementDate <= today, Messages.Get(MessageKey.MeasurementDateIsInvalid));
+        Ensure.That(r.BoardingStart != default && (!r.BoardingEnd.HasValue || r.BoardingEnd >= r.BoardingStart), Messages.Get(MessageKey.BoardingDatesAreInvalid));
         if (r.PreferredHeadTrainerId is Guid head) await access.Staff(head, Role.HeadTrainer);
         if (r.PreferredGroomId is Guid groom) await access.Staff(groom, Role.Groom);
         if (r.PreferredVeterinarianId is Guid vet) await access.Staff(vet, Role.Veterinarian);

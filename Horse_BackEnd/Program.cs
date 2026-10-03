@@ -1,3 +1,4 @@
+using HorseClub.BLL.Messaging;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Horse_BackEnd.Data;
@@ -41,7 +42,7 @@ builder.Services.AddDataProtection().SetApplicationName("HorseClub").PersistKeys
 var provider = builder.Configuration.GetValue("Database:Provider", DatabaseProvider.Sqlite);
 if (provider == DatabaseProvider.SqlServer)
 {
-    builder.Services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer") ?? throw new InvalidOperationException("Configure ConnectionStrings:SqlServer.")));
+    builder.Services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer") ?? throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureConnectionStringsSqlServer))));
     builder.Services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
 }
 else if (provider == DatabaseProvider.Sqlite)
@@ -50,7 +51,7 @@ else if (provider == DatabaseProvider.Sqlite)
     builder.Services.AddDbContext<SqliteClubDbContext>(o => o.UseSqlite(builder.Configuration.GetConnectionString("Sqlite") ?? $"Data Source={Path.Combine(databasePath, "horseclub.db")}"));
     builder.Services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqliteClubDbContext>());
 }
-else throw new InvalidOperationException("Database:Provider must be Sqlite or SqlServer.");
+else throw new InvalidOperationException(Messages.Get(MessageKey.DatabaseProviderMustBeSqliteOrSqlServer));
 var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? [];
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => { if (origins.Length > 0) p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod(); }));
 builder.Services.AddRateLimiter(o =>
@@ -71,11 +72,11 @@ using (var scope = app.Services.CreateScope())
     if (builder.Configuration.GetValue("Database:AutoMigrate", builder.Environment.IsDevelopment())) await db.Database.MigrateAsync();
     var email = builder.Configuration["Bootstrap:ManagerEmail"];
     var password = builder.Configuration["Bootstrap:ManagerPassword"];
-    if (string.IsNullOrWhiteSpace(email) != string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("Configure both Bootstrap:ManagerEmail and Bootstrap:ManagerPassword, or neither.");
+    if (string.IsNullOrWhiteSpace(email) != string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureBothBootstrapManagerEmailAndBootstrapManagerPasswordOrNeither));
     if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password) && !await db.Users.AnyAsync(x => x.Role == Role.ClubManager))
     {
         AuthenticationService.CheckPassword(password, securityLimits);
-        Ensure.That(new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email), "Bootstrap manager email is invalid.");
+        Ensure.That(new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email), Messages.Get(MessageKey.BootstrapManagerEmailIsInvalid));
         var manager = new User { Email = AuthenticationService.Normalize(email), UserName = builder.Configuration["Bootstrap:ManagerUserName"] ?? "clubmanager", FirstName = builder.Configuration["Bootstrap:ManagerFirstName"] ?? "Club", LastName = builder.Configuration["Bootstrap:ManagerLastName"] ?? "Manager", Role = Role.ClubManager, EmailVerified = true };
         manager.PasswordHash = new PasswordHasher<User>().HashPassword(manager, password); db.Users.Add(manager); await db.SaveChangesAsync();
     }

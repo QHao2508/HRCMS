@@ -1,3 +1,4 @@
+using HorseClub.BLL.Messaging;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using Horse_BackEnd.Contracts;
@@ -21,12 +22,12 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
 
     public async Task<User> Register(RegisterRequest r)
     {
-        Ensure.That(r.Password == r.ConfirmPassword, "Passwords do not match.");
+        Ensure.That(r.Password == r.ConfirmPassword, Messages.Get(MessageKey.PasswordsDoNotMatch));
         ValidatePassword(r.Password);
-        Ensure.That(!settings.RequireNationalId || !string.IsNullOrWhiteSpace(r.NationalId), "National ID is required by club policy.");
-        if (!string.IsNullOrWhiteSpace(r.NationalId)) Ensure.That(r.NationalId.Length == settings.NationalIdDigits && r.NationalId.All(char.IsAsciiDigit), "Invalid national ID format.");
+        Ensure.That(!settings.RequireNationalId || !string.IsNullOrWhiteSpace(r.NationalId), Messages.Get(MessageKey.NationalIDIsRequiredByClubPolicy));
+        if (!string.IsNullOrWhiteSpace(r.NationalId)) Ensure.That(r.NationalId.Length == settings.NationalIdDigits && r.NationalId.All(char.IsAsciiDigit), Messages.Get(MessageKey.InvalidNationalIDFormat));
         var email = Normalize(r.Email); var name = Normalize(r.UserName);
-        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name), "Email or username is already registered.", 409, "account_exists");
+        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone.Trim(), Address = r.Address.Trim(), Role = Role.HorseOwner };
         user.PasswordHash = hasher.HashPassword(user, r.Password);
         if (!string.IsNullOrWhiteSpace(r.NationalId)) user.NationalIdProtected = protection.CreateProtector("HorseClub.PersonalData.NationalId").Protect(r.NationalId);
@@ -37,9 +38,9 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     }
     public async Task<User> CreateStaff(StaffRequest r)
     {
-        Ensure.That(r.Role != Role.HorseOwner && r.Role != Role.ClubManager, "Use this endpoint for internal staff roles only.");
+        Ensure.That(r.Role != Role.HorseOwner && r.Role != Role.ClubManager, Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
         var email = Normalize(r.Email); var name = Normalize(r.UserName);
-        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name), "Email or username is already registered.", 409, "account_exists");
+        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone, Address = r.Address, Role = r.Role };
         // Staff choose their own password with a one-use email invitation; no shared initial password.
         db.Users.Add(user);
@@ -60,7 +61,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
         var challenge = new EmailChallenge { UserId = user.Id, Purpose = purpose, CreatedAt = now, ExpiresAt = now.AddMinutes(minutes) };
         challenge.CodeHash = challengeHasher.HashPassword(challenge, code);
         db.Challenges.Add(challenge);
-        db.EmailMessages.Add(new EmailMessage { Recipient = user.Email, Subject = $"HorseClub {purpose}", Body = $"Your {purpose} code: {code}\nExpires at {challenge.ExpiresAt:O}. Never share this code." });
+        db.EmailMessages.Add(new EmailMessage { Recipient = user.Email, Subject = Messages.Get(MessageKey.HorseClub, purpose), Body = Messages.Get(MessageKey.YourCodeExpiresAtNeverShareThisCode, purpose, code, challenge.ExpiresAt) });
     }
     public async Task<bool> Consume(User user, ChallengePurpose purpose, string code)
     {
@@ -103,5 +104,5 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     ], IdentityConstants.BearerScheme));
     public void ValidatePassword(string password) => CheckPassword(password, settings);
     public static void CheckPassword(string password, SecurityOptions settings) => Ensure.That(password.Length >= settings.PasswordMinLength && password.Length <= settings.PasswordMaxLength && password.Any(char.IsUpper) && password.Any(char.IsLower) && password.Any(char.IsDigit),
-        $"Password needs {settings.PasswordMinLength}–{settings.PasswordMaxLength} characters including uppercase, lowercase and a digit.");
+        Messages.Get(MessageKey.PasswordNeedsCharactersIncludingUppercaseLowercaseAndADigit, settings.PasswordMinLength, settings.PasswordMaxLength));
 }

@@ -1,3 +1,4 @@
+using HorseClub.BLL.Messaging;
 using System.Data;
 using System.Net;
 using System.Net.Mail;
@@ -21,10 +22,10 @@ public sealed class ClubMailSender(IOptions<EmailOptions> options, IWebHostEnvir
             await File.WriteAllTextAsync(Path.Combine(path, $"{Guid.NewGuid():N}.eml"), $"To: {recipient}\nSubject: {subject}\n\n{body}", token);
             return;
         }
-        var host = settings.Host ?? throw new InvalidOperationException("Configure Email:Host before sending mail.");
+        var host = settings.Host ?? throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureEmailHostBeforeSendingMail));
         using var smtp = new SmtpClient(host, settings.Port) { EnableSsl = true };
         if (!string.IsNullOrWhiteSpace(settings.Username)) smtp.Credentials = new NetworkCredential(settings.Username, settings.Password);
-        using var message = new MailMessage(settings.From ?? throw new InvalidOperationException("Configure Email:From."), recipient, subject, body);
+        using var message = new MailMessage(settings.From ?? throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureEmailFrom)), recipient, subject, body);
         await smtp.SendMailAsync(message, token);
     }
 }
@@ -86,20 +87,20 @@ public sealed class ReminderWorker(IServiceScopeFactory scopes, WriteGate gate, 
                     foreach (var p in preventive)
                     {
                         foreach (var id in await db.Assignments.Where(x => x.HorseId == p.HorseId && x.Active && x.Role == Role.Veterinarian).Select(x => x.StaffId).ToListAsync(stoppingToken))
-                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.MedicalPreventiveDue, Message = "Preventive care is due.", ReferenceId = p.Id });
+                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.MedicalPreventiveDue, Message = Messages.Get(MessageKey.PreventiveCareIsDue), ReferenceId = p.Id });
                         p.ReminderSent = true;
                     }
                     var overdue = await db.Sessions.Where(x => x.ScheduledAt < now.AddMinutes(-business.Value.OverdueAfterMinutes) && x.Status == SessionStatus.Assigned && db.Plans.Any(p => p.Id == x.PlanId && p.Status == PlanStatus.Active) && !db.Notifications.Any(n => n.ReferenceId == x.Id && n.Type == NotificationType.SessionOverdue) && db.Horses.Any(h => h.Id == x.HorseId && !h.Archived)).Take(options.Value.ReminderBatchSize).ToListAsync(stoppingToken);
                     foreach (var s in overdue)
                     {
-                        if (s.RiderId.HasValue) db.Notifications.Add(new Notification { RecipientId = s.RiderId.Value, Type = NotificationType.SessionOverdue, Message = "A training session is overdue.", ReferenceId = s.Id });
+                        if (s.RiderId.HasValue) db.Notifications.Add(new Notification { RecipientId = s.RiderId.Value, Type = NotificationType.SessionOverdue, Message = Messages.Get(MessageKey.ATrainingSessionIsOverdue), ReferenceId = s.Id });
                         foreach (var id in await db.Assignments.Where(x => x.HorseId == s.HorseId && x.Active && x.Role == Role.Trainer).Select(x => x.StaffId).ToListAsync(stoppingToken))
-                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.SessionOverdue, Message = "A training session is overdue.", ReferenceId = s.Id });
+                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.SessionOverdue, Message = Messages.Get(MessageKey.ATrainingSessionIsOverdue), ReferenceId = s.Id });
                     }
                     var followups = await db.Treatments.Where(x => !x.Completed && x.FollowUpDate <= today && !db.Notifications.Any(n => n.ReferenceId == x.Id && n.Type == NotificationType.MedicalFollowUpDue) && db.Horses.Any(h => h.Id == x.HorseId && !h.Archived)).Take(options.Value.ReminderBatchSize).ToListAsync(stoppingToken);
                     foreach (var treatment in followups)
                         foreach (var id in await db.Assignments.Where(x => x.HorseId == treatment.HorseId && x.Active && x.Role == Role.Veterinarian).Select(x => x.StaffId).ToListAsync(stoppingToken))
-                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.MedicalFollowUpDue, Message = "Medical follow-up is due.", ReferenceId = treatment.Id });
+                            db.Notifications.Add(new Notification { RecipientId = id, Type = NotificationType.MedicalFollowUpDue, Message = Messages.Get(MessageKey.MedicalFollowUpIsDue), ReferenceId = treatment.Id });
                     await db.SaveChangesAsync(stoppingToken); await tx.CommitAsync(stoppingToken);
                 }
                 finally { gate.Semaphore.Release(); }

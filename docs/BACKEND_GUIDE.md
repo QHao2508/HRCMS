@@ -104,7 +104,7 @@ Lỗi nghiệp vụ có HTTP status và JSON `title`, `detail`, `referenceId`, `
 Có context/migration riêng cho SQLite và SQL Server. Không dùng SQLite migration để triển khai SQL Server. Đặt connection string bằng secrets hoặc biến môi trường. Ví dụ tạo migration SQL để review trước deployment:
 
 ```powershell
-dotnet ef migrations script --idempotent --project Horse_BackEnd --context SqlServerClubDbContext --output horseclub-sqlserver.sql
+dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --output horseclub-sqlserver.sql
 ```
 
 Apply bằng công cụ triển khai phù hợp; application production mặc định `Database:AutoMigrate=false`. Khi cần `dotnet ef database update`, truyền connection thật qua `--connection` trong môi trường bảo mật; design-time factory chỉ có cấu hình local phục vụ scaffold, không đọc deployment secrets. Có thể dùng deployment script để tránh đưa credentials vào command history.

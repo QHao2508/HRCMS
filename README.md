@@ -17,7 +17,7 @@ Hệ thống quản lý huấn luyện ngựa đua dành cho Horse Owner, Club M
 
 ## Hiện trạng
 
-Backend ASP.NET Core .NET 10 với EF Core, migration SQLite/SQL Server, auth/OTP và 7 role, hồ sơ/phân công, training, medical guards, care/stable/inventory, reports, notifications và audit. Các role/status/type dùng enum; cấu hình và secrets tách khỏi business code. Frontend chưa được triển khai.
+Backend ASP.NET Core .NET 10 với EF Core, migration SQLite/SQL Server, auth/OTP và 7 role, hồ sơ/phân công, training, medical guards, care/stable/inventory, reports, notifications và audit. Ba project API → BLL → DAL; các role/status/type dùng enum và thông báo dùng catalog chung qua `MessageKey`. Cấu hình và secrets tách khỏi business code. Xem [quy tắc ba layer và message](docs/THREE_LAYER_AND_MESSAGES.md). Frontend chưa được triển khai.
 
 ## Chạy backend
 
