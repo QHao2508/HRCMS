@@ -1,0 +1,35 @@
+# .NET and IDE
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+**/coverage/
+
+# Frontend
+**/node_modules/
+**/dist/
+**/.vite/
+**/playwright-report/
+**/test-results/
+
+# Secrets and local data
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+*.pfx
+*.pem
+*.key
+**/uploads/
+*.log
+
+# OS and generated graph
+.DS_Store
+Thumbs.db
+.codebase-memory/
