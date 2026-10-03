@@ -11,7 +11,7 @@ Hệ thống quản lý câu lạc bộ và huấn luyện ngựa đua, từ ti�
 - **Vận hành:** care/feeding, incidents/photos, stable/stall/occupancy, stock movements và replenishment.
 - **Dùng chung:** notifications, reminders, audit, dashboard và reports theo phạm vi từng role.
 
-Backend đã có API và kiểm thử. Thiết kế frontend đã hoàn thành trên [Figma](https://www.figma.com/design/AKLYJd26mWHeG1W8V0ach5/Figma-basics--Copy-?node-id=1669-162202) theo thông tin nhóm; mã frontend sẽ được push và tích hợp sau. Đặc tả nguồn: `Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx`; quyết định V2 được ưu tiên khi xung đột V1.
+Backend đã có API và kiểm thử. Thiết kế frontend đã hoàn thành trên [Figma](https://www.figma.com/design/AKLYJd26mWHeG1W8V0ach5/Figma-basics--Copy-?node-id=1669-162202) theo thông tin nhóm; mã frontend sẽ được push và tích hợp sau tại repository riêng [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Repository HRCMS này dành cho backend, database và tài liệu liên quan. Đặc tả nguồn: `Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx`; quyết định V2 được ưu tiên khi xung đột V1.
 
 ## Công nghệ và cấu trúc
 
