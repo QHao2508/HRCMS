@@ -1,6 +1,6 @@
 # Thiết lập GitHub cho nhóm
 
-Repository đã được quan sát trong phiên GitHub của người dùng: [QHao2508/HRCMS](https://github.com/QHao2508/HRCMS). Dùng một monorepo FE/BE/docs. Chưa xác minh visibility, collaborators hay branch protection; đề xuất Private cho nhóm.
+Repository đã được xác minh: [QHao2508/HRCMS](https://github.com/QHao2508/HRCMS), hiện là Public. Bộ khởi đầu đã push lên main; lần chạy Backend CI đầu tiên thành công. Dùng một monorepo FE/BE/docs. Chưa cấu hình collaborators hay branch protection. Nếu nhóm muốn Private, chủ sở hữu cần thống nhất thay đổi visibility.
 
 ## Sau khi có repository
 
