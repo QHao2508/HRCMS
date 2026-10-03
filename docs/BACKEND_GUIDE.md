@@ -103,6 +103,8 @@ Lỗi nghiệp vụ có HTTP status và JSON `title`, `detail`, `referenceId`, `
 
 Có context/migration riêng cho SQLite và SQL Server. Không dùng SQLite migration để triển khai SQL Server. Đặt connection string bằng secrets hoặc biến môi trường. Ví dụ tạo migration SQL để review trước deployment:
 
+SQL tạo schema đã có sẵn tại [database.sql](database.sql); xem [hướng dẫn chạy bằng SSMS](DATABASE_SQL.md).
+
 ```powershell
 dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --output horseclub-sqlserver.sql
 ```
