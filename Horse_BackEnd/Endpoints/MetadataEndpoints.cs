@@ -1,3 +1,4 @@
+using Horse_BackEnd.Contracts;
 using Horse_BackEnd.Domain;
 using Horse_BackEnd.Infrastructure;
 
@@ -9,6 +10,6 @@ public static class MetadataEndpoints
 {
     public static void MapMetadata(this RouteGroupBuilder api)
     {
-        api.MapGet("/metadata/enums", async (CurrentUser current) => await MetadataWorkflow.GetMetadataEnums(current)).RequireAuthorization().WithTags("Metadata");
+        api.MapGet("/metadata/enums", async (CurrentUser current) => await MetadataWorkflow.GetMetadataEnums(current)).RequireAuthorization().WithTags("Metadata").Produces<Dictionary<string, string[]>>(200);
     }
 }

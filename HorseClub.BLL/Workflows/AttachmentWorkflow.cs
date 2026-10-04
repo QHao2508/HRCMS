@@ -1,3 +1,4 @@
+using Horse_BackEnd.Contracts;
 using HorseClub.BLL.Messaging;
 using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
@@ -9,21 +10,21 @@ namespace HorseClub.BLL.Workflows;
 
 public static class AttachmentWorkflow
 {
-    public static async Task<object> GetHorsesByIdPhoto(Guid horseId, ClubAccess access, ClubDbContext db, IConfiguration config, IWebHostEnvironment env)
+    public static async Task<IResult> GetHorsesByIdPhoto(Guid horseId, ClubAccess access, ClubDbContext db, UploadStorage storage)
     {
             var horse = await access.Horse(horseId);
             var attachment = Ensure.Found(await db.Attachments.Where(x => x.RegistrationId == horse.RegistrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync());
-            var path = Path.Combine(Storage(config, env), attachment.StorageName); Ensure.That(File.Exists(path), Messages.Get(MessageKey.PhotoUnavailable), 404, "not_found");
+            var path = storage.Resolve(attachment.StorageName); Ensure.That(File.Exists(path), Messages.Get(MessageKey.PhotoUnavailable), 404, "not_found");
             return Results.File(path, attachment.ContentType, attachment.FileName);
         }
 
-    public static async Task<object> GetList(Guid registrationId, ClubAccess access, ClubDbContext db)
+    public static async Task<List<AttachmentResponse>> GetList(Guid registrationId, ClubAccess access, ClubDbContext db)
     {
             await access.Registration(registrationId);
-            return await db.Attachments.Where(x => x.RegistrationId == registrationId).Select(x => new { x.Id, x.FileName, x.ContentType, x.Length, x.Type, x.CertificateNumber, x.IssueDate, x.ExpiryDate }).ToListAsync();
+            return await db.Attachments.Where(x => x.RegistrationId == registrationId).Select(x => new AttachmentResponse(x.Id, x.FileName, x.ContentType, x.Length, x.Type, x.CertificateNumber, x.IssueDate, x.ExpiryDate)).ToListAsync();
         }
 
-    public static async Task<object> PostList(Guid registrationId, HttpRequest request, ClubAccess access, CurrentUser current, ClubDbContext db, IConfiguration config, IWebHostEnvironment env, ClubEvents events, IOptions<StorageOptions> options)
+    public static async Task<IResult> PostList(Guid registrationId, HttpRequest request, ClubAccess access, CurrentUser current, ClubDbContext db, UploadStorage storage, ClubEvents events, IOptions<StorageOptions> options)
     {
             var reg = await access.Registration(registrationId); var u = await current.Get();
             Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired || u.Role == Role.ClubManager && reg.Status == RegistrationStatus.PendingReview, Messages.Get(MessageKey.CannotAddDocumentsInThisState), 409, "invalid_state");
@@ -44,22 +45,21 @@ public static class AttachmentWorkflow
             var attachment = new Attachment { RegistrationId = registrationId, UploadedBy = u.Id, FileName = Path.GetFileName(file.FileName), StorageName = Guid.NewGuid().ToString("N"), ContentType = contentType!, Length = file.Length, Type = type,
                 CertificateNumber = form["certificateNumber"].ToString(), IssueDate = issue, ExpiryDate = expiry };
             Ensure.That(attachment.FileName.Length <= 200 && attachment.CertificateNumber.Length <= 100, Messages.Get(MessageKey.FilenameOrCertificateNumberIsTooLong));
-            Directory.CreateDirectory(Storage(config, env));
-            await File.WriteAllBytesAsync(Path.Combine(Storage(config, env), attachment.StorageName), bytes);
+
+            await storage.Write(attachment.StorageName, bytes, request.HttpContext.RequestAborted);
             db.Attachments.Add(attachment); await events.Audit(AuditAction.AttachmentUploaded, attachment.Id); await db.SaveChangesAsync();
-            return Results.Created($"/api/registrations/{registrationId}/attachments/{attachment.Id}", new { attachment.Id, attachment.FileName, attachment.Type, attachment.Length });
+            return Results.Created($"/api/registrations/{registrationId}/attachments/{attachment.Id}", new AttachmentCreatedResponse(attachment.Id, attachment.FileName, attachment.Type, attachment.Length));
         }
 
-    public static async Task<object> GetById(Guid registrationId, Guid id, ClubAccess access, ClubDbContext db, IConfiguration config, IWebHostEnvironment env)
+    public static async Task<IResult> GetById(Guid registrationId, Guid id, ClubAccess access, ClubDbContext db, UploadStorage storage)
     {
             await access.Registration(registrationId); var attachment = Ensure.Found(await db.Attachments.SingleOrDefaultAsync(x => x.Id == id && x.RegistrationId == registrationId));
-            var path = Path.Combine(Storage(config, env), attachment.StorageName);
+            var path = storage.Resolve(attachment.StorageName);
             Ensure.That(File.Exists(path), Messages.Get(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
             // Force download to avoid active content executing in the API origin.
             return Results.File(path, attachment.ContentType, attachment.FileName);
         }
 
-    public static string Storage(IConfiguration config, IWebHostEnvironment env) => Path.GetFullPath(config["Storage:Path"] ?? Path.Combine(env.ContentRootPath, "App_Data", "uploads"));
     public static DateOnly? ParseDate(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;

@@ -219,7 +219,16 @@ namespace Horse_BackEnd.Data.Migrations.Sqlite
                         .HasMaxLength(4000)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("ChallengeId")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("DiscardedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("ExpiresAt")
                         .HasColumnType("INTEGER");
 
                     b.Property<long?>("NextAttemptAt")
@@ -243,6 +252,10 @@ namespace Horse_BackEnd.Data.Migrations.Sqlite
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChallengeId");
+
+                    b.HasIndex("SentAt", "DiscardedAt", "NextAttemptAt");
 
                     b.ToTable("EmailMessages");
                 });
@@ -829,6 +842,8 @@ namespace Horse_BackEnd.Data.Migrations.Sqlite
                     b.HasKey("Id");
 
                     b.HasIndex("RecipientId", "Read");
+
+                    b.HasIndex("ReferenceId", "Type");
 
                     b.ToTable("Notifications");
                 });
@@ -1537,6 +1552,14 @@ namespace Horse_BackEnd.Data.Migrations.Sqlite
                         .HasForeignKey("HorseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Horse_BackEnd.Domain.EmailMessage", b =>
+                {
+                    b.HasOne("Horse_BackEnd.Domain.EmailChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("ChallengeId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Horse_BackEnd.Domain.Horse", b =>

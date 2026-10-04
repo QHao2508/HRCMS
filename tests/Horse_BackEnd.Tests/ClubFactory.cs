@@ -4,11 +4,17 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
+using Horse_BackEnd.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -16,12 +22,43 @@ namespace Horse_BackEnd.Tests;
 public sealed class ClubFactory : WebApplicationFactory<Program>
 {
     private readonly IReadOnlyDictionary<string, string?> extraSettings;
-    public ClubFactory(IReadOnlyDictionary<string, string?>? settings = null) => extraSettings = settings ?? new Dictionary<string, string?>();
+    public ClubFactory(IReadOnlyDictionary<string, string?>? settings = null, IClubMailSender? mailSender = null)
+    {
+        this.mailSender = mailSender;
+        extraSettings = settings ?? new Dictionary<string, string?>();
+        var server = Environment.GetEnvironmentVariable("HRCMS_TEST_SQLSERVER");
+        if (!string.IsNullOrWhiteSpace(server))
+        {
+            // Never migrate or delete the database named by the supplied connection string.
+            ownedDatabase = "HRCMS_Test_" + Guid.NewGuid().ToString("N");
+            sqlConnection = new SqlConnectionStringBuilder(server) { InitialCatalog = ownedDatabase }.ConnectionString;
+        }
+    }
+    private ClubFactory(ClubFactory owner)
+    {
+        extraSettings = owner.extraSettings;
+        mailSender = owner.mailSender;
+        directory = owner.directory;
+        sqlConnection = owner.sqlConnection;
+    }
+    public ClubFactory Replica()
+    {
+        if (sqlConnection is null) throw new InvalidOperationException("Replica tests require HRCMS_TEST_SQLSERVER.");
+        return new ClubFactory(this);
+    }
+    private readonly string? sqlConnection;
+    internal string SqlTestConnection => sqlConnection ?? throw new InvalidOperationException("SQL Server fixture required.");
+    private readonly IClubMailSender? mailSender;
+    private readonly string? ownedDatabase;
+    private bool configured;
     public const string Password = "TestPassword123!";
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     private readonly string directory = Path.Combine(Path.GetTempPath(), "horseclub-tests", Guid.NewGuid().ToString("N"));
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        configured = true;
+        // Keep startup failures observable without depending on Windows Event Log permissions.
+        builder.ConfigureLogging(logging => logging.ClearProviders().AddConsole());
         Directory.CreateDirectory(directory);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -31,7 +68,38 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
             ["DataProtection:Path"] = Path.Combine(directory, "keys"), ["Storage:Path"] = Path.Combine(directory, "uploads"),
             ["Workers:Enabled"] = "false", ["Bootstrap:ManagerEmail"] = "manager@example.test", ["Bootstrap:ManagerPassword"] = Password,
             ["Business:TimeZoneId"] = "UTC"
-        }).AddInMemoryCollection(extraSettings));
+        }).AddInMemoryCollection(extraSettings).AddInMemoryCollection(sqlConnection is null ? [] : new Dictionary<string, string?>
+        {
+            ["Database:Provider"] = "SqlServer",
+            ["ConnectionStrings:SqlServer"] = sqlConnection
+        }));
+        if (sqlConnection is not null)
+        {
+            // Minimal hosting can choose the provider before the factory's configuration callback.
+            // Replace the registrations explicitly so a SQL Server run cannot silently use SQLite.
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<ClubDbContext>();
+                services.RemoveAll<SqliteClubDbContext>();
+                services.RemoveAll<DbContextOptions<SqliteClubDbContext>>();
+                services.RemoveAll<SqlServerClubDbContext>();
+                services.RemoveAll<DbContextOptions<SqlServerClubDbContext>>();
+                services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(sqlConnection));
+                services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
+            });
+        }
+        if (mailSender is not null)
+            builder.ConfigureTestServices(services => { services.RemoveAll<IClubMailSender>(); services.AddSingleton(mailSender); });
+    }
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        if (!configured || ownedDatabase is null || sqlConnection is null) return;
+        var target = new SqlConnectionStringBuilder(sqlConnection);
+        if (target.InitialCatalog != ownedDatabase || !System.Text.RegularExpressions.Regex.IsMatch(ownedDatabase, "^HRCMS_Test_[a-f0-9]{32}$"))
+            throw new InvalidOperationException("Refusing to delete a database not owned by this fixture.");
+        await using var db = new SqlServerClubDbContext(new DbContextOptionsBuilder<SqlServerClubDbContext>().UseSqlServer(sqlConnection).Options);
+        await db.Database.EnsureDeletedAsync();
     }
     public async Task<User> User(Role role, string? email = null)
     {

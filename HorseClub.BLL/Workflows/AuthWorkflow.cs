@@ -14,18 +14,18 @@ namespace HorseClub.BLL.Workflows;
 
 public static class AuthWorkflow
 {
-    public static async Task<object> PostRegister(RegisterRequest r, AuthenticationService service)
+    public static async Task<IResult> PostRegister(RegisterRequest r, AuthenticationService service)
     { return Results.Created("/api/auth/me", AuthenticationService.View(await service.Register(r))); }
 
-    public static async Task<object> PostLogin(LoginRequest r, AuthenticationService service, HttpContext context)
+    public static async Task<IResult> PostLogin(LoginRequest r, AuthenticationService service, HttpContext context)
     {
             var user = await service.Login(r);
             context.Items["commit-auth-attempt"] = true;
-            return user is null ? Results.Json(new { error = "invalid_credentials" }, statusCode: 401)
+            return user is null ? Results.Json(new LoginErrorResponse("invalid_credentials"), statusCode: 401)
                 : Results.SignIn(AuthenticationService.Principal(user), authenticationScheme: IdentityConstants.BearerScheme);
         }
 
-    public static async Task<object> PostRefresh(RefreshRequest r, IOptionsMonitor<BearerTokenOptions> options, ClubDbContext db, TimeProvider clock)
+    public static async Task<IResult> PostRefresh(RefreshRequest r, IOptionsMonitor<BearerTokenOptions> options, ClubDbContext db, TimeProvider clock)
     {
             var ticket = options.Get(IdentityConstants.BearerScheme).RefreshTokenProtector.Unprotect(r.RefreshToken);
             if (ticket?.Properties.ExpiresUtc <= clock.GetUtcNow() || ticket is null || !Guid.TryParse(ticket.Principal.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
@@ -35,55 +35,55 @@ public static class AuthWorkflow
             return Results.SignIn(AuthenticationService.Principal(user), authenticationScheme: IdentityConstants.BearerScheme);
         }
 
-    public static async Task<object> PostVerifyEmail(VerifyRequest r, AuthenticationService s, ClubDbContext db)
+    public static async Task<IResult> PostVerifyEmail(VerifyRequest r, AuthenticationService s, ClubDbContext db)
     {
             var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
             var ok = u is { Active: true, EmailVerified: false, Role: Role.HorseOwner } && await s.Consume(u, ChallengePurpose.Verify, r.Code);
             if (ok) u!.EmailVerified = true;
             await db.SaveChangesAsync();
-            return Results.Ok(new { verified = ok });
+            return Results.Ok(new VerificationResponse(ok));
         }
 
-    public static async Task<object> PostResendVerification(EmailRequest r, AuthenticationService s, ClubDbContext db)
+    public static async Task<IResult> PostResendVerification(EmailRequest r, AuthenticationService s, ClubDbContext db)
     {
             var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
             if (u is { Active: true, EmailVerified: false, Role: Role.HorseOwner }) await s.Challenge(u, ChallengePurpose.Verify);
-            await db.SaveChangesAsync(); return Results.Ok(new { message = Messages.Get(MessageKey.IfEligibleACodeWillBeEmailed) });
+            await db.SaveChangesAsync(); return Results.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleACodeWillBeEmailed)));
         }
 
-    public static async Task<object> PostForgotPassword(EmailRequest r, AuthenticationService s, ClubDbContext db)
+    public static async Task<IResult> PostForgotPassword(EmailRequest r, AuthenticationService s, ClubDbContext db)
     {
             var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
             if (u is { Active: true, EmailVerified: true }) await s.Challenge(u, ChallengePurpose.Reset);
-            await db.SaveChangesAsync(); return Results.Ok(new { message = Messages.Get(MessageKey.IfEligibleAResetCodeWillBeEmailed) });
+            await db.SaveChangesAsync(); return Results.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleAResetCodeWillBeEmailed)));
         }
 
-    public static async Task<object> GetMe(CurrentUser current)
+    public static async Task<UserResponse> GetMe(CurrentUser current)
     { return AuthenticationService.View(await current.Get()); }
 
-    public static async Task<object> PostLogout(CurrentUser current, ClubDbContext db)
+    public static async Task<IResult> PostLogout(CurrentUser current, ClubDbContext db)
     {
             (await current.Get()).SecurityStamp = Guid.NewGuid().ToString();
             await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> GetList(CurrentUser current, ClubDbContext db, int? page, int? pageSize, Role? role, PageReader pager)
+    public static async Task<PageResponse<StaffResponse>> GetList(CurrentUser current, ClubDbContext db, int? page, int? pageSize, Role? role, PageReader pager)
     {
             Ensure.Role(await current.Get(), Role.ClubManager);
             var q = db.Users.Where(x => x.Role != Role.HorseOwner);
             if (role.HasValue) q = q.Where(x => x.Role == role.Value);
-            return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new { x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified }), page, pageSize);
+            return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new StaffResponse(x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified)), page, pageSize);
         }
 
-    public static async Task<object> GetDirectory(CurrentUser current, ClubDbContext db, Role? role, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<StaffDirectoryResponse>> GetDirectory(CurrentUser current, ClubDbContext db, Role? role, int? page, int? pageSize, PageReader pager)
     {
             await current.Get();
             var q = db.Users.Where(x => x.Active && x.Role != Role.HorseOwner && x.Role != Role.ClubManager);
             if (role.HasValue) q = q.Where(x => x.Role == role);
-            return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new { x.Id, x.FirstName, x.LastName, x.Role }), page, pageSize);
+            return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new StaffDirectoryResponse(x.Id, x.FirstName, x.LastName, x.Role)), page, pageSize);
         }
 
-    public static async Task<object> PostList(StaffRequest r, CurrentUser current, AuthenticationService s, ClubEvents events, ClubDbContext db)
+    public static async Task<IResult> PostList(StaffRequest r, CurrentUser current, AuthenticationService s, ClubEvents events, ClubDbContext db)
     {
             Ensure.Role(await current.Get(), Role.ClubManager);
             var u = await s.CreateStaff(r);
@@ -92,7 +92,7 @@ public static class AuthWorkflow
             return Results.Created($"/api/staff/{u.Id}", AuthenticationService.View(u));
         }
 
-    public static async Task<object> PutByIdActive(Guid id, ActiveRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<IResult> PutByIdActive(Guid id, ActiveRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.ClubManager);
             var u = Ensure.Found(await db.Users.FindAsync(id));
@@ -102,14 +102,14 @@ public static class AuthWorkflow
             await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> PostPassword(ResetRequest r, AuthenticationService s, ClubDbContext db, ChallengePurpose purpose)
+    public static async Task<IResult> PostPassword(ResetRequest r, AuthenticationService s, ClubDbContext db, ChallengePurpose purpose)
     {
             Ensure.That(r.Password == r.ConfirmPassword, Messages.Get(MessageKey.PasswordsDoNotMatch));
             s.ValidatePassword(r.Password);
             var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
             var ok = u is { Active: true } && (purpose != ChallengePurpose.Invite || !u.EmailVerified) && await s.Consume(u, purpose, r.Code);
             if (ok) s.SetPassword(u!, r.Password);
-            await db.SaveChangesAsync(); return Results.Ok(new { changed = ok });
+            await db.SaveChangesAsync(); return Results.Ok(new PasswordChangedResponse(ok));
         }
 
 }

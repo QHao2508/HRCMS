@@ -37,7 +37,7 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
         await events.Audit(AuditAction.RegistrationSubmitted, id);
         await db.SaveChangesAsync();
     }
-    public async Task<object> Review(Guid id, ReviewRequest request)
+    public async Task<RegistrationReviewResponse> Review(Guid id, ReviewRequest request)
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
         var r = await access.Registration(id);
@@ -49,7 +49,7 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
             r.Status = RegistrationStatus.RevisionRequired; r.ReviewReason = request.Reason;
             events.Notify(r.OwnerId, NotificationType.RegistrationRevision, MessageKey.YourHorseRegistrationRequiresRevision, id);
             await events.Audit(AuditAction.RegistrationRevisionRequested, id);
-            await db.SaveChangesAsync(); return new { registration = r, horseId = (Guid?)null };
+            await db.SaveChangesAsync(); return new RegistrationReviewResponse(r,(Guid?)null );
         }
         r.Status = RegistrationStatus.Approved; r.ReviewReason = null;
         var horse = new Horse { RegistrationId = id, OwnerId = r.OwnerId, Name = r.Name, Sire = r.Sire, Dam = r.Dam, DateOfBirth = r.DateOfBirth,
@@ -59,7 +59,7 @@ public sealed class HorseService(ClubDbContext db, CurrentUser current, ClubAcce
         db.Measurements.Add(new Measurement { HorseId = horse.Id, Date = r.MeasurementDate, HeightCm = r.HeightCm, WeightKg = r.WeightKg });
         events.Notify(r.OwnerId, NotificationType.RegistrationApproved, MessageKey.YourHorseRegistrationWasApproved, horse.Id);
         await events.Audit(AuditAction.RegistrationApproved, id);
-        await db.SaveChangesAsync(); return new { registration = r, horseId = (Guid?)horse.Id };
+        await db.SaveChangesAsync(); return new RegistrationReviewResponse(r,(Guid?)horse.Id );
     }
     public async Task<StaffAssignment> Assign(Guid horseId, AssignmentRequest r)
     {

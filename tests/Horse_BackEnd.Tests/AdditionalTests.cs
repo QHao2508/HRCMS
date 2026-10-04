@@ -81,7 +81,7 @@ public sealed class AdditionalTests
             .UseSqlServer("Server=localhost;Database=HorseClubSchemaTest;Trusted_Connection=True;TrustServerCertificate=True").Options);
         var script = db.Database.GenerateCreateScript();
         Assert.Contains("CREATE TABLE [Sessions]", script); Assert.Contains("CREATE TABLE [Restrictions]", script);
-        Assert.Single(db.Database.GetMigrations());
+        Assert.Equal(2, db.Database.GetMigrations().Count());
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

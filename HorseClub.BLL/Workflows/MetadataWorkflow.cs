@@ -5,7 +5,7 @@ namespace HorseClub.BLL.Workflows;
 
 public static class MetadataWorkflow
 {
-    public static async Task<object> GetMetadataEnums(CurrentUser current)
+    public static async Task<Dictionary<string, string[]>> GetMetadataEnums(CurrentUser current)
     {
             await current.Get();
             return typeof(Role).Assembly.GetTypes()

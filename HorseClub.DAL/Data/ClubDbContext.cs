@@ -57,6 +57,9 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
         b.Entity<MedicalRestriction>().HasIndex(x => new { x.HorseId, x.Cleared });
         b.Entity<Notification>().HasIndex(x => new { x.RecipientId, x.Read });
         b.Entity<EmailChallenge>().HasIndex(x => new { x.UserId, x.Purpose });
+        b.Entity<EmailMessage>().HasIndex(x => new { x.SentAt, x.DiscardedAt, x.NextAttemptAt });
+        b.Entity<EmailMessage>().HasOne<EmailChallenge>().WithMany().HasForeignKey(x => x.ChallengeId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Notification>().HasIndex(x => new { x.ReferenceId, x.Type });
         b.Entity<HorseRegistration>().HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Horse>().HasOne<HorseRegistration>().WithMany().HasForeignKey(x => x.RegistrationId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<Horse>().HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);

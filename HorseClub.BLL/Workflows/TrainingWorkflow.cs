@@ -10,49 +10,48 @@ namespace HorseClub.BLL.Workflows;
 
 public static class TrainingWorkflow
 {
-    public static async Task<object> GetTemplates(CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TrainingTemplate>> GetTemplates(CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { Ensure.Role(await current.Get(), Role.ClubManager, Role.HeadTrainer, Role.Trainer); return await pager.Page(db.Templates.Where(x => !x.Archived).OrderBy(x => x.Name), page, pageSize); }
 
-    public static async Task<object> PostTemplates(TemplateRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<IResult> PostTemplates(TemplateRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.HeadTrainer);
             var template = new TrainingTemplate(); Apply(template, r); db.Templates.Add(template);
             await events.Audit(AuditAction.TrainingTemplateCreated, template.Id); await db.SaveChangesAsync(); return Results.Created($"/api/training/templates/{template.Id}", template);
         }
 
-    public static async Task<object> PutTemplatesById(Guid id, TemplateRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<TrainingTemplate> PutTemplatesById(Guid id, TemplateRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.HeadTrainer); var template = Ensure.Found(await db.Templates.FindAsync(id));
             Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived)); Apply(template, r);
             await events.Audit(AuditAction.TrainingTemplateEdited, id); await db.SaveChangesAsync(); return template;
         }
 
-    public static async Task<object> PostTemplatesByIdArchive(Guid id, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<IResult> PostTemplatesByIdArchive(Guid id, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.HeadTrainer); (Ensure.Found(await db.Templates.FindAsync(id))).Archived = true;
             await events.Audit(AuditAction.TrainingTemplateArchived, id); await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> PostPlans(PlanRequest r, TrainingService service)
+    public static async Task<IResult> PostPlans(PlanRequest r, TrainingService service)
     { var p = await service.CreatePlan(r); return Results.Created($"/api/training/plans/{p.Id}", p); }
 
-    public static async Task<object> GetPlans(Guid? horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TrainingPlan>> GetPlans(Guid? horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var horses = (await access.Horses()).Select(x => x.Id); var q = db.Plans.Where(x => horses.Contains(x.HorseId));
             if (horseId.HasValue) { await access.Horse(horseId.Value); q = q.Where(x => x.HorseId == horseId); }
             return await pager.Page(q.OrderByDescending(x => x.CreatedAt), page, pageSize);
         }
 
-    public static async Task<object> GetPlansById(Guid id, ClubAccess access, ClubDbContext db, CurrentUser current)
+    public static async Task<PlanDetailResponse> GetPlansById(Guid id, ClubAccess access, ClubDbContext db, CurrentUser current)
     {
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId); var u = await current.Get();
             var sessions = db.Sessions.Where(x => x.PlanId == id);
             if (u.Role == Role.WorkRider) sessions = sessions.Where(x => x.RiderId == u.Id);
-            return new { plan = p, sessions = await sessions.OrderBy(x => x.ScheduledAt).Take(100).ToListAsync(),
-                restrictions = await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync() };
+            return new PlanDetailResponse(p, await sessions.OrderBy(x => x.ScheduledAt).Take(100).ToListAsync(), await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync());
         }
 
-    public static async Task<object> PutPlansById(Guid id, PlanRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, ClubCalendar calendar)
+    public static async Task<TrainingPlan> PutPlansById(Guid id, PlanRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, ClubCalendar calendar)
     {
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Trainer(p.HorseId);
             Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Get(MessageKey.PlanCannotBeEditedInThisState), 409, "invalid_state");
@@ -64,7 +63,7 @@ public static class TrainingWorkflow
             await events.TrainingHistory(p); await events.Audit(AuditAction.TrainingPlanEdited, id); await db.SaveChangesAsync(); return p;
         }
 
-    public static async Task<object> PutPlansByIdStatus(Guid id, PlanStatusRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<TrainingPlan> PutPlansByIdStatus(Guid id, PlanStatusRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
     {
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Trainer(p.HorseId);
             Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Get(MessageKey.CompletedArchivedPlansCannotBeReopened), 409, "invalid_state");
@@ -84,17 +83,17 @@ public static class TrainingWorkflow
             p.Status = r.Status; await events.TrainingHistory(p); await events.Audit(AuditAction.TrainingPlanStatus, id, r.Status.ToString()); await db.SaveChangesAsync(); return p;
         }
 
-    public static async Task<object> GetPlansByIdHistory(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TrainingRevision>> GetPlansByIdHistory(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.HeadTrainer, Role.Trainer, Role.Veterinarian);
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId);
             return await pager.Page(db.TrainingRevisions.Where(x => x.PlanId == id).OrderByDescending(x => x.CreatedAt), page, pageSize);
         }
 
-    public static async Task<object> PostPlansByIdSessions(Guid id, SessionRequest r, TrainingService service)
+    public static async Task<IResult> PostPlansByIdSessions(Guid id, SessionRequest r, TrainingService service)
     { var s = await service.CreateSession(id, r); return Results.Created($"/api/training/sessions/{s.Id}", s); }
 
-    public static async Task<object> GetSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TrainingSession>> GetSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var u = await current.Get(); var horses = (await access.Horses()).Select(x => x.Id);
             var q = db.Sessions.Where(x => horses.Contains(x.HorseId));
@@ -106,29 +105,29 @@ public static class TrainingWorkflow
             return await pager.Page(q.OrderBy(x => x.ScheduledAt), page, pageSize);
         }
 
-    public static async Task<object> GetSessionsById(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db)
+    public static async Task<SessionDetailResponse> GetSessionsById(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db)
     {
             var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
             Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-            return new { session = s, result = await db.Results.SingleOrDefaultAsync(x => x.SessionId == id), evaluation = await db.Evaluations.SingleOrDefaultAsync(x => x.SessionId == id) };
+            return new SessionDetailResponse(s, await db.Results.SingleOrDefaultAsync(x => x.SessionId == id), await db.Evaluations.SingleOrDefaultAsync(x => x.SessionId == id));
         }
 
-    public static async Task<object> PutSessionsById(Guid id, SessionRequest r, TrainingService service)
+    public static async Task<TrainingSession> PutSessionsById(Guid id, SessionRequest r, TrainingService service)
     { return await service.EditSession(id, r); }
 
-    public static async Task<object> PostSessionsByIdAssign(Guid id, RiderRequest r, ClubDbContext db, TrainingService service)
+    public static async Task<TrainingSession> PostSessionsByIdAssign(Guid id, RiderRequest r, ClubDbContext db, TrainingService service)
     {
             var s = Ensure.Found(await db.Sessions.FindAsync(id));
             return await service.EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId));
         }
 
-    public static async Task<object> PostSessionsByIdStart(Guid id, TrainingService service)
+    public static async Task<IResult> PostSessionsByIdStart(Guid id, TrainingService service)
     { await service.Start(id); return Results.NoContent(); }
 
-    public static async Task<object> PostSessionsByIdResults(Guid id, ResultRequest r, TrainingService service)
+    public static async Task<SessionResult> PostSessionsByIdResults(Guid id, ResultRequest r, TrainingService service)
     { return await service.SubmitResult(id, r); }
 
-    public static async Task<object> PostSessionsByIdSkip(Guid id, ReasonRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<IResult> PostSessionsByIdSkip(Guid id, ReasonRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             var s = Ensure.Found(await db.Sessions.FindAsync(id)); var u = await current.Get();
             if (u.Role == Role.WorkRider) { await access.Horse(s.HorseId); Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden"); }
@@ -139,7 +138,7 @@ public static class TrainingWorkflow
             await events.Audit(AuditAction.TrainingSessionSkipped, id); await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> PostSessionsByIdEvaluation(Guid id, EvaluationRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<TrainerEvaluation> PostSessionsByIdEvaluation(Guid id, EvaluationRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Trainer(s.HorseId);
             Ensure.That(s.Status is SessionStatus.Completed or SessionStatus.IssueReported, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");

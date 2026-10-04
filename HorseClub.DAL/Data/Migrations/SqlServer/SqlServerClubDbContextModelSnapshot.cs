@@ -224,7 +224,16 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<Guid?>("ChallengeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DiscardedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ExpiresAt")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("NextAttemptAt")
@@ -248,6 +257,10 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChallengeId");
+
+                    b.HasIndex("SentAt", "DiscardedAt", "NextAttemptAt");
 
                     b.ToTable("EmailMessages");
                 });
@@ -834,6 +847,8 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                     b.HasKey("Id");
 
                     b.HasIndex("RecipientId", "Read");
+
+                    b.HasIndex("ReferenceId", "Type");
 
                     b.ToTable("Notifications");
                 });
@@ -1542,6 +1557,14 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .HasForeignKey("HorseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Horse_BackEnd.Domain.EmailMessage", b =>
+                {
+                    b.HasOne("Horse_BackEnd.Domain.EmailChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("ChallengeId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Horse_BackEnd.Domain.Horse", b =>

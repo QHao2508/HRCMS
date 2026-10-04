@@ -52,6 +52,9 @@ public sealed class EmailMessage : Entity
     public DateTimeOffset? SentAt { get; set; }
     public int Attempts { get; set; }
     public DateTimeOffset? NextAttemptAt { get; set; }
+    public Guid? ChallengeId { get; set; }
+    public DateTimeOffset? ExpiresAt { get; set; }
+    public DateTimeOffset? DiscardedAt { get; set; }
 }
 
 public sealed class HorseRegistration : Entity

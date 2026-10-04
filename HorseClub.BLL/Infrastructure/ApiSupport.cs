@@ -1,4 +1,5 @@
 using HorseClub.BLL.Messaging;
+using Horse_BackEnd.Contracts;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Security.Claims;
@@ -35,6 +36,7 @@ public static class Ensure
             var p = property.GetValue(value);
             if (p is string s) That(s.Length <= 4000, Messages.Get(MessageKey.Exceeds4000Characters, property.Name));
             if (p is Enum e) That(Enum.IsDefined(e.GetType(), e), Messages.Get(MessageKey.Invalid, property.Name));
+            if (p?.GetType().Namespace == "Horse_BackEnd.Contracts") Validate(p);
         }
     }
 }
@@ -140,10 +142,10 @@ public sealed class WriteGate { public SemaphoreSlim Semaphore { get; } = new(1,
 
 public sealed class PageReader(IOptions<BusinessOptions> options)
 {
-    public async Task<object> Page<T>(IQueryable<T> q, int? page, int? pageSize)
+    public async Task<PageResponse<T>> Page<T>(IQueryable<T> q, int? page, int? pageSize)
     {
         var p = page ?? 1; var size = pageSize ?? options.Value.DefaultPageSize;
         Ensure.That(size >= 1 && size <= options.Value.MaxPageSize && p >= 1 && p <= int.MaxValue / size, Messages.Get(MessageKey.PageMustBePositiveAndPageSizeBetween1And, options.Value.MaxPageSize));
-        return new { items = await q.Skip((p - 1) * size).Take(size).ToListAsync(), page = p, pageSize = size, total = await q.CountAsync() };
+        return new PageResponse<T>(await q.Skip((p - 1) * size).Take(size).ToListAsync(), p, size, await q.CountAsync());
     }
 }

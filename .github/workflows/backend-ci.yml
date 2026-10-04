@@ -22,3 +22,49 @@ jobs:
         run: dotnet build HorseClub.slnx --configuration Release --no-restore
       - name: Integration tests
         run: dotnet test HorseClub.slnx --configuration Release --no-build --logger trx --results-directory TestResults
+      - name: Upload SQLite test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  sqlserver-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+          # Disposable CI container only; never use this credential for deployment.
+          MSSQL_SA_PASSWORD: HrcmsCiOnly_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'HrcmsCiOnly_2026!' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      HRCMS_TEST_SQLSERVER: 'Server=localhost,1433;User ID=sa;Password=HrcmsCiOnly_2026!;Encrypt=True;TrustServerCertificate=True'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore HorseClub.slnx
+      - name: Build
+        run: dotnet build HorseClub.slnx --configuration Release --no-restore
+      - name: SQL Server workflows and concurrency
+        run: dotnet test HorseClub.slnx --configuration Release --no-build --no-restore --logger trx --results-directory TestResults
+      - name: Upload SQL Server test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlserver-test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore

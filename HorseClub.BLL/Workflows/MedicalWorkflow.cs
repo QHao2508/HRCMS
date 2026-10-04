@@ -9,17 +9,16 @@ namespace HorseClub.BLL.Workflows;
 
 public static class MedicalWorkflow
 {
-    public static async Task<object> GetSummary(Guid horseId, ClubAccess access, ClubDbContext db, TimeProvider clock)
+    public static async Task<MedicalSummaryResponse> GetSummary(Guid horseId, ClubAccess access, ClubDbContext db, TimeProvider clock)
     {
             var horse = await access.Horse(horseId); var now = clock.GetUtcNow();
-            return new { horse.HealthStatus, restrictions = await db.Restrictions.Where(x => x.HorseId == horseId && !x.Cleared && x.ValidFrom <= now && (x.ValidUntil == null || x.ValidUntil >= now))
-                .Select(x => new { x.Id, x.MedicalRecordId, x.TrainingLock, x.BlockAllTraining, x.MaxIntensity, x.MaxDistanceMetres, x.NoSprint, x.ValidFrom, x.ValidUntil, x.Reason }).ToListAsync() };
+            return new MedicalSummaryResponse(horse.HealthStatus, await db.Restrictions.Where(x => x.HorseId == horseId && !x.Cleared && x.ValidFrom <= now && (x.ValidUntil == null || x.ValidUntil >= now)).Select(x => new RestrictionSummaryResponse(x.Id, x.MedicalRecordId, x.TrainingLock, x.BlockAllTraining, x.MaxIntensity, x.MaxDistanceMetres, x.NoSprint, x.ValidFrom, x.ValidUntil, x.Reason)).ToListAsync());
         }
 
-    public static async Task<object> GetRecords(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<MedicalRecord>> GetRecords(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { await access.MedicalDetails(horseId); return await pager.Page(db.MedicalRecords.Where(x => x.HorseId == horseId).OrderByDescending(x => x.ExaminationAt), page, pageSize); }
 
-    public static async Task<object> PostRecords(Guid horseId, MedicalRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock)
+    public static async Task<IResult> PostRecords(Guid horseId, MedicalRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock)
     {
             await access.Vet(horseId); ValidateExamination(r, clock);
             var record = Record(horseId, (await current.Get()).Id, r);
@@ -29,10 +28,10 @@ public static class MedicalWorkflow
             await db.SaveChangesAsync(); return Results.Created($"/api/horses/{horseId}/medical/records", record);
         }
 
-    public static async Task<object> GetInjuries(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<Injury>> GetInjuries(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { await access.MedicalDetails(horseId); return await pager.Page(db.Injuries.Where(x => x.HorseId == horseId).OrderByDescending(x => x.InjuryDate), page, pageSize); }
 
-    public static async Task<object> PutRecordsById(Guid horseId, Guid id, MedicalRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
+    public static async Task<MedicalRecord> PutRecordsById(Guid horseId, Guid id, MedicalRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
     {
             await access.Vet(horseId); ValidateExamination(r, clock);
             var previous = Ensure.Found(await db.MedicalRecords.SingleOrDefaultAsync(x => x.Id == id && x.HorseId == horseId));
@@ -44,7 +43,7 @@ public static class MedicalWorkflow
             await events.Audit(AuditAction.MedicalRecordCorrected, correction.Id); await db.SaveChangesAsync(); return correction;
         }
 
-    public static async Task<object> PostInjuries(Guid horseId, InjuryRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
+    public static async Task<Injury> PostInjuries(Guid horseId, InjuryRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
     {
             await access.Vet(horseId); await MedicalRecordFor(db, horseId, r.MedicalRecordId);
             Ensure.That(r.InjuryDate != default && r.InjuryDate <= calendar.Today(clock) && r.ReviewDate >= r.InjuryDate, Messages.Get(MessageKey.InvalidInjuryReviewDates));
@@ -53,10 +52,10 @@ public static class MedicalWorkflow
             await events.Audit(AuditAction.MedicalInjuryCreated, injury.Id); await db.SaveChangesAsync(); return injury;
         }
 
-    public static async Task<object> GetRestrictions(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<MedicalRestriction>> GetRestrictions(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { await access.Horse(horseId); return await pager.Page(db.Restrictions.Where(x => x.HorseId == horseId).OrderByDescending(x => x.CreatedAt), page, pageSize); }
 
-    public static async Task<object> PostRestrictions(Guid horseId, RestrictionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<MedicalRestriction> PostRestrictions(Guid horseId, RestrictionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
     {
             await access.Vet(horseId); await MedicalRecordFor(db, horseId, r.MedicalRecordId);
             Ensure.That(r.ValidFrom != default && (!r.ValidUntil.HasValue || r.ValidUntil >= r.ValidFrom), Messages.Get(MessageKey.InvalidRestrictionDates));
@@ -71,10 +70,10 @@ public static class MedicalWorkflow
             await events.Audit(AuditAction.MedicalRestrictionCreated, restriction.Id); await db.SaveChangesAsync(); return restriction;
         }
 
-    public static async Task<object> GetTreatments(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TreatmentPlan>> GetTreatments(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { await access.MedicalDetails(horseId); return await pager.Page(db.Treatments.Where(x => x.HorseId == horseId).OrderByDescending(x => x.CreatedAt), page, pageSize); }
 
-    public static async Task<object> PostTreatments(Guid horseId, TreatmentRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<TreatmentPlan> PostTreatments(Guid horseId, TreatmentRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
     {
             await access.Vet(horseId); await MedicalRecordFor(db, horseId, r.MedicalRecordId);
             Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate && r.FollowUpDate >= r.StartDate, Messages.Get(MessageKey.InvalidTreatmentDates));
@@ -84,10 +83,10 @@ public static class MedicalWorkflow
             db.Treatments.Add(treatment); await events.Audit(AuditAction.MedicalTreatmentCreated, treatment.Id); await db.SaveChangesAsync(); return treatment;
         }
 
-    public static async Task<object> GetFollowUps(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<MedicalFollowUp>> GetFollowUps(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { await access.MedicalDetails(horseId); return await pager.Page(db.FollowUps.Where(x => x.HorseId == horseId).OrderByDescending(x => x.CreatedAt), page, pageSize); }
 
-    public static async Task<object> PostFollowUps(Guid horseId, FollowUpRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock)
+    public static async Task<MedicalFollowUp> PostFollowUps(Guid horseId, FollowUpRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock)
     {
             await access.Vet(horseId); await MedicalRecordFor(db, horseId, r.PreviousRecordId);
             Ensure.Validate(r.Examination); ValidateExamination(r.Examination, clock);
@@ -108,17 +107,17 @@ public static class MedicalWorkflow
             await db.SaveChangesAsync(); return follow;
         }
 
-    public static async Task<object> GetPreventiveCare(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
-    { await access.Horse(horseId); return await pager.Page(db.PreventiveCare.Where(x => x.HorseId == horseId).OrderBy(x => x.DueDate).Select(x => new { x.Id, x.HorseId, x.Type, x.DueDate, x.CompletedDate }), page, pageSize); }
+    public static async Task<PageResponse<PreventiveCareSummaryResponse>> GetPreventiveCare(Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    { await access.Horse(horseId); return await pager.Page(db.PreventiveCare.Where(x => x.HorseId == horseId).OrderBy(x => x.DueDate).Select(x => new PreventiveCareSummaryResponse(x.Id, x.HorseId, x.Type, x.DueDate, x.CompletedDate)), page, pageSize); }
 
-    public static async Task<object> PostPreventiveCare(Guid horseId, PreventiveRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<PreventiveCare> PostPreventiveCare(Guid horseId, PreventiveRequest r, ClubAccess access, ClubDbContext db, ClubEvents events)
     {
             await access.Vet(horseId); Ensure.That(Enum.IsDefined(r.Type), Messages.Get(MessageKey.UnknownPreventiveCareType)); Ensure.That(r.DueDate != default, Messages.Get(MessageKey.DueDateIsRequired));
             var p = new PreventiveCare { HorseId = horseId, Type = r.Type, DueDate = r.DueDate, Notes = r.Notes }; db.PreventiveCare.Add(p);
             await events.Audit(AuditAction.MedicalPreventiveScheduled, p.Id); await db.SaveChangesAsync(); return p;
         }
 
-    public static async Task<object> PostPreventiveCareByIdComplete(Guid horseId, Guid id, PreventiveCompletionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
+    public static async Task<IResult> PostPreventiveCareByIdComplete(Guid horseId, Guid id, PreventiveCompletionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
     {
             await access.Vet(horseId); var p = Ensure.Found(await db.PreventiveCare.SingleOrDefaultAsync(x => x.Id == id && x.HorseId == horseId));
             Ensure.That(!p.CompletedDate.HasValue && r.CompletedDate != default && r.CompletedDate <= calendar.Today(clock), Messages.Get(MessageKey.InvalidCompletion));
