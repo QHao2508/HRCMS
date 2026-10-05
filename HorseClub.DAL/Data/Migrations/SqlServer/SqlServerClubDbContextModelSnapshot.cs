@@ -345,11 +345,10 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                     b.Property<DateOnly?>("BoardingEnd")
                         .HasColumnType("date");
 
-                    b.Property<DateOnly>("BoardingStart")
+                    b.Property<DateOnly?>("BoardingStart")
                         .HasColumnType("date");
 
                     b.Property<string>("Breed")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
@@ -357,35 +356,31 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .HasColumnType("bigint");
 
                     b.Property<string>("Dam")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<DateOnly>("DateOfBirth")
+                    b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
 
                     b.Property<string>("DeclaredHealth")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<int>("Gender")
+                    b.Property<int?>("Gender")
                         .HasColumnType("int");
 
                     b.Property<string>("HealthNotes")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
-                    b.Property<decimal>("HeightCm")
+                    b.Property<decimal?>("HeightCm")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
-                    b.Property<DateOnly>("MeasurementDate")
+                    b.Property<DateOnly?>("MeasurementDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
@@ -413,7 +408,6 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Sire")
-                        .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
@@ -424,7 +418,7 @@ namespace Horse_BackEnd.Data.Migrations.SqlServer
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
-                    b.Property<decimal>("WeightKg")
+                    b.Property<decimal?>("WeightKg")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 

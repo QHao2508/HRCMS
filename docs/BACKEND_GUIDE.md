@@ -1,5 +1,7 @@
 # Backend HorseClub
 
+**BE-003 — 05/10/2026:** intake đã hỗ trợ partial Draft nullable; Submit/Approval kiểm đủ dữ liệu và ảnh/chứng nhận; Manager edit giới hạn thông tin quản lý có audit. Cần áp migration PartialRegistrationDraft đúng provider trước chạy binary mới trên DB cũ. Suite mới nhất 73 ca: SQL Server 72 pass/1 skip, SQLite 60 pass/13 skip. Xem [hướng dẫn và lưu ý rollback BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md); các con số sau bước 6 bên dưới là kết quả lịch sử.
+
 Backend ASP.NET Core .NET 10 đã triển khai các API cho tài khoản, hồ sơ/phân công ngựa, huấn luyện, y tế, chăm sóc/chuồng, tồn kho, thông báo, audit và báo cáo. Đây là mã nguồn backend; chưa có frontend, kết nối SMTP thật hay triển khai production.
 
 ## Chạy local

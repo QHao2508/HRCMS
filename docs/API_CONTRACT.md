@@ -1,5 +1,9 @@
 # Bước 4 — Hợp đồng API backend
 
+**Cập nhật T02 — 05/10/2026:** xem [policy theo Word V1/V2 và gap code](T02_POLICY_BASELINE.md). API/OpenAPI dưới đây vẫn mô tả behavior hiện tại, không khẳng định các policy mới hoặc lựa chọn đang chờ đã được triển khai.
+
+**BE-003 — 05/10/2026:** POST/PUT registrations dùng RegistrationDraftRequest với field optional/nullable. Owner PUT thay thế Draft; Submit/Approval yêu cầu intake đầy đủ + HorsePhoto/Certificate. Manager chỉ sửa Name/RegistrationNumber/BoardingStart/BoardingEnd của PendingReview, null/omitted giữ field hiện tại; có before/after audit. Xem [contract và migration BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md). Snapshot OpenAPI/inventory current đã được xuất lại; không đổi số operations.
+
 Ngày hoàn thiện: 04/10/2026. Frontend được hoãn theo yêu cầu của người dùng; tài liệu này mô tả backend hiện có, chưa phải nghiệm thu giao diện.
 
 ## Kết quả

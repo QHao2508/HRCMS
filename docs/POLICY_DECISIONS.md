@@ -1,5 +1,7 @@
 # Bước 2 — Quy tắc nghiệp vụ cần xác nhận
 
+**Cập nhật T02 ngày 05/10/2026:** đã đọc đặc tả Word hợp nhất V1/V2 do Khoa cung cấp và chốt P01–P10 theo nguồn/quy ước core. Khoa đã xác nhận clearance theo vấn đề, partial Draft và archive đóng vận hành giữ history. Xem [policy hiện tại, nguồn, tiêu chí nghiệm thu và gap code](T02_POLICY_BASELINE.md). Phần P01–P10 bên dưới được giữ làm **lịch sử đề xuất ngày 04/10**, không phải policy hiện hành. Đặc biệt đề xuất “Manager chỉ yêu cầu revision” phải nhường cho V2: Manager được chỉnh thông tin quản lý cần thiết có ghi nhận thay đổi. T02 hoàn thành phần policy theo yêu cầu Khoa; chưa đổi code/schema hoặc xác nhận toàn nhóm/Club đã review.
+
 Ngày: 04/10/2026. Tất cả mục P01–P10 dưới đây đang **chờ xác nhận** từ yêu cầu/nhóm/người dùng. Việc đọc hoặc tạo tài liệu không được tính là đã đồng ý đổi behavior. Không thay đổi entity, schema hay workflow trong bước này.
 
 Người dùng cho phép hoãn đối chiếu frontend vì chưa hoàn thành. Backend tiếp tục với baseline hiện tại; không yêu cầu frontend hoặc quyết định toàn bộ P01–P10 trước khi làm kiểm thử SQL Server và sửa metadata contract. Lựa chọn này không đồng nghĩa chấp nhận các thay đổi policy đề xuất.

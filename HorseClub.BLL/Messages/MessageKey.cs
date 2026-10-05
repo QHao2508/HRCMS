@@ -154,4 +154,7 @@ public enum MessageKey
     ASessionWasSkipped = 150,
     OnlyResultsCanBeEvaluated = 151,
     EvaluationAlreadyExists = 152,
+    RegistrationMissingFields = 153,
+    ManagerMayOnlyEditAdministrativeRegistrationFields = 154,
+    HorseMeasurementsOutsideConfiguredLimits = 155,
 }

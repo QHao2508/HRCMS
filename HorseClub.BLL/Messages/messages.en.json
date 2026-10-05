@@ -150,5 +150,8 @@
   "Skipped": "\nSkipped: {0}",
   "ASessionWasSkipped": "A session was skipped.",
   "OnlyResultsCanBeEvaluated": "Only results can be evaluated.",
-  "EvaluationAlreadyExists": "Evaluation already exists."
+  "EvaluationAlreadyExists": "Evaluation already exists.",
+  "RegistrationMissingFields": "Complete the registration fields before submission or approval: {0}.",
+  "ManagerMayOnlyEditAdministrativeRegistrationFields": "Manager may only edit horse name, registration number and boarding dates during review. Request revision for other intake fields.",
+  "HorseMeasurementsOutsideConfiguredLimits": "Horse height or weight is outside the configured limits."
 }

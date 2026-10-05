@@ -1,6 +1,6 @@
 # SQL Server database
 
-[database.sql](database.sql) là script schema sinh từ migrations `InitialSqlServer` và `WorkerDeliveryReliability`: tạo bảng, khóa chính, khóa ngoại, indexes, các cột email expiry/discard và lịch sử migration. Script dùng `GO`, chạy được bằng SQL Server Management Studio (SSMS) hoặc `sqlcmd`.
+[database.sql](database.sql) là script schema sinh từ migrations `InitialSqlServer`, `WorkerDeliveryReliability` và `PartialRegistrationDraft`: tạo bảng, khóa chính, khóa ngoại, indexes, các cột email expiry/discard, nullable intake Draft và lịch sử migration. Script dùng `GO`, chạy được bằng SQL Server Management Studio (SSMS) hoặc `sqlcmd`. Xem [BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md) trước khi cập nhật hoặc rollback schema Draft.
 
 ## Chạy bằng SSMS
 

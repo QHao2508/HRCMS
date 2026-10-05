@@ -1,5 +1,9 @@
 # Bước 1 — Chuẩn bị và kiểm chứng môi trường HRCMS
 
+**BE-003 — 05/10/2026:** đã triển khai partial Draft nullable, validate submit/approval, giới hạn Manager edit với before/after audit và kiểm quyền official assignment. Có migration PartialRegistrationDraft hai provider, SQL/OpenAPI đã xuất lại. Release build 0 warning/error; suite 73 ca: SQL Server 72 pass/1 skip, SQLite 60 pass/13 skip. Xem [bàn giao BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md). Chờ reviewer BE01; không migrate DB cá nhân hoặc tự làm BE-004/BE-005.
+
+**T02 — 05/10/2026:** đã đọc đầy đủ nguồn Word hợp nhất V1/V2 và lập [policy, traceability và gap backend](T02_POLICY_BASELINE.md). P01–P10 có quyết định/quy ước core; Khoa xác nhận clearance theo vấn đề được chọn, partial Draft và archive đóng vận hành giữ history. T02 hoàn thành phần chốt policy, chờ reviewer nhóm; chưa thay đổi API/schema hoặc tự thực hiện task module khác. Các ghi chú “chưa có nguồn Word” và “toàn bộ policy chờ xác nhận” ở phần lịch sử dưới đây phản ánh ngày 04/10.
+
 Ngày thực hiện: 04/10/2026.
 
 ## SDK và Visual Studio

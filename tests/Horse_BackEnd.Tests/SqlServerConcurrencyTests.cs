@@ -154,7 +154,10 @@ public sealed class SqlServerConcurrencyTests
     private static async Task<HorseRegistration> PendingRegistration(ClubFactory f, User owner)
     {
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>(); var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var r = new HorseRegistration { OwnerId = owner.Id, Name = "Thunder", Sire = "Sire", Dam = "Dam", DateOfBirth = new DateOnly(2020, 1, 1), Breed = "Breed", HeightCm = 160, WeightKg = 500, MeasurementDate = today, BoardingStart = today, Status = RegistrationStatus.PendingReview };
-        db.Registrations.Add(r); await db.SaveChangesAsync(); return r;
+        var r = new HorseRegistration { OwnerId = owner.Id, Name = "Thunder", Sire = "Sire", Dam = "Dam", DateOfBirth = new DateOnly(2020, 1, 1), Gender = HorseGender.Male, Breed = "Breed", DeclaredHealth = "Monitoring declared", HeightCm = 160, WeightKg = 500, MeasurementDate = today, BoardingStart = today, Status = RegistrationStatus.PendingReview };
+        db.Registrations.Add(r);
+        foreach (var type in new[] { AttachmentType.HorsePhoto, AttachmentType.Certificate })
+            db.Attachments.Add(new Attachment { RegistrationId = r.Id, UploadedBy = owner.Id, Type = type, FileName = "test.png", StorageName = Guid.NewGuid().ToString("N"), ContentType = "image/png", Length = StorageRecoveryTests.Png.Length });
+        await db.SaveChangesAsync(); return r;
     }
 }

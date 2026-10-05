@@ -3,16 +3,19 @@ using System;
 using Horse_BackEnd.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Horse_BackEnd.Data.Migrations.Sqlite
+namespace HorseClub.DAL.Data.Migrations.Sqlite
 {
     [DbContext(typeof(SqliteClubDbContext))]
-    partial class SqliteClubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261005060501_PartialRegistrationDraft")]
+    partial class PartialRegistrationDraft
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");

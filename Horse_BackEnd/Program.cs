@@ -18,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi(options => options.AddOperationTransformer<ApiContractTransformer>());
 builder.Services.AddOptions<SecurityOptions>().BindConfiguration(SecurityOptions.Section).ValidateDataAnnotations().Validate(x => x.PasswordMaxLength >= x.PasswordMinLength && x.RefreshTokenMinutes >= x.AccessTokenMinutes).ValidateOnStart();
 builder.Services.AddOptions<StorageOptions>().BindConfiguration(StorageOptions.Section).ValidateDataAnnotations().ValidateOnStart();
-builder.Services.AddOptions<BusinessOptions>().BindConfiguration(BusinessOptions.Section).ValidateDataAnnotations().Validate(x => x.DefaultPageSize <= x.MaxPageSize && x.DefaultReportDays <= x.MaxReportDays && ClubCalendar.IsValidZone(x.TimeZoneId)).ValidateOnStart();
+builder.Services.AddOptions<BusinessOptions>().BindConfiguration(BusinessOptions.Section).ValidateDataAnnotations().Validate(x => x.DefaultPageSize <= x.MaxPageSize && x.DefaultReportDays <= x.MaxReportDays && x.MinHorseHeightCm <= x.MaxHorseHeightCm && x.MinHorseWeightKg <= x.MaxHorseWeightKg && ClubCalendar.IsValidZone(x.TimeZoneId)).ValidateOnStart();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.Section).ValidateDataAnnotations()
     .Validate(x => Enum.IsDefined(x.Mode))

@@ -1173,7 +1173,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegistrationRequest"
+                "$ref": "#/components/schemas/RegistrationDraftRequest"
               }
             }
           },
@@ -1492,7 +1492,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RegistrationRequest"
+                "$ref": "#/components/schemas/RegistrationDraftRequest"
               }
             }
           },
@@ -10648,7 +10648,8 @@
         "enum": [
           "Male",
           "Female",
-          "Gelding"
+          "Gelding",
+          null
         ]
       },
       "HorsePreferencesResponse": {
@@ -10691,23 +10692,45 @@
             "format": "uuid"
           },
           "name": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "sire": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "dam": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "dateOfBirth": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "gender": {
-            "$ref": "#/components/schemas/HorseGender"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HorseGender"
+              }
+            ]
           },
           "breed": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "registrationNumber": {
             "type": [
@@ -10718,6 +10741,7 @@
           "heightCm": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
@@ -10726,23 +10750,36 @@
           "weightKg": {
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
             "format": "double"
           },
           "measurementDate": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "declaredHealth": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "healthNotes": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "boardingStart": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "boardingEnd": {
@@ -12943,50 +12980,53 @@
         },
         "additionalProperties": false
       },
-      "RegistrationRequest": {
-        "required": [
-          "name",
-          "sire",
-          "dam",
-          "dateOfBirth",
-          "gender",
-          "breed",
-          "registrationNumber",
-          "heightCm",
-          "weightKg",
-          "measurementDate",
-          "declaredHealth",
-          "healthNotes",
-          "boardingStart",
-          "boardingEnd",
-          "preferredHeadTrainerId",
-          "preferredGroomId",
-          "preferredVeterinarianId"
-        ],
+      "RegistrationDraftRequest": {
         "type": "object",
         "properties": {
           "name": {
             "maxLength": 200,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "sire": {
             "maxLength": 200,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "dam": {
             "maxLength": 200,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "dateOfBirth": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "gender": {
-            "$ref": "#/components/schemas/HorseGender"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HorseGender"
+              }
+            ]
           },
           "breed": {
             "maxLength": 100,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "registrationNumber": {
             "maxLength": 100,
@@ -12996,39 +13036,49 @@
             ]
           },
           "heightCm": {
-            "maximum": 300,
-            "minimum": 1,
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
             "format": "double"
           },
           "weightKg": {
-            "maximum": 2000,
-            "minimum": 1,
             "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
             "type": [
+              "null",
               "number",
               "string"
             ],
             "format": "double"
           },
           "measurementDate": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "declaredHealth": {
             "maxLength": 1000,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "healthNotes": {
             "maxLength": 2000,
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "boardingStart": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date"
           },
           "boardingEnd": {
