@@ -3143,6 +3143,30 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "sessionPage",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "sessionPageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
           }
         ],
         "responses": {
@@ -12694,7 +12718,10 @@
         "required": [
           "plan",
           "sessions",
-          "restrictions"
+          "restrictions",
+          "sessionPage",
+          "sessionPageSize",
+          "sessionTotal"
         ],
         "type": "object",
         "properties": {
@@ -12712,6 +12739,30 @@
             "items": {
               "$ref": "#/components/schemas/MedicalRestriction"
             }
+          },
+          "sessionPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sessionPageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sessionTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false

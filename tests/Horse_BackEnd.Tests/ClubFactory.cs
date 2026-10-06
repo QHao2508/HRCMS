@@ -73,10 +73,10 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
             ["Database:Provider"] = "SqlServer",
             ["ConnectionStrings:SqlServer"] = sqlConnection
         }));
-        if (sqlConnection is not null)
+        // Override the production provider explicitly for both test modes. Minimal hosting
+        // may register its DbContext before the test configuration callback is applied.
+        // Tests must never inherit a developer's SQL Server connection from User Secrets.
         {
-            // Minimal hosting can choose the provider before the factory's configuration callback.
-            // Replace the registrations explicitly so a SQL Server run cannot silently use SQLite.
             builder.ConfigureTestServices(services =>
             {
                 services.RemoveAll<ClubDbContext>();
@@ -84,8 +84,16 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
                 services.RemoveAll<DbContextOptions<SqliteClubDbContext>>();
                 services.RemoveAll<SqlServerClubDbContext>();
                 services.RemoveAll<DbContextOptions<SqlServerClubDbContext>>();
-                services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(sqlConnection));
-                services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
+                if (sqlConnection is not null)
+                {
+                    services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(sqlConnection));
+                    services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
+                }
+                else
+                {
+                    services.AddDbContext<SqliteClubDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(directory, "test.db")}"));
+                    services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqliteClubDbContext>());
+                }
             });
         }
         if (mailSender is not null)

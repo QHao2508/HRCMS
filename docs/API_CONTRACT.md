@@ -1,5 +1,7 @@
 # Bước 4 — Hợp đồng API backend
 
+**BE-004 — 05/10/2026:** Plan detail nhận sessionPage/sessionPageSize và trả metadata sessionTotal, không còn cap âm thầm 100; Rider chỉ đọc Plan có session giao mình. History thêm start/result/skip/evaluation; outcome snapshot có shape session/result/evaluation. Xem [contract BE-004](BE-004_TRAINING.md). OpenAPI/inventory current đã xuất lại, số operations giữ nguyên.
+
 **Cập nhật T02 — 05/10/2026:** xem [policy theo Word V1/V2 và gap code](T02_POLICY_BASELINE.md). API/OpenAPI dưới đây vẫn mô tả behavior hiện tại, không khẳng định các policy mới hoặc lựa chọn đang chờ đã được triển khai.
 
 **BE-003 — 05/10/2026:** POST/PUT registrations dùng RegistrationDraftRequest với field optional/nullable. Owner PUT thay thế Draft; Submit/Approval yêu cầu intake đầy đủ + HorsePhoto/Certificate. Manager chỉ sửa Name/RegistrationNumber/BoardingStart/BoardingEnd của PendingReview, null/omitted giữ field hiện tại; có before/after audit. Xem [contract và migration BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md). Snapshot OpenAPI/inventory current đã được xuất lại; không đổi số operations.

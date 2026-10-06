@@ -1,0 +1,70 @@
+# Set tokens/ids from your isolated demo environment; replace dates before running.
+@baseUrl = http://localhost:5299
+@headToken = REPLACE_WITH_HEADTRAINER_TOKEN
+@trainerToken = REPLACE_WITH_CURRENT_TRAINER_TOKEN
+@riderToken = REPLACE_WITH_ASSIGNED_RIDER_TOKEN
+@horseId = REPLACE_WITH_HORSE_ID
+@templateId = REPLACE_WITH_CREATED_TEMPLATE_ID
+@planId = REPLACE_WITH_CREATED_PLAN_ID
+@sessionId = REPLACE_WITH_CREATED_SESSION_ID
+@riderId = REPLACE_WITH_ACTIVE_RIDER_ID
+@startDate = 2026-10-05
+@endDate = 2026-10-12
+@scheduledAt = REPLACE_WITH_ISO8601_DATETIME_WITH_OFFSET
+
+### HeadTrainer creates a standard template.
+POST {{baseUrl}}/api/training/templates
+Authorization: Bearer {{headToken}}
+Content-Type: application/json
+
+{"name":"Endurance","goal":"Build stamina","phase":"Base","distanceMetres":1000,"intensity":"Light","surface":"Sand","frequencyPerWeek":3,"notes":"Standard reference"}
+
+### Assigned Trainer creates a personalized plan; template does not auto-generate sessions.
+POST {{baseUrl}}/api/training/plans
+Authorization: Bearer {{trainerToken}}
+Content-Type: application/json
+
+{"horseId":"{{horseId}}","templateId":"{{templateId}}","goal":"Individual stamina goal","phase":"Base","startDate":"{{startDate}}","endDate":"{{endDate}}","notes":"Individual plan"}
+
+### No Rider means Planned, not Assigned.
+POST {{baseUrl}}/api/training/plans/{{planId}}/sessions
+Authorization: Bearer {{trainerToken}}
+Content-Type: application/json
+
+{"scheduledAt":"{{scheduledAt}}","trainingType":"Trot","distanceMetres":1000,"intensity":"Light","surface":"Sand","target":"Steady effort","notes":"","riderId":null}
+
+### Assign active WorkRider; this rechecks the medical guard.
+POST {{baseUrl}}/api/training/sessions/{{sessionId}}/assign
+Authorization: Bearer {{trainerToken}}
+Content-Type: application/json
+
+{"riderId":"{{riderId}}"}
+
+### Start only within the configured early window and with valid Plan/medical state.
+POST {{baseUrl}}/api/training/sessions/{{sessionId}}/start
+Authorization: Bearer {{riderToken}}
+Content-Type: application/json
+
+{}
+
+### Server computes speed in metres/second; duplicate result returns conflict.
+POST {{baseUrl}}/api/training/sessions/{{sessionId}}/results
+Authorization: Bearer {{riderToken}}
+Content-Type: application/json
+
+{"distanceMetres":1000,"timeSeconds":90,"heartRate":120,"intensity":"Light","feedback":"Completed steadily","abnormalObservation":false}
+
+### Evaluation records intent; adjustFutureSessions=true does not auto-edit the calendar.
+POST {{baseUrl}}/api/training/sessions/{{sessionId}}/evaluation
+Authorization: Bearer {{trainerToken}}
+Content-Type: application/json
+
+{"comment":"Reduce future workload","adjustFutureSessions":true}
+
+### Read explicit session page/size/total; use page 2 for more records.
+GET {{baseUrl}}/api/training/plans/{{planId}}?sessionPage=1&sessionPageSize=20
+Authorization: Bearer {{trainerToken}}
+
+### History includes create/edit/start/result/evaluation snapshots.
+GET {{baseUrl}}/api/training/plans/{{planId}}/history?page=1&pageSize=20
+Authorization: Bearer {{trainerToken}}
