@@ -194,7 +194,10 @@ public sealed record ReportCareResponse(
 public sealed record PlanDetailResponse(
     TrainingPlan Plan,
     List<TrainingSession> Sessions,
-    List<MedicalRestriction> Restrictions);
+    List<MedicalRestriction> Restrictions,
+    int SessionPage,
+    int SessionPageSize,
+    int SessionTotal);
 
 public sealed record SessionDetailResponse(
     TrainingSession Session,

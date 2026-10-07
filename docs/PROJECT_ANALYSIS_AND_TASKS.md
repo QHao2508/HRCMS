@@ -1,5 +1,7 @@
 # Phân tích HRCMS và danh sách công việc còn lại
 
+**Cập nhật T02 — 05/10/2026:** đã đọc nguồn Word hợp nhất V1/V2, chốt policy và gap triển khai trong [T02_POLICY_BASELINE.md](T02_POLICY_BASELINE.md). Khoa đã xác nhận P02/P04/P06; T02 hoàn thành phần policy theo yêu cầu, chờ nhóm review. Không tự đánh dấu T01 hoặc task module phụ thuộc hoàn thành. Các câu chưa đọc Word/policy chưa đối chiếu trong phần phân tích lịch sử dưới đây không còn mô tả toàn bộ trạng thái hiện tại.
+
 Ngày rà soát: 04/10/2026. Cơ sở: mã nguồn tại checkout `main`, commit `f222964`, README, tài liệu trong docs, migration, cấu hình CI và mã kiểm thử.
 
 **Cập nhật bước 6:** đã bổ sung storage transaction cleanup, chống traversal/link, key encryption và công cụ backup/verify/restore SQLite; kiểm native SQL backup vào DB mới. Suite 61 ca: SQL Server 60 pass/1 skip, SQLite 48 pass/13 skip. Xem [STORAGE_AND_RECOVERY.md](STORAGE_AND_RECOVERY.md). T41 đã xử lý consistency/restore trong phạm vi này; orphan sau kill-process, retention và offsite backup vẫn còn. Các nhận định thiếu backup/tests bên dưới thuộc snapshot ban đầu. Bước tiếp theo là đối soát báo cáo/KPI, scope từng role và biên ngày/timezone của backend; frontend tiếp tục hoãn theo người dùng.

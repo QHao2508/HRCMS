@@ -1,5 +1,7 @@
 # Bước 2 — Bản đồ chức năng, màn hình và API hiện tại
 
+**Cập nhật nguồn Word — 05/10/2026:** đã đọc Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx để xử lý T02; kết luận nằm ở [T02_POLICY_BASELINE.md](T02_POLICY_BASELINE.md). Chưa có đối chiếu Figma/frontend đầy đủ; baseline dưới đây phản ánh ngày 04/10, không phải contract đã sửa theo toàn bộ policy mới.
+
 Ngày: 04/10/2026. Trạng thái: baseline từ code và OpenAPI; chưa nghiệm thu khớp Figma/Word/frontend. Không thay đổi API hoặc nghiệp vụ ở bước này.
 
 **Quyết định phạm vi của người dùng:** hoãn đối chiếu frontend vì bộ phận frontend chưa hoàn thành. C08 được hoãn tới giai đoạn tích hợp, không chặn công việc backend tiếp theo. Giữ behavior nghiệp vụ hiện có làm baseline kiểm thử; các thay đổi trong POLICY_DECISIONS vẫn là đề xuất riêng, chưa được chấp thuận bằng quyết định hoãn frontend.

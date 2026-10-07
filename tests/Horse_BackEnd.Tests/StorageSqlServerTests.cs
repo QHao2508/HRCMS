@@ -63,7 +63,7 @@ public sealed class StorageSqlServerTests
             await WorkerTests.Read(target, async db =>
             {
                 Assert.Equal(owner.Id, (await db.Registrations.FindAsync(registration.Id))!.OwnerId);
-                Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+                Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
             });
         }
         finally

@@ -13,10 +13,10 @@ public static class HorseEndpoints
     public static void MapHorses(this RouteGroupBuilder api)
     {
         var r = api.MapGroup("/registrations").WithTags("Horse intake").RequireAuthorization();
-        r.MapPost("", async (RegistrationRequest request, HorseService s) => await HorseWorkflow.PostList(request, s)).Produces<HorseRegistration>(201);
+        r.MapPost("", async (RegistrationDraftRequest request, HorseService s) => await HorseWorkflow.PostList(request, s)).Produces<HorseRegistration>(201);
         r.MapGet("", async (CurrentUser current, ClubDbContext db, RegistrationStatus? status, int? page, int? pageSize, PageReader pager) => await HorseWorkflow.GetList(current, db, status, page, pageSize, pager)).Produces<PageResponse<HorseRegistration>>(200);
         r.MapGet("/{id:guid}", async (Guid id, ClubAccess access) => await HorseWorkflow.GetById(id, access)).Produces<HorseRegistration>(200);
-        r.MapPut("/{id:guid}", async (Guid id, RegistrationRequest request, HorseService s) => await HorseWorkflow.PutById(id, request, s)).Produces<HorseRegistration>(200);
+        r.MapPut("/{id:guid}", async (Guid id, RegistrationDraftRequest request, HorseService s) => await HorseWorkflow.PutById(id, request, s)).Produces<HorseRegistration>(200);
         r.MapPost("/{id:guid}/submit", async (Guid id, HorseService s) => await HorseWorkflow.PostByIdSubmit(id, s)).Produces(204);
         r.MapPost("/{id:guid}/review", async (Guid id, ReviewRequest request, HorseService s) => await HorseWorkflow.PostByIdReview(id, request, s)).Produces<RegistrationReviewResponse>(200);
         r.MapPost("/{id:guid}/cancel", async (Guid id, ClubAccess access, CurrentUser current, ClubEvents events, ClubDbContext db) => await HorseWorkflow.PostByIdCancel(id, access, current, events, db)).Produces(204);

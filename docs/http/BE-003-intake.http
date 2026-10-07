@@ -1,0 +1,80 @@
+# Replace tokens/ids/dates with values from your isolated demo environment.
+# Run each step after reading the previous response; IDs are not automatically captured.
+@baseUrl = http://localhost:5299
+@ownerToken = REPLACE_WITH_OWNER_ACCESS_TOKEN
+@managerToken = REPLACE_WITH_MANAGER_ACCESS_TOKEN
+@headTrainerToken = REPLACE_WITH_ASSIGNED_HEADTRAINER_ACCESS_TOKEN
+@registrationId = REPLACE_WITH_DRAFT_ID
+@horseId = REPLACE_WITH_APPROVED_HORSE_ID
+@headTrainerId = REPLACE_WITH_ACTIVE_HEADTRAINER_ID
+@trainerId = REPLACE_WITH_ACTIVE_TRAINER_ID
+@clubDate = 2026-10-05
+
+### Owner saves a partial Draft. Response fields such as gender and heightCm are null.
+POST {{baseUrl}}/api/registrations
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{"name":"Demo Horse"}
+
+### Expected 400 before intake and required files are complete.
+POST {{baseUrl}}/api/registrations/{{registrationId}}/submit
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{}
+
+### Owner replaces the Draft with complete intake.
+PUT {{baseUrl}}/api/registrations/{{registrationId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{"name":"Demo Horse","sire":"Demo Sire","dam":"Demo Dam","dateOfBirth":"2020-01-01","gender":"Male","breed":"Thoroughbred","heightCm":160,"weightKg":500,"measurementDate":"{{clubDate}}","declaredHealth":"Monitoring declared","healthNotes":"","boardingStart":"{{clubDate}}","preferredHeadTrainerId":"{{headTrainerId}}"}
+
+### Upload HorsePhoto and Certificate using multipart first.
+# POST /api/registrations/{{registrationId}}/attachments
+# Form fields: type=HorsePhoto or Certificate; file=valid PNG/JPEG or certificate PDF.
+# See API_CONTRACT.md for multipart details; use two requests, one for each required type.
+
+### Submit/resubmit. Expected 204 with both files present.
+POST {{baseUrl}}/api/registrations/{{registrationId}}/submit
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{}
+
+### Manager requests revision. No Horse is created.
+POST {{baseUrl}}/api/registrations/{{registrationId}}/review
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"approve":false,"reason":"Confirm pedigree document"}
+
+### Repeat Owner PUT and submit above after correcting the intake.
+### Manager changes administrative fields only, with Before/After audit.
+PUT {{baseUrl}}/api/registrations/{{registrationId}}
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"registrationNumber":"DEMO-001"}
+
+### Approval returns horseId. Repeated approval must return 409.
+POST {{baseUrl}}/api/registrations/{{registrationId}}/review
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"approve":true}
+
+### Manager confirms official HeadTrainer. Preference alone did not assign them.
+POST {{baseUrl}}/api/horses/{{horseId}}/assignments
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{"staffId":"{{headTrainerId}}","role":"HeadTrainer","startDate":"{{clubDate}}","notes":"Official assignment"}
+
+### The assigned HeadTrainer chooses Trainer. Owner/Manager tokens must return 403 here.
+POST {{baseUrl}}/api/horses/{{horseId}}/assignments
+Authorization: Bearer {{headTrainerToken}}
+Content-Type: application/json
+
+{"staffId":"{{trainerId}}","role":"Trainer","startDate":"{{clubDate}}","notes":"Official training responsibility"}

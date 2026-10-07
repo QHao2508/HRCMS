@@ -18,7 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi(options => options.AddOperationTransformer<ApiContractTransformer>());
 builder.Services.AddOptions<SecurityOptions>().BindConfiguration(SecurityOptions.Section).ValidateDataAnnotations().Validate(x => x.PasswordMaxLength >= x.PasswordMinLength && x.RefreshTokenMinutes >= x.AccessTokenMinutes).ValidateOnStart();
 builder.Services.AddOptions<StorageOptions>().BindConfiguration(StorageOptions.Section).ValidateDataAnnotations().ValidateOnStart();
-builder.Services.AddOptions<BusinessOptions>().BindConfiguration(BusinessOptions.Section).ValidateDataAnnotations().Validate(x => x.DefaultPageSize <= x.MaxPageSize && x.DefaultReportDays <= x.MaxReportDays && ClubCalendar.IsValidZone(x.TimeZoneId)).ValidateOnStart();
+builder.Services.AddOptions<BusinessOptions>().BindConfiguration(BusinessOptions.Section).ValidateDataAnnotations().Validate(x => x.DefaultPageSize <= x.MaxPageSize && x.DefaultReportDays <= x.MaxReportDays && x.MinHorseHeightCm <= x.MaxHorseHeightCm && x.MinHorseWeightKg <= x.MaxHorseWeightKg && ClubCalendar.IsValidZone(x.TimeZoneId)).ValidateOnStart();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.Section).ValidateDataAnnotations()
     .Validate(x => Enum.IsDefined(x.Mode))
@@ -42,7 +42,7 @@ builder.Services.AddAuthentication(IdentityConstants.BearerScheme).AddBearerToke
 { o.BearerTokenExpiration = TimeSpan.FromMinutes(securityLimits.AccessTokenMinutes); o.RefreshTokenExpiration = TimeSpan.FromMinutes(securityLimits.RefreshTokenMinutes); });
 builder.Services.AddAuthorization();
 builder.AddClubKeyProtection();
-var provider = builder.Configuration.GetValue("Database:Provider", DatabaseProvider.Sqlite);
+var provider = builder.Configuration.GetValue("Database:Provider", DatabaseProvider.SqlServer);
 if (provider == DatabaseProvider.SqlServer)
 {
     builder.Services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer") ?? throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureConnectionStringsSqlServer))));
@@ -88,7 +88,15 @@ app.Use(async (context, next) => { context.Response.Headers.XContentTypeOptions 
 if (!app.Environment.IsDevelopment()) { app.UseHsts(); app.UseHttpsRedirection(); }
 app.UseCors(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
 app.UseMiddleware<TransactionMiddleware>();
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "HorseClub API v1");
+        options.RoutePrefix = "swagger";
+    });
+}
 app.MapGet("/health", async (ClubDbContext db) => await db.Database.CanConnectAsync() ? Results.Ok(new HealthResponse("healthy")) : Results.StatusCode(503)).Produces<HealthResponse>().Produces(503).WithTags("Health");
 var api = app.MapGroup("/api").AddEndpointFilter<ValidationFilter>();
 api.MapAuth(); api.MapHorses(); api.MapTraining(); api.MapMedical(); api.MapCare(); api.MapInventory(); api.MapAttachments(); api.MapReporting();

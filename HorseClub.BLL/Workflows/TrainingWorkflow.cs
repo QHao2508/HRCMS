@@ -36,19 +36,26 @@ public static class TrainingWorkflow
     public static async Task<IResult> PostPlans(PlanRequest r, TrainingService service)
     { var p = await service.CreatePlan(r); return Results.Created($"/api/training/plans/{p.Id}", p); }
 
-    public static async Task<PageResponse<TrainingPlan>> GetPlans(Guid? horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<TrainingPlan>> GetPlans(Guid? horseId, ClubAccess access, ClubDbContext db, CurrentUser current, int? page, int? pageSize, PageReader pager)
     {
             var horses = (await access.Horses()).Select(x => x.Id); var q = db.Plans.Where(x => horses.Contains(x.HorseId));
+            var user = await current.Get();
+            if (user.Role == Role.WorkRider) q = q.Where(x => db.Sessions.Any(s => s.PlanId == x.Id && s.RiderId == user.Id));
             if (horseId.HasValue) { await access.Horse(horseId.Value); q = q.Where(x => x.HorseId == horseId); }
             return await pager.Page(q.OrderByDescending(x => x.CreatedAt), page, pageSize);
         }
 
-    public static async Task<PlanDetailResponse> GetPlansById(Guid id, ClubAccess access, ClubDbContext db, CurrentUser current)
+    public static async Task<PlanDetailResponse> GetPlansById(Guid id, ClubAccess access, ClubDbContext db, CurrentUser current, int? sessionPage, int? sessionPageSize, PageReader pager)
     {
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId); var u = await current.Get();
             var sessions = db.Sessions.Where(x => x.PlanId == id);
-            if (u.Role == Role.WorkRider) sessions = sessions.Where(x => x.RiderId == u.Id);
-            return new PlanDetailResponse(p, await sessions.OrderBy(x => x.ScheduledAt).Take(100).ToListAsync(), await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync());
+            if (u.Role == Role.WorkRider)
+            {
+                sessions = sessions.Where(x => x.RiderId == u.Id);
+                Ensure.That(await sessions.AnyAsync(), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
+            }
+            var page = await pager.Page(sessions.OrderBy(x => x.ScheduledAt).ThenBy(x => x.Id), sessionPage, sessionPageSize);
+            return new PlanDetailResponse(p, page.Items, await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync(), page.Page, page.PageSize, page.Total);
         }
 
     public static async Task<TrainingPlan> PutPlansById(Guid id, PlanRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, ClubCalendar calendar)
@@ -87,7 +94,7 @@ public static class TrainingWorkflow
     {
             var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.HeadTrainer, Role.Trainer, Role.Veterinarian);
             var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId);
-            return await pager.Page(db.TrainingRevisions.Where(x => x.PlanId == id).OrderByDescending(x => x.CreatedAt), page, pageSize);
+            return await pager.Page(db.TrainingRevisions.Where(x => x.PlanId == id).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, pageSize);
         }
 
     public static async Task<IResult> PostPlansByIdSessions(Guid id, SessionRequest r, TrainingService service)
@@ -134,6 +141,7 @@ public static class TrainingWorkflow
             else await access.Trainer(s.HorseId);
             Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Get(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
             s.Status = SessionStatus.Skipped; s.Notes += Messages.Get(MessageKey.Skipped, r.Reason);
+            await events.TrainingHistory(Ensure.Found(await db.Plans.FindAsync(s.PlanId)), s);
             await events.HorseStaff(s.HorseId, NotificationType.SessionSkipped, MessageKey.ASessionWasSkipped, Role.Trainer);
             await events.Audit(AuditAction.TrainingSessionSkipped, id); await db.SaveChangesAsync(); return Results.NoContent();
         }
@@ -143,8 +151,12 @@ public static class TrainingWorkflow
             var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Trainer(s.HorseId);
             Ensure.That(s.Status is SessionStatus.Completed or SessionStatus.IssueReported, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
             Ensure.That(!await db.Evaluations.AnyAsync(x => x.SessionId == id), Messages.Get(MessageKey.EvaluationAlreadyExists), 409, "duplicate_evaluation");
+            var result = await db.Results.SingleOrDefaultAsync(x => x.SessionId == id);
+            Ensure.That(result is not null, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
             var e = new TrainerEvaluation { SessionId = id, TrainerId = (await current.Get()).Id, Comment = r.Comment, AdjustFutureSessions = r.AdjustFutureSessions };
-            db.Evaluations.Add(e); await events.Audit(AuditAction.TrainingEvaluated, id); await db.SaveChangesAsync(); return e;
+            db.Evaluations.Add(e);
+            await events.TrainingHistory(Ensure.Found(await db.Plans.FindAsync(s.PlanId)), s, result, e);
+            await events.Audit(AuditAction.TrainingEvaluated, id); await db.SaveChangesAsync(); return e;
         }
 
     public static void Apply(TrainingTemplate t, TemplateRequest r)

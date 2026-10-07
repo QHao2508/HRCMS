@@ -1,10 +1,14 @@
 # Backend HorseClub
 
+**BE-004 — 05/10/2026:** đã hoàn thiện Rider Plan scope, Plan session pagination, outcome history và precision speed theo cấu hình. Suite mới nhất 85 ca: SQL Server 84 pass/1 skip, SQLite 72 pass/13 skip. Không có migration mới ở BE-004; xem [hướng dẫn contract và demo](BE-004_TRAINING.md). Các kết quả trước BE-004 bên dưới là lịch sử.
+
+**BE-003 — 05/10/2026:** intake đã hỗ trợ partial Draft nullable; Submit/Approval kiểm đủ dữ liệu và ảnh/chứng nhận; Manager edit giới hạn thông tin quản lý có audit. Cần áp migration PartialRegistrationDraft đúng provider trước chạy binary mới trên DB cũ. Suite mới nhất 73 ca: SQL Server 72 pass/1 skip, SQLite 60 pass/13 skip. Xem [hướng dẫn và lưu ý rollback BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md); các con số sau bước 6 bên dưới là kết quả lịch sử.
+
 Backend ASP.NET Core .NET 10 đã triển khai các API cho tài khoản, hồ sơ/phân công ngựa, huấn luyện, y tế, chăm sóc/chuồng, tồn kho, thông báo, audit và báo cáo. Đây là mã nguồn backend; chưa có frontend, kết nối SMTP thật hay triển khai production.
 
 ## Chạy local
 
-Cần .NET SDK 10. SQLite local không cần cài database server. Chạy từ thư mục repository:
+Cần .NET SDK 10 và SQL Server. API mặc định dùng SqlServer. ConnectionStrings:SqlServer trong appsettings.json kết nối trực tiếp tới database hiện có HRCMS tại .\SQLEXPRESS bằng Windows Authentication (không chứa mật khẩu). Cả profile http/https chọn SqlServer, không ghi đè connection string. Nếu instance/database local khác, sửa appsettings.json. AutoMigrate=false ở cả cấu hình chung/Development: schema phải được chuẩn bị trước; startup không tự tạo/cập nhật schema. User Secrets/biến môi trường vẫn có thể ghi đè theo thứ tự cấu hình .NET; đã bỏ connection string và AutoMigrate đã thêm vào User Secrets trên máy Khoa. Khi triển khai, cấp kết nối phù hợp qua secrets/biến môi trường, không dùng database local test cho production. SQLite chỉ dùng khi cấu hình tường minh trong fixture/utility; không tự fallback khi kết nối SQL Server lỗi. Chạy từ thư mục repository:
 
 ```powershell
 dotnet restore HorseClub.slnx
@@ -14,7 +18,9 @@ dotnet test HorseClub.slnx --configuration Release
 dotnet run --project Horse_BackEnd --launch-profile http
 ```
 
-API local theo launch profile: `http://localhost:5299`. Health check: `/health`. OpenAPI trong Development: `/openapi/v1.json`. Không có Swagger UI trong bản này; import OpenAPI vào Postman hoặc dùng file `Horse_BackEnd.http`.
+API local theo launch profile: `http://localhost:5299`. Health check: `/health`. Trong Development, OpenAPI ở `/openapi/v1.json`, Swagger UI ở `/swagger`. UI dùng tài liệu OpenAPI hiện có, không sinh contract riêng.
+
+Chạy `dotnet run --project Horse_BackEnd --launch-profile http`, rồi mở `http://localhost:5299/swagger`. Trong Authentication, mở POST `/api/auth/login` → Try it out → nhập email/password tài khoản demo → Execute. Copy `accessToken` trong response, bấm Authorize, dán token nguyên bản (không thêm `Bearer`), rồi Authorize → Close. Gọi GET `/api/auth/me` để kiểm tra role trước khi thử API BE02. Đổi role bằng Logout trong hộp Authorize rồi đăng nhập và dán token người tiếp theo. Swagger không lưu token qua lần tải lại trang; chỉ bật trong Development. Upload dùng Try it out, chọn type và file. Request thử vẫn ghi vào database đang kết nối, nên dùng môi trường demo riêng.
 
 Development tự áp dụng migration. Database, upload, key và email local nằm dưới `Horse_BackEnd/App_Data`, đã bị Git ignore. Không xóa thư mục này nếu cần giữ dữ liệu/key; mất key khiến token và dữ liệu CCCD đã bảo vệ không đọc được.
 

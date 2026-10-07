@@ -78,7 +78,7 @@ public sealed class WorkerTests
             var row = (await db.EmailMessages.FindAsync(email.Id))!;
             Assert.Equal("code-secret", row.Body); Assert.Null(row.ChallengeId); Assert.Null(row.ExpiresAt); Assert.Null(row.DiscardedAt);
             Assert.NotEmpty(await db.Users.ToListAsync());
-            Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
         });
     }
 

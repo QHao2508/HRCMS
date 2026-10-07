@@ -86,6 +86,7 @@ public sealed class TrainingService(ClubDbContext db, CurrentUser current, ClubA
         Ensure.That(!await db.Sessions.AnyAsync(x => x.Status == SessionStatus.InProgress && (x.RiderId == u.Id || x.HorseId == s.HorseId)), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
         await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow());
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
+        await events.TrainingHistory(plan, s);
         await events.Audit(AuditAction.TrainingSessionStarted, id); await db.SaveChangesAsync();
     }
     public async Task<SessionResult> SubmitResult(Guid id, ResultRequest r)
@@ -103,7 +104,7 @@ public sealed class TrainingService(ClubDbContext db, CurrentUser current, ClubA
         catch (ApiException e) when (e.Code is "medical_block" or "medical_restriction") { medicalIssue = true; }
         var issue = r.AbnormalObservation || medicalIssue;
         var result = new SessionResult { SessionId = id, DistanceMetres = r.DistanceMetres, TimeSeconds = r.TimeSeconds,
-            SpeedMetresPerSecond = decimal.Round(r.DistanceMetres / r.TimeSeconds, 3), HeartRate = r.HeartRate,
+            SpeedMetresPerSecond = decimal.Round(r.DistanceMetres / r.TimeSeconds, options.Value.SpeedDecimalPlaces), HeartRate = r.HeartRate,
             Intensity = r.Intensity, Feedback = r.Feedback, AbnormalObservation = issue };
         db.Results.Add(result); s.Status = issue ? SessionStatus.IssueReported : SessionStatus.Completed;
         await events.HorseStaff(s.HorseId, NotificationType.SessionResult, MessageKey.ARiderSubmittedASessionResult, Role.Trainer);
@@ -112,6 +113,8 @@ public sealed class TrainingService(ClubDbContext db, CurrentUser current, ClubA
             db.Incidents.Add(new Incident { HorseId = s.HorseId, ReporterId = u.Id, SessionId = id, OccurredAt = clock.GetUtcNow(), Type = IncidentType.TrainingObservation, Description = r.Feedback, Severity = IncidentSeverity.NeedsReview, RoutedTo = Role.Veterinarian });
             await events.HorseStaff(s.HorseId, NotificationType.IncidentReported, MessageKey.ATrainingObservationRequiresReview, Role.Veterinarian, Role.Trainer);
         }
+        var plan = Ensure.Found(await db.Plans.FindAsync(s.PlanId));
+        await events.TrainingHistory(plan, s, result);
         await events.Audit(AuditAction.TrainingResultSubmitted, id); await db.SaveChangesAsync(); return result;
     }
 }

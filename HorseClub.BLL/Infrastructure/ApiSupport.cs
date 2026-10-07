@@ -114,9 +114,11 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
 
 public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
 {
-    public async Task TrainingHistory(TrainingPlan plan, TrainingSession? session = null)
+    public async Task TrainingHistory(TrainingPlan plan, TrainingSession? session = null, SessionResult? result = null, TrainerEvaluation? evaluation = null)
     {
-        var snapshot = JsonSerializer.Serialize<object>(session is null ? plan : session,
+        object state = result is not null && session is not null ? new SessionDetailResponse(session, result, evaluation)
+            : session is null ? plan : session;
+        var snapshot = JsonSerializer.Serialize(state,
             new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } });
         db.TrainingRevisions.Add(new TrainingRevision { PlanId = plan.Id, SessionId = session?.Id, ActorId = (await current.Get()).Id, Snapshot = snapshot });
     }

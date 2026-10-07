@@ -10,7 +10,7 @@ namespace HorseClub.BLL.Workflows;
 
 public static class HorseWorkflow
 {
-    public static async Task<IResult> PostList(RegistrationRequest request, HorseService s)
+    public static async Task<IResult> PostList(RegistrationDraftRequest request, HorseService s)
     { var record = await s.Create(request); return Results.Created($"/api/registrations/{record.Id}", record); }
 
     public static async Task<PageResponse<HorseRegistration>> GetList(CurrentUser current, ClubDbContext db, RegistrationStatus? status, int? page, int? pageSize, PageReader pager)
@@ -25,7 +25,7 @@ public static class HorseWorkflow
     public static async Task<HorseRegistration> GetById(Guid id, ClubAccess access)
     { return await access.Registration(id); }
 
-    public static async Task<HorseRegistration> PutById(Guid id, RegistrationRequest request, HorseService s)
+    public static async Task<HorseRegistration> PutById(Guid id, RegistrationDraftRequest request, HorseService s)
     { return await s.Edit(id, request); }
 
     public static async Task<IResult> PostByIdSubmit(Guid id, HorseService s)
