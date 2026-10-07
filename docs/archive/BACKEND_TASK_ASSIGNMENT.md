@@ -69,4 +69,5 @@ Chưa gán ngày cố định vì chưa có số người thực tế, thời gi
 
 Policy clearance toàn ngựa hay từng injury; thời lượng session và overlap lịch; future assignment; cancel/reject ngoài draft/revision; report export; SMTP/deployment target. Những thay đổi này chỉ đưa vào task triển khai khi nhóm xác nhận cần cho sản phẩm. 3D injury nâng cao và Flow 5 thi đấu không mặc định thuộc bảng này.
 
-Tài liệu liên quan: [API và cấu hình](../BACKEND_GUIDE.md), [ba layer/message](../THREE_LAYER_AND_MESSAGES.md), [SQL database](../DATABASE_SQL.md), [quy trình đóng góp](../../CONTRIBUTING.md).
+=======
+
