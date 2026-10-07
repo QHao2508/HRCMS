@@ -1239,3 +1239,208 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_TrainingRevisions_PlanId] ON [TrainingRevisions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_StockMovements_ItemId] ON [StockMovements];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_HorseId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_PlanId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_RiderId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Registrations_OwnerId] ON [Registrations];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Plans_HorseId] ON [Plans];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Measurements_HorseId] ON [Measurements];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Horses_OwnerId] ON [Horses];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_CareTasks_HorseId] ON [CareTasks];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_TrainingRevisions_PlanId_CreatedAt] ON [TrainingRevisions] ([PlanId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_StockMovements_ItemId_CreatedAt] ON [StockMovements] ([ItemId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_HorseId_Status_ScheduledAt] ON [Sessions] ([HorseId], [Status], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_PlanId_ScheduledAt] ON [Sessions] ([PlanId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_RiderId_Status_ScheduledAt] ON [Sessions] ([RiderId], [Status], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Registrations_OwnerId_Status_CreatedAt] ON [Registrations] ([OwnerId], [Status], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Plans_HorseId_Status] ON [Plans] ([HorseId], [Status]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Notifications_RecipientId_Read_CreatedAt] ON [Notifications] ([RecipientId], [Read], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Measurements_HorseId_Date] ON [Measurements] ([HorseId], [Date]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Horses_OwnerId_Archived] ON [Horses] ([OwnerId], [Archived]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_CareTasks_GroomId_ScheduledAt] ON [CareTasks] ([GroomId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_CareTasks_HorseId_ScheduledAt] ON [CareTasks] ([HorseId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Audit_ReferenceId_CreatedAt] ON [Audit] ([ReferenceId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Assignments_StaffId_Active_HorseId] ON [Assignments] ([StaffId], [Active], [HorseId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007115208_QueryPerformanceIndexes', N'10.0.12');
+END;
+
+COMMIT;
+GO
+

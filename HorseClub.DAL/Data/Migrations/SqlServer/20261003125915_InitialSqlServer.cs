@@ -1,9 +1,8 @@
-﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Horse_BackEnd.Data.Migrations.SqlServer
+namespace HorseClub.DAL.Data.Migrations.SqlServer
 {
     /// <inheritdoc />
     public partial class InitialSqlServer : Migration

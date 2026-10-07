@@ -26,7 +26,7 @@ Plan completion/skip/evaluation được kiểm thêm cùng các test đã có v
 
 ## Cấu trúc ba layer và cấu hình
 
-API TrainingEndpoints chỉ bind/query parameters, route/status và gọi TrainingWorkflow/TrainingService trong BLL. BLL xử lý quyền/state, EF queries, paging, history, tính speed và notification theo quy ước dự án. DAL giữ enum/entity/DbContext/migrations; không tham chiếu ngược BLL/API. Task này **không đổi DAL model và không thêm migration**.
+API TrainingEndpoints chỉ bind/query parameters, route/status và gọi TrainingPlanService/TrainingSessionService/TrainingSessionService trong BLL. BLL xử lý quyền/state, EF queries, paging, history, tính speed và notification theo quy ước dự án. DAL giữ enum/entity/DbContext/migrations; không tham chiếu ngược BLL/API. Task này **không đổi DAL model và không thêm migration**.
 
 Dùng Role, PlanStatus, SessionStatus, Intensity, TrainingType, AuditAction, NotificationType và catalog MessageKey hiện có. Không tạo literal message người dùng trong business code. SpeedDecimalPlaces mặc định 3, cấu hình 0–3 để phù hợp DAL decimal scale 3; phép tính decimal và midpoint rounding giữ behavior hiện tại. Page limits từ Business:DefaultPageSize/MaxPageSize, start window từ StartEarlyMinutes, schedule grace từ ScheduleGraceMinutes; không thêm ngưỡng riêng trong workflow.
 
@@ -46,9 +46,8 @@ Các route/status không đổi; OpenAPI current và inventory đã xuất lại
 
 Thêm **12 ca** trong TrainingTests (có role theory). Build Release **0 warning/error**. Toàn suite **85 ca**:
 
-- SQL Server Express: **84 pass, 1 SQLite-only skip, 0 fail**.
-- SQLite: **72 pass, 13 SQL-only skip, 0 fail**.
-- TRX: TestResults/BE004/sqlserver và TestResults/BE004/sqlite, Git ignored.
+- SQL Server Express: **84 pass, 1 provider-specific skip trong lần kiểm lịch sử, 0 fail**.
+- TRX: TestResults/BE004/sqlserver, Git ignored.
 - LayerAndMessageTests và OpenAPI contract tests chạy trong cùng suite; database SQL test tạo/dọn riêng, không đổi database cá nhân.
 
 ```powershell

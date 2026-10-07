@@ -1,7 +1,7 @@
 param(
-    [string]$InputPath = (Join-Path $PSScriptRoot 'contracts/openapi.baseline.json'),
-    [string]$OutputPath = (Join-Path $PSScriptRoot 'contracts/api-inventory.csv'),
-    [string]$SummaryPath = (Join-Path $PSScriptRoot 'contracts/openapi-audit.json')
+    [string]$InputPath = (Join-Path $PSScriptRoot 'contracts/openapi.current.json'),
+    [string]$OutputPath = (Join-Path $PSScriptRoot 'contracts/api-inventory.current.csv'),
+    [string]$SummaryPath = (Join-Path $PSScriptRoot 'contracts/openapi-audit.current.json')
 )
 
 $ErrorActionPreference = 'Stop'

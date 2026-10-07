@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text;
-using Horse_BackEnd.Domain;
+using HorseClub.DAL.Enums;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -44,28 +44,28 @@ public sealed class ApiContractTests
         var ids = new HashSet<string>();
         var operationCount = 0;
         foreach (var path in paths.EnumerateObject())
-        foreach (var operation in path.Value.EnumerateObject().Where(x => x.Name is "get" or "post" or "put" or "delete" or "patch"))
-        {
-            operationCount++;
-            Assert.True(ids.Add(operation.Value.GetProperty("operationId").GetString()!), path.Name);
-            var responses = operation.Value.GetProperty("responses");
-            var successes = responses.EnumerateObject().Where(x => x.Name.StartsWith('2')).ToList();
-            Assert.Single(successes);
-            var success = successes[0];
-            if (success.Name == "204") Assert.False(success.Value.TryGetProperty("content", out _));
-            else
+            foreach (var operation in path.Value.EnumerateObject().Where(x => x.Name is "get" or "post" or "put" or "delete" or "patch"))
             {
-                var content = success.Value.GetProperty("content");
-                Assert.NotEmpty(content.EnumerateObject());
-                foreach (var media in content.EnumerateObject())
-                    Assert.NotEmpty(media.Value.GetProperty("schema").EnumerateObject());
+                operationCount++;
+                Assert.True(ids.Add(operation.Value.GetProperty("operationId").GetString()!), path.Name);
+                var responses = operation.Value.GetProperty("responses");
+                var successes = responses.EnumerateObject().Where(x => x.Name.StartsWith('2')).ToList();
+                Assert.Single(successes);
+                var success = successes[0];
+                if (success.Name == "204") Assert.False(success.Value.TryGetProperty("content", out _));
+                else
+                {
+                    var content = success.Value.GetProperty("content");
+                    Assert.NotEmpty(content.EnumerateObject());
+                    foreach (var media in content.EnumerateObject())
+                        Assert.NotEmpty(media.Value.GetProperty("schema").EnumerateObject());
+                }
+                var anonymous = path.Name is "/health" or "/api/branding/logo" || path.Name.StartsWith("/api/auth/") && path.Name is not "/api/auth/me" and not "/api/auth/logout";
+                var secured = operation.Value.TryGetProperty("security", out var security) && security.GetArrayLength() > 0;
+                Assert.Equal(!anonymous, secured);
+                if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
             }
-            var anonymous = path.Name == "/health" || path.Name.StartsWith("/api/auth/") && path.Name is not "/api/auth/me" and not "/api/auth/logout";
-            var secured = operation.Value.TryGetProperty("security", out var security) && security.GetArrayLength() > 0;
-            Assert.Equal(!anonymous, secured);
-            if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
-        }
-        Assert.Equal(96, operationCount);
+        Assert.Equal(97, operationCount);
         Assert.Equal("bearer", root.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer").GetProperty("scheme").GetString());
         foreach (var path in new[] { "/api/registrations/{registrationId}/attachments", "/api/care/incidents/{incidentId}/photos" })
         {

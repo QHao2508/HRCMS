@@ -114,7 +114,7 @@ Historical read-only phải có quyền riêng: Owner và Manager xem phần v�
 
 **Chốt quy ước quyền tối thiểu:** Vet assigned xem/sửa clinical trong scope. Groom chỉ instructions task của mình, gồm Treatment và IceBath; medication liều dùng thực sự cần để thực thi là ngoại lệ theo task, không mở clinical record. Owner/HeadTrainer/Trainer/Rider/Manager nhận restriction vận hành và summary phù hợp, không treatment/ice-bath instructions có nội dung clinical. Restriction reason phải là hướng dẫn vận hành, không dùng làm chỗ chứa diagnosis. Không mở rộng bằng report, notification, incident hoặc download.
 
-**Gap:** CareWorkflow che Treatment nhưng chưa che IceBath cùng rule, và clinical flag hiện cho phép Manager xem instructions. Các đường list/detail/report/attachment cần kiểm field-level. Task: **T24**, phối hợp **T08/T16/T27/T28/T33**. Trường có reference tới medical record vẫn phải kiểm quyền trước đọc nội dung.
+**Gap:** CareService che Treatment nhưng chưa che IceBath cùng rule, và clinical flag hiện cho phép Manager xem instructions. Các đường list/detail/report/attachment cần kiểm field-level. Task: **T24**, phối hợp **T08/T16/T27/T28/T33**. Trường có reference tới medical record vẫn phải kiểm quyền trước đọc nội dung.
 
 ## P08 — Reassignment và lịch sử Rider
 

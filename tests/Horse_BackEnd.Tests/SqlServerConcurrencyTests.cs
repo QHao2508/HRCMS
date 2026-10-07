@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Data;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +18,7 @@ public sealed class SqlServerConcurrencyTests
     {
         await using var f = new ClubFactory(); using var first = await f.Client();
         var owner = await f.User(Role.HorseOwner); var reg = await PendingRegistration(f, owner);
-        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentGates(f, replica);
+        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentHosts(f, replica);
         var responses = await Task.WhenAll(first.PostAsJsonAsync($"/api/registrations/{reg.Id}/review", new { approve = true }), second.PostAsJsonAsync($"/api/registrations/{reg.Id}/review", new { approve = true }));
         AssertOneWinner(responses);
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
@@ -36,7 +36,7 @@ public sealed class SqlServerConcurrencyTests
         var horseA = await f.Horse(owner); var horseB = await f.Horse(owner);
         var stable = await ClubFactory.Post(first, "/api/care/stables", new NameRequest("Stable"));
         var stall = await ClubFactory.Post(first, "/api/care/stalls", new StallRequest(stable.GetProperty("id").GetGuid(), "A1")); var id = stall.GetProperty("id").GetGuid();
-        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentGates(f, replica);
+        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentHosts(f, replica);
         AssertOneWinner(await Task.WhenAll(first.PostAsJsonAsync($"/api/care/stalls/{id}/occupancy", new OccupancyRequest(horseA.Id)), second.PostAsJsonAsync($"/api/care/stalls/{id}/occupancy", new OccupancyRequest(horseB.Id))));
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
         Assert.Equal(1, await db.Occupancies.CountAsync(x => x.StallId == id && x.EndedAt == null));
@@ -49,7 +49,7 @@ public sealed class SqlServerConcurrencyTests
         await using var f = new ClubFactory(); using var first = await f.Client();
         var item = await ClubFactory.Post(first, "/api/inventory", new InventoryRequest("Feed", "Food", "kg", 5)); var id = item.GetProperty("id").GetGuid();
         await ClubFactory.Post(first, $"/api/inventory/{id}/movements", new MovementRequest(10, "Receipt"));
-        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentGates(f, replica);
+        await using var replica = f.Replica(); using var second = await replica.Client(); AssertIndependentHosts(f, replica);
         AssertOneWinner(await Task.WhenAll(first.PostAsJsonAsync($"/api/inventory/{id}/movements", new MovementRequest(-6, "Use")), second.PostAsJsonAsync($"/api/inventory/{id}/movements", new MovementRequest(-6, "Use"))));
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
         Assert.Equal(4m, (await db.Inventory.FindAsync(id))!.Stock);
@@ -62,7 +62,7 @@ public sealed class SqlServerConcurrencyTests
     {
         await using var f = new ClubFactory(); var owner = await f.User(Role.HorseOwner); var head = await f.User(Role.HeadTrainer);
         var original = await f.User(Role.Trainer); var a = await f.User(Role.Trainer); var b = await f.User(Role.Trainer); var horse = await f.Horse(owner, head, original);
-        using var first = await f.Client(head); await using var replica = f.Replica(); using var second = await replica.Client(head); AssertIndependentGates(f, replica);
+        using var first = await f.Client(head); await using var replica = f.Replica(); using var second = await replica.Client(head); AssertIndependentHosts(f, replica);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var responses = await Task.WhenAll(first.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", new AssignmentRequest(a.Id, Role.Trainer, today, "A"), ClubFactory.Json), second.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", new AssignmentRequest(b.Id, Role.Trainer, today, "B"), ClubFactory.Json));
         Assert.All(responses, r => Assert.True(r.IsSuccessStatusCode || r.StatusCode == HttpStatusCode.Conflict, r.StatusCode.ToString()));
@@ -79,7 +79,7 @@ public sealed class SqlServerConcurrencyTests
     public async Task SeparateHosts_RestrictionRacingStartHasSerializableOutcome()
     {
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f);
-        await using var replica = f.Replica(); using var vet = await replica.Client(await FindVet(f, s.HorseId)); AssertIndependentGates(f, replica);
+        await using var replica = f.Replica(); using var vet = await replica.Client(await FindVet(f, s.HorseId)); AssertIndependentHosts(f, replica);
         var restrictionTask = vet.PostAsJsonAsync($"/api/horses/{s.HorseId}/medical/restrictions", s.Restriction, ClubFactory.Json);
         var startTask = s.RiderClient.PostAsJsonAsync($"/api/training/sessions/{s.SessionId}/start", new { });
         await Task.WhenAll(restrictionTask, startTask);
@@ -136,12 +136,12 @@ public sealed class SqlServerConcurrencyTests
         Assert.Single(responses, r => r.IsSuccessStatusCode);
         Assert.Single(responses, r => r.StatusCode == HttpStatusCode.Conflict);
     }
-    private static void AssertIndependentGates(ClubFactory first, ClubFactory second)
+    private static void AssertIndependentHosts(ClubFactory first, ClubFactory second)
     {
-        Assert.NotSame(first.Services.GetRequiredService<WriteGate>(), second.Services.GetRequiredService<WriteGate>());
         using var firstScope = first.Services.CreateScope(); using var secondScope = second.Services.CreateScope();
         var firstDb = firstScope.ServiceProvider.GetRequiredService<ClubDbContext>();
         var secondDb = secondScope.ServiceProvider.GetRequiredService<ClubDbContext>();
+        Assert.NotSame(firstDb, secondDb);
         Assert.True(firstDb.Database.IsSqlServer()); Assert.True(secondDb.Database.IsSqlServer());
         Assert.Equal(firstDb.Database.GetDbConnection().Database, secondDb.Database.GetDbConnection().Database);
     }

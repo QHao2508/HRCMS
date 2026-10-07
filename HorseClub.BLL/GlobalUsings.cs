@@ -1,0 +1,11 @@
+global using HorseClub.BLL.Common;
+global using HorseClub.BLL.Auth;
+global using HorseClub.BLL.Horses;
+global using HorseClub.BLL.Training;
+global using HorseClub.BLL.Care;
+global using HorseClub.BLL.Medical;
+global using HorseClub.BLL.Inventory;
+global using HorseClub.BLL.Reporting;
+global using HorseClub.BLL.Attachments;
+global using HorseClub.BLL.Metadata;
+global using HorseClub.BLL.Workers;

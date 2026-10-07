@@ -3,14 +3,10 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -33,8 +29,11 @@ public sealed class StorageRecoveryTests
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development", ContentRootPath = root });
             builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["DataProtection:Path"] = Path.Combine(root, "host-keys"), ["DataProtection:KeyEncryption"] = plaintext ? "None" : "Certificate",
-                ["DataProtection:RequireEncryptedKeys"] = "true", ["DataProtection:CertificatePath"] = pfx, ["DataProtection:CertificatePassword"] = "test-only"
+                ["DataProtection:Path"] = Path.Combine(root, "host-keys"),
+                ["DataProtection:KeyEncryption"] = plaintext ? "None" : "Certificate",
+                ["DataProtection:RequireEncryptedKeys"] = "true",
+                ["DataProtection:CertificatePath"] = pfx,
+                ["DataProtection:CertificatePassword"] = "test-only"
             });
             builder.AddClubKeyProtection(); return builder.Build();
         }
@@ -98,22 +97,6 @@ public sealed class StorageRecoveryTests
     }
 
     [Fact]
-    public async Task RecoveryBundleDetectsCorruptionAndRejectsExistingRestoreDestination()
-    {
-        var root = NewTemporaryRoot(); var database = Path.Combine(root, "source.db"); var uploads = Path.Combine(root, "uploads"); var keys = Path.Combine(root, "keys");
-        Directory.CreateDirectory(uploads); Directory.CreateDirectory(keys); await File.WriteAllTextAsync(Path.Combine(keys, "sample.xml"), "test-key");
-        using (var connection = new SqliteConnection($"Data Source={database};Pooling=False"))
-        { connection.Open(); using var command = connection.CreateCommand(); command.CommandText = "CREATE TABLE Example(Id INTEGER PRIMARY KEY); INSERT INTO Example VALUES(1);"; command.ExecuteNonQuery(); }
-        var bundle = Path.Combine(root, "bundle"); SqliteRecoveryBundle.Create(database, uploads, keys, bundle);
-        var destination = Path.Combine(root, "restored"); SqliteRecoveryBundle.Restore(bundle, destination);
-        Assert.Throws<IOException>(() => SqliteRecoveryBundle.Restore(bundle, destination));
-        await File.AppendAllTextAsync(Path.Combine(bundle, "keys/sample.xml"), "corruption");
-        Assert.Throws<IOException>(() => SqliteRecoveryBundle.Verify(bundle));
-        Assert.Throws<IOException>(() => SqliteRecoveryBundle.Restore(bundle, Path.Combine(root, "rejected")));
-        Assert.False(Directory.Exists(Path.Combine(root, "rejected")));
-    }
-
-    [Fact]
     public async Task CertificateEncryptsPersistedKeysAndFreshProviderCanDecryptWithBackupKeyRing()
     {
         var root = NewTemporaryRoot(); using var rsa = RSA.Create(2048);
@@ -130,36 +113,6 @@ public sealed class StorageRecoveryTests
         Assert.Equal("000000000001", restored.CreateProtector("HorseClub.PersonalData.NationalId").Unprotect(secret));
         var withoutCertificate = DataProtectionProvider.Create(new DirectoryInfo(backupKeys), options => options.SetApplicationName("HorseClub"));
         Assert.ThrowsAny<CryptographicException>(() => withoutCertificate.CreateProtector("HorseClub.PersonalData.NationalId").Unprotect(secret));
-    }
-
-    [SqliteFact]
-    public async Task SQLiteBundleRestoresApiLoginUploadedBytesAndProtectedPersonalData()
-    {
-        // This drill is provider-specific; SQL Server has its own native backup/restore process.
-        var factory = new ClubFactory(); var root = NewTemporaryRoot();
-        var account = await ClubFactory.Post(factory.CreateClient(), "/api/auth/register", new RegisterRequest("restore@example.test", "restoreowner", "Restore", "Owner", "0900", "Here", ClubFactory.Password, ClubFactory.Password, "000000000001"));
-        var ownerId = account.GetProperty("id").GetGuid();
-        User? owner = null; string protectedId = "";
-        await WorkerTests.Read(factory, async db => { owner = (await db.Users.FindAsync(ownerId))!; owner.EmailVerified = true; protectedId = owner.NationalIdProtected!; await db.SaveChangesAsync(); });
-        using var client = await factory.Client(owner); var registration = await Registration(factory, owner!);
-        using var form = Upload(); var attachment = await client.PostAsync($"/api/registrations/{registration.Id}/attachments", form);
-        var attachmentId = (await attachment.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        var config = factory.Services.GetRequiredService<IConfiguration>();
-        var database = new SqliteConnectionStringBuilder(config.GetConnectionString("Sqlite")).DataSource;
-        var uploads = config["Storage:Path"]!; var keys = config["DataProtection:Path"]!;
-        await factory.DisposeAsync(); // Stop the host before capturing DB + uploads + keys.
-        var bundle = Path.Combine(root, "bundle"); SqliteRecoveryBundle.Create(database, uploads, keys, bundle);
-        var destination = Path.Combine(root, "restore"); SqliteRecoveryBundle.Restore(bundle, destination);
-        await using var restored = new ClubFactory(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:Sqlite"] = $"Data Source={Path.Combine(destination, "database.db")}",
-            ["Storage:Path"] = Path.Combine(destination, "uploads"), ["DataProtection:Path"] = Path.Combine(destination, "keys")
-        });
-        using var restoredClient = await restored.Client(owner);
-        var me = await restoredClient.GetFromJsonAsync<JsonElement>("/api/auth/me"); Assert.Equal(ownerId, me.GetProperty("id").GetGuid());
-        Assert.Equal(Png, await restoredClient.GetByteArrayAsync($"/api/registrations/{registration.Id}/attachments/{attachmentId}"));
-        var protector = restored.Services.GetRequiredService<IDataProtectionProvider>().CreateProtector("HorseClub.PersonalData.NationalId");
-        Assert.Equal("000000000001", protector.Unprotect(protectedId));
     }
 
     internal static string NewTemporaryRoot() { var path = Path.Combine(Path.GetTempPath(), "horseclub-recovery-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(path); return path; }

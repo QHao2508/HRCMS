@@ -1,32 +1,32 @@
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-
-using HorseClub.BLL.Workflows;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Entities;
 
 namespace Horse_BackEnd.Endpoints;
 
 public static class MedicalEndpoints
 {
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Medical với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="api">Giá trị kiểu RouteGroupBuilder dùng trong MapMedical.</param>
     public static void MapMedical(this RouteGroupBuilder api)
     {
         var m = api.MapGroup("/horses/{horseId:guid}/medical").WithTags("Medical").RequireAuthorization();
-        m.MapGet("/summary", async (Guid horseId, ClubAccess access, ClubDbContext db, TimeProvider clock) => await MedicalWorkflow.GetSummary(horseId, access, db, clock)).Produces<MedicalSummaryResponse>(200);
-        m.MapGet("/records", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetRecords(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<MedicalRecord>>(200);
-        m.MapPost("/records", async (Guid horseId, MedicalRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock) => await MedicalWorkflow.PostRecords(horseId, r, access, db, current, events, clock)).Produces<MedicalRecord>(201);
-        m.MapGet("/injuries", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetInjuries(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<Injury>>(200);
-        m.MapPut("/records/{id:guid}", async (Guid horseId, Guid id, MedicalRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock) => await MedicalWorkflow.PutRecordsById(horseId, id, r, access, current, db, events, clock)).Produces<MedicalRecord>(200);
-        m.MapPost("/injuries", async (Guid horseId, InjuryRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await MedicalWorkflow.PostInjuries(horseId, r, access, db, events, clock, calendar)).Produces<Injury>(200);
-        m.MapGet("/restrictions", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetRestrictions(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<MedicalRestriction>>(200);
-        m.MapPost("/restrictions", async (Guid horseId, RestrictionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events) => await MedicalWorkflow.PostRestrictions(horseId, r, access, db, events)).Produces<MedicalRestriction>(200);
-        m.MapGet("/treatments", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetTreatments(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<TreatmentPlan>>(200);
-        m.MapPost("/treatments", async (Guid horseId, TreatmentRequest r, ClubAccess access, ClubDbContext db, ClubEvents events) => await MedicalWorkflow.PostTreatments(horseId, r, access, db, events)).Produces<TreatmentPlan>(200);
-        m.MapGet("/follow-ups", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetFollowUps(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<MedicalFollowUp>>(200);
-        m.MapPost("/follow-ups", async (Guid horseId, FollowUpRequest r, ClubAccess access, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock) => await MedicalWorkflow.PostFollowUps(horseId, r, access, db, current, events, clock)).Produces<MedicalFollowUp>(200);
-        m.MapGet("/preventive-care", async (Guid horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await MedicalWorkflow.GetPreventiveCare(horseId, access, db, page, pageSize, pager)).Produces<PageResponse<PreventiveCareSummaryResponse>>(200);
-        m.MapPost("/preventive-care", async (Guid horseId, PreventiveRequest r, ClubAccess access, ClubDbContext db, ClubEvents events) => await MedicalWorkflow.PostPreventiveCare(horseId, r, access, db, events)).Produces<PreventiveCare>(200);
-        m.MapPost("/preventive-care/{id:guid}/complete", async (Guid horseId, Guid id, PreventiveCompletionRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await MedicalWorkflow.PostPreventiveCareByIdComplete(horseId, id, r, access, db, events, clock, calendar)).Produces(204);
+        m.MapGet("/summary", async (Guid horseId, MedicalService moduleService) => await moduleService.GetSummary(horseId)).Produces<MedicalSummaryResponse>(200);
+        m.MapGet("/records", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListExaminations(horseId, page, pageSize)).Produces<PageResponse<MedicalRecord>>(200);
+        m.MapPost("/records", async (Guid horseId, MedicalRequest r, MedicalService moduleService) => (await moduleService.CreateExamination(horseId, r)).ToHttpResult()).Produces<MedicalRecord>(201);
+        m.MapGet("/injuries", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListInjuries(horseId, page, pageSize)).Produces<PageResponse<Injury>>(200);
+        m.MapPut("/records/{id:guid}", async (Guid horseId, Guid id, MedicalRequest r, MedicalService moduleService) => await moduleService.CorrectExamination(horseId, id, r)).Produces<MedicalRecord>(200);
+        m.MapPost("/injuries", async (Guid horseId, InjuryRequest r, MedicalService moduleService) => await moduleService.RecordInjury(horseId, r)).Produces<Injury>(200);
+        m.MapGet("/restrictions", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListRestrictions(horseId, page, pageSize)).Produces<PageResponse<MedicalRestriction>>(200);
+        m.MapPost("/restrictions", async (Guid horseId, RestrictionRequest r, MedicalService moduleService) => await moduleService.CreateRestriction(horseId, r)).Produces<MedicalRestriction>(200);
+        m.MapGet("/treatments", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListTreatments(horseId, page, pageSize)).Produces<PageResponse<TreatmentPlan>>(200);
+        m.MapPost("/treatments", async (Guid horseId, TreatmentRequest r, MedicalService moduleService) => await moduleService.CreateTreatment(horseId, r)).Produces<TreatmentPlan>(200);
+        m.MapGet("/follow-ups", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListFollowUps(horseId, page, pageSize)).Produces<PageResponse<MedicalFollowUp>>(200);
+        m.MapPost("/follow-ups", async (Guid horseId, FollowUpRequest r, MedicalService moduleService) => await moduleService.RecordFollowUp(horseId, r)).Produces<MedicalFollowUp>(200);
+        m.MapGet("/preventive-care", async (Guid horseId, int? page, int? pageSize, MedicalService moduleService) => await moduleService.ListPreventiveCare(horseId, page, pageSize)).Produces<PageResponse<PreventiveCareSummaryResponse>>(200);
+        m.MapPost("/preventive-care", async (Guid horseId, PreventiveRequest r, MedicalService moduleService) => await moduleService.SchedulePreventiveCare(horseId, r)).Produces<PreventiveCare>(200);
+        m.MapPost("/preventive-care/{id:guid}/complete", async (Guid horseId, Guid id, PreventiveCompletionRequest r, MedicalService moduleService) => (await moduleService.CompletePreventiveCare(horseId, id, r)).ToHttpResult()).Produces(204);
     }
 
 }

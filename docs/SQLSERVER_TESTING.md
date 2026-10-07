@@ -1,51 +1,16 @@
-# Bước 3 — Workflow và concurrency trên SQL Server
+# Kiểm thử SQL Server
 
-Ngày kiểm chứng: 04/10/2026. Frontend được hoãn theo người dùng. Các tests dùng behavior hiện tại, không triển khai các policy đề xuất P01–P10.
-
-## Kết quả
-
-| Kiểm tra local | Kết quả |
-| --- | --- |
-| Release build | 0 lỗi, 0 cảnh báo |
-| SQLite regression | 27 pass, 7 SQL-only skip, 0 fail |
-| SQL Server Express `.\SQLEXPRESS` | 34 pass, 0 skip, 0 fail |
-| Tests mới | 13: 6 workflow/persistence dùng được cả hai provider, 7 SQL-only |
-
-21 trường hợp cũ được chạy lại trên SQL Server thật cùng 13 trường hợp mới. TRX cuối cùng:
-
-- `TestResults/step3/sqlite/Admin_DESKTOP-FMHCKTV_2026-10-04_13_09_46_net10.0.trx`.
-- `TestResults/step3/sqlserver/Admin_DESKTOP-FMHCKTV_2026-10-04_13_09_50_net10.0.trx`.
-
-TestResults bị Git ignore. CI đã thêm job SQL Server container và upload TRX của hai job; chưa chạy job mới trên GitHub trong phiên này, chưa commit/push.
-
-## Cách chạy lại
-
-Cần .NET 10 SDK và SQL Server riêng dùng cho test. Tài khoản test cần quyền tạo/drop database test.
+SQL Server là database duy nhất của runtime và tests. Cần .NET 10 SDK và SQL Server có quyền tạo/drop database test. Không có test database mặc định thay thế nếu thiếu kết nối.
 
 ```powershell
-dotnet build HorseClub.slnx --configuration Release
-
-# Mặc định: SQLite; các SQL-only tests báo skip.
-dotnet test HorseClub.slnx --configuration Release --no-build --no-restore --logger trx --results-directory TestResults/step3/sqlite
-
-# SQL Server: cả suite đổi provider, các SQL-only tests được bật.
 $env:HRCMS_TEST_SQLSERVER = 'Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
-try {
-    dotnet test HorseClub.slnx --configuration Release --no-build --no-restore --logger trx --results-directory TestResults/step3/sqlserver
-} finally {
-    Remove-Item Env:HRCMS_TEST_SQLSERVER
-}
+dotnet test HorseClub.slnx --configuration Release --logger trx --results-directory TestResults/sqlserver-only
+Remove-Item Env:HRCMS_TEST_SQLSERVER
 ```
 
-Không đặt connection string SQL authentication có mật khẩu thật vào file tracked. CI dùng credential chỉ cho container test dùng một lần, không phải secret triển khai.
+ClubFactory thay InitialCatalog bằng HRCMS_Test_<GUID>, tự migrate và chỉ drop database fixture sở hữu. Replica dùng cùng database nhưng không sở hữu cleanup. Tests không migrate/drop HRCMS hoặc database trong connection string đầu vào. Nếu tiến trình bị kill, kiểm tên database trước khi dọn thủ công.
 
-## Cách cô lập dữ liệu
-
-ClubFactory tạo tên database mới `HRCMS_Test_<GUID>` cho mỗi fixture. InitialCatalog trong connection string đầu vào bị thay bằng tên mới: tests không migrate hay delete database người dùng chỉ định. DisposeAsync kiểm tên database chính xác và pattern trước khi EnsureDeleted. Replica chia sẻ database/key của owner nhưng không sở hữu quyền cleanup; hai host có WriteGate độc lập. Nếu test process bị kill/crash trước cleanup, database test có thể còn lại; phải kiểm tên cụ thể trước khi dọn thủ công.
-
-Fixture SQL Server thay DI DbContext rõ ràng để không vô tình chạy SQLite khi Minimal API chọn provider trước callback test config. Replica tests kiểm cả hai context IsSqlServer, cùng tên database và gate khác nhau.
-
-Migrations được áp bằng startup của backend lên database mới. Không reset `HorseClub_IntegrationTest` của bước 1 hoặc database sử dụng thực tế. Keys/uploads/mail test không dùng dữ liệu cá nhân thật; workers bị tắt trong fixture.
+CI build Release và chạy toàn suite trên SQL Server 2022 container. Windows local dùng SQL Server Express. Kết quả kiểm hiện tại nằm trong [FRONTEND_READINESS.md](FRONTEND_READINESS.md); phần dưới mô tả phạm vi các test đã có và lịch sử sửa lỗi concurrency.
 
 ## Đã kiểm những gì?
 

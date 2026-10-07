@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Domain;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Enums;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -18,13 +18,16 @@ public sealed class WorkflowTests
         await ClubFactory.Post(anonymous, "/api/auth/register", registration);
         var loginBefore = await anonymous.PostAsJsonAsync("/api/auth/login", new { email, password = ClubFactory.Password }); Assert.Equal(HttpStatusCode.Unauthorized, loginBefore.StatusCode);
         var code = await f.Code(email, "Verify");
+        Assert.Matches("^[0-9]{6}$", code);
         var verify = await ClubFactory.Post(anonymous, "/api/auth/verify-email", new { email, code }); Assert.True(verify.GetProperty("verified").GetBoolean());
         var repeated = await ClubFactory.Post(anonymous, "/api/auth/verify-email", new { email, code }); Assert.False(repeated.GetProperty("verified").GetBoolean());
         var login = await ClubFactory.Post(anonymous, "/api/auth/login", new { email, password = ClubFactory.Password });
         anonymous.DefaultRequestHeaders.Authorization = new("Bearer", login.GetProperty("accessToken").GetString());
         await ClubFactory.Post(anonymous, "/api/auth/forgot-password", new { email });
         var resetCode = await f.Code(email, "Reset");
+        Assert.Matches("^[0-9]{6}$", resetCode);
         var reset = await ClubFactory.Post(anonymous, "/api/auth/reset-password", new { email, code = resetCode, password = "NewPassword123!", confirmPassword = "NewPassword123!" }); Assert.True(reset.GetProperty("changed").GetBoolean());
+        var resetAgain = await ClubFactory.Post(anonymous, "/api/auth/reset-password", new { email, code = resetCode, password = "NewPassword456!", confirmPassword = "NewPassword456!" }); Assert.False(resetAgain.GetProperty("changed").GetBoolean());
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/auth/me")).StatusCode);
     }
 
@@ -49,8 +52,20 @@ public sealed class WorkflowTests
         Assert.Equal(HttpStatusCode.Forbidden, (await owner.PostAsJsonAsync("/api/staff", staff, ClubFactory.Json)).StatusCode);
         await ClubFactory.Post(manager, "/api/staff", staff);
         var anonymous = f.CreateClient(); var code = await f.Code(staff.Email, "Invite");
+        Assert.Matches("^[0-9]{6}$", code);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/api/auth/login", new { email = staff.UserName, password = ClubFactory.Password })).StatusCode);
+        await WorkerTests.Read(f, async db =>
+        {
+            var message = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(db.EmailMessages, x => x.Recipient == staff.Email);
+            Assert.Contains("Tên đăng nhập: vet", message.Body);
+            Assert.DoesNotContain("http", message.Body);
+        });
         var accepted = await ClubFactory.Post(anonymous, "/api/auth/accept-invitation", new { email = staff.Email, code, password = ClubFactory.Password, confirmPassword = ClubFactory.Password });
         Assert.True(accepted.GetProperty("changed").GetBoolean());
+        var again = await ClubFactory.Post(anonymous, "/api/auth/accept-invitation", new { email = staff.Email, code, password = ClubFactory.Password, confirmPassword = ClubFactory.Password });
+        Assert.False(again.GetProperty("changed").GetBoolean());
+        var usernameLogin = await anonymous.PostAsJsonAsync("/api/auth/login", new { email = " VET ", password = ClubFactory.Password });
+        Assert.Equal(HttpStatusCode.OK, usernameLogin.StatusCode);
         var injected = await anonymous.PostAsJsonAsync("/api/auth/register", new { email = "bad@example.test", userName = "bad", firstName = "A", lastName = "B", phone = "0900", address = "Here", password = ClubFactory.Password, confirmPassword = ClubFactory.Password, role = "ClubManager" });
         Assert.Equal(HttpStatusCode.BadRequest, injected.StatusCode);
     }

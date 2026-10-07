@@ -1,9 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Infrastructure;
-using Horse_BackEnd.Services;
+using HorseClub.DAL.Data;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

@@ -39,3 +39,6 @@ github-setup-proof.png
 *.db-shm
 *.db-wal
 horseclub-sqlserver.sql
+
+# Preserved local work before synchronizing main
+merge-backup-20261007/

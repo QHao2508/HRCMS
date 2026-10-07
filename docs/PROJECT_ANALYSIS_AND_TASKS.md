@@ -1,16 +1,20 @@
+**Cấu trúc hiện tại — 07/10/2026:** xem [ARCHITECTURE.md](ARCHITECTURE.md) và [STRUCTURE_AND_PERFORMANCE.md](STRUCTURE_AND_PERFORMANCE.md). Phân tích rủi ro bên dưới có các ghi nhận lịch sử trước refactor.
+
 # Phân tích HRCMS và danh sách công việc còn lại
+
+Cập nhật 07/10/2026: database/runtime/tests dùng SQL Server duy nhất. Xem [báo cáo kiểm hiện tại](FRONTEND_READINESS.md) và [hướng dẫn test](SQLSERVER_TESTING.md).
 
 **Cập nhật T02 — 05/10/2026:** đã đọc nguồn Word hợp nhất V1/V2, chốt policy và gap triển khai trong [T02_POLICY_BASELINE.md](T02_POLICY_BASELINE.md). Khoa đã xác nhận P02/P04/P06; T02 hoàn thành phần policy theo yêu cầu, chờ nhóm review. Không tự đánh dấu T01 hoặc task module phụ thuộc hoàn thành. Các câu chưa đọc Word/policy chưa đối chiếu trong phần phân tích lịch sử dưới đây không còn mô tả toàn bộ trạng thái hiện tại.
 
 Ngày rà soát: 04/10/2026. Cơ sở: mã nguồn tại checkout `main`, commit `f222964`, README, tài liệu trong docs, migration, cấu hình CI và mã kiểm thử.
 
-**Cập nhật bước 6:** đã bổ sung storage transaction cleanup, chống traversal/link, key encryption và công cụ backup/verify/restore SQLite; kiểm native SQL backup vào DB mới. Suite 61 ca: SQL Server 60 pass/1 skip, SQLite 48 pass/13 skip. Xem [STORAGE_AND_RECOVERY.md](STORAGE_AND_RECOVERY.md). T41 đã xử lý consistency/restore trong phạm vi này; orphan sau kill-process, retention và offsite backup vẫn còn. Các nhận định thiếu backup/tests bên dưới thuộc snapshot ban đầu. Bước tiếp theo là đối soát báo cáo/KPI, scope từng role và biên ngày/timezone của backend; frontend tiếp tục hoãn theo người dùng.
+
 
 Đây là phân tích tĩnh của repository backend. Không thay đổi mã nghiệp vụ, không truy cập hay thay đổi database local. Máy hiện tại có .NET runtime 10.0.12 nhưng `dotnet --info` báo không có SDK, nên chưa chạy lại build/test. Không khẳng định 21 test đang pass ở checkout này. Không đọc thiết kế Figma, repository frontend riêng hoặc bản Word đặc tả nguồn; mức độ khớp các nguồn này là task cần kiểm chứng, không phải kết luận đã nghiệm thu.
 
 **Cập nhật sau khi thực hiện bước chuẩn bị môi trường cùng ngày:** máy đã có SDK 10.0.401; restore/build thành công (0 warning, 0 error), bộ test hiện tại pass 21/21 khi chạy ngoài sandbox. Đã tạo riêng `HorseClub_IntegrationTest` trên `.\SQLEXPRESS`, áp schema thành công và kiểm backend `/health` + OpenAPI HTTP 200. Đây là smoke test SQL Server, chưa phải workflow/concurrency test SQL Server. Những mô tả chưa có SDK/chưa chạy test bên dưới phản ánh thời điểm phân tích ban đầu. Xem [kết quả bước 1](ENVIRONMENT_SETUP_PROGRESS.md).
 
-**Cập nhật bước 3:** bộ test đã mở rộng lên 34 trường hợp; SQL Server local 34 pass, SQLite 27 pass/7 SQL-only skip. Đã kiểm thêm workflow/rollback/FK/concurrency và sửa deadlock response 500 -> 409. Các nhận định "SQL Server chưa có workflow tests" bên dưới phản ánh snapshot phân tích ban đầu; xem [kết quả hiện tại và giới hạn](SQLSERVER_TESTING.md). Không có thay đổi policy mới hoặc frontend ở bước 3.
+
 
 ## 1. Dự án giải quyết vấn đề gì?
 
@@ -52,7 +56,7 @@ flowchart TD
 | Thành phần | Quan sát tại repository |
 | --- | --- |
 | Backend | Có ASP.NET Core Minimal API, BLL, DAL và các module nghiệp vụ |
-| Database | Có 31 DbSet nghiệp vụ, migration riêng SQLite/SQL Server và SQL tạo schema |
+| Database | 31 DbSet nghiệp vụ, migrations SQL Server và SQL tạo schema |
 | Kiểm thử | 17 Fact và 1 Theory có 4 InlineData: tương ứng 21 trường hợp theo cấu trúc mã nguồn |
 | CI | Có restore/build/test bằng .NET 10 trên GitHub Actions; chưa kiểm tra trạng thái run trên GitHub |
 | Frontend | Không có code frontend trong checkout; README dẫn sang repository riêng |
@@ -102,7 +106,7 @@ Frontend riêng
 Horse_BackEnd: endpoint, validation/filter, middleware, DI/startup
     -> HorseClub.BLL: workflow, service, quyền, DTO, message, workers
     -> HorseClub.DAL: entities/enums, EF Core context, migrations
-    -> SQLite cho test/local hoặc SQL Server theo cấu hình
+    -> SQL Server qua DAL DbContext
 
 Phụ trợ: filesystem uploads + Data Protection keys + email outbox/SMTP
 ```
@@ -112,17 +116,17 @@ Phụ trợ: filesystem uploads + Data Protection keys + email outbox/SMTP
 | `Horse_BackEnd/Program.cs` | Cấu hình JSON enum, DI, providers, auth, CORS, rate limit, bootstrap, workers, route mapping |
 | `Horse_BackEnd/Endpoints/` | Các đường dẫn HTTP và binding; gọi workflow |
 | `Horse_BackEnd/Infrastructure/HttpPipeline.cs` | Validate request, filter role, lỗi và transaction |
-| `HorseClub.BLL/Contracts/Requests.cs` | DTO request và validation |
-| `HorseClub.BLL/Infrastructure/ApiSupport.cs` | CurrentUser, ClubAccess, Ensure, events, pagination, WriteGate |
+| `HorseClub.BLL/Contracts/` | DTO request và validation |
+| `HorseClub.BLL/Common/` | CurrentUser, ClubAccess, Ensure, events và pagination |
 | `HorseClub.BLL/Services/` | Auth, intake/approval/assignment, training guard/execution và workers |
-| `HorseClub.BLL/Workflows/` | Các thao tác nghiệp vụ theo module |
+| `HorseClub.BLL/<Module>/` | Các thao tác nghiệp vụ theo module |
 | `HorseClub.DAL/Domain/` | Entities và enum role/status/type |
 | `HorseClub.DAL/Data/ClubDbContext.cs` | 31 bảng, FK/index, precision, conversion thời gian, concurrency token |
 | `tests/Horse_BackEnd.Tests/` | Integration tests API và kiểm layer/message/model |
 
 Các namespace `Horse_BackEnd.*` trong BLL/DAL được giữ theo tài liệu; vị trí file/project và assembly mới phản ánh layer. BLL có dùng `HttpContext`, `Results`, host/config và EF trực tiếp: có tách project nhưng chưa phải business layer độc lập hoàn toàn với ASP.NET Core. Hiện không có repository pattern và không cần tự thêm chỉ để tăng số lớp.
 
-Một write request thường đi như sau: middleware giữ WriteGate -> mở transaction Serializable -> endpoint/filter validate -> workflow/service kiểm quyền và trạng thái -> thay dữ liệu + audit/notification -> SaveChanges -> commit -> trả response. Response được buffer để chỉ gửi sau commit. Các write request được tuần tự hóa trong một process; gate không phối hợp giữa nhiều process/replica.
+Một write request: transaction Serializable → endpoint/filter → BLL service → thay dữ liệu/audit/notification → SaveChanges → commit → trả response. Response được buffer trước commit; không còn semaphore chung cho request/worker.
 
 Auth dùng opaque bearer tokens của ASP.NET Core Data Protection, không phải JWT. Logout/reset/disable staff đổi security stamp, thu hồi token toàn account. Refresh token chưa có rotation/thu hồi riêng từng thiết bị. Keys phải được lưu bền vững; mất key ảnh hưởng token và NationalId đã bảo vệ.
 
@@ -142,7 +146,7 @@ Unique indexes đã có cho Email, UserName, Horse.RegistrationId, Result.Sessio
 
 Không phải mọi field `*Id` đều có FK: cần rà StaffId/GroomId/ActorId/RecipientId, challenge UserId, treatment InjuryId, follow-up records và các quan hệ khác theo ý nghĩa. ReferenceId của audit/notification là tham chiếu đa loại, không thể áp một FK chung vào một bảng tùy ý.
 
-Entity có `Version`, được tăng khi SaveChangesAsync sửa entity và dùng optimistic concurrency. Phải kiểm cách nó tương tác với transaction/deadlock trên SQL Server, không suy ra test SQLite đã bao phủ.
+Entity có Version, tăng khi SaveChangesAsync sửa entity, dùng optimistic concurrency và serializable transaction trên SQL Server.
 
 Timestamps được converter lưu thành UTC ticks (`long`), kể cả provider SQL Server; không mặc định cho rằng cột SQL là datetimeoffset. DateOnly dùng cho ngày nghiệp vụ. Decimal mặc định precision 18, scale 3: cần thử dữ liệu gần biên và phép làm tròn stock, portion, distance để giữ số liệu nhất quán.
 
@@ -216,16 +220,16 @@ Các quan sát dưới đây không được diễn giải thành lỗi đã tá
 
 | Quan sát | Bằng chứng code | Hệ quả/task |
 | --- | --- | --- |
-| Backdated medical record vẫn ghi HealthStatus hiện tại | MedicalWorkflow.PostRecords/PostFollowUps gán trực tiếp HealthStatus | Hồ sơ cũ nhập sau có thể thay trạng thái mới; cần quy tắc latest/correction và test |
-| Chỉ che care notes/instructions khi Type=Treatment | CareWorkflow.GetTasks, điều kiện `x.Type != CareType.Treatment` | IceBath do Vet giao có thể chứa hướng dẫn riêng nhưng Owner vẫn đọc; cần chốt và áp field policy cho mọi loại care y tế |
-| Clinical report cắt 100; plan detail cắt 100 session | ReportingWorkflow.BuildReport; TrainingWorkflow.GetPlansById | UI có thể hiểu sai dữ liệu đầy đủ; thêm pagination/total hoặc báo limit |
+| Backdated medical record vẫn ghi HealthStatus hiện tại | MedicalService.PostRecords/PostFollowUps gán trực tiếp HealthStatus | Hồ sơ cũ nhập sau có thể thay trạng thái mới; cần quy tắc latest/correction và test |
+| Chỉ che care notes/instructions khi Type=Treatment | CareService.GetTasks, điều kiện `x.Type != CareType.Treatment` | IceBath do Vet giao có thể chứa hướng dẫn riêng nhưng Owner vẫn đọc; cần chốt và áp field policy cho mọi loại care y tế |
+| Clinical report cắt 100; plan detail cắt 100 session | ReportingService.BuildReport; TrainingPlanService/TrainingSessionService.GetPlansById | UI có thể hiểu sai dữ liệu đầy đủ; thêm pagination/total hoặc báo limit |
 | Dashboard overdue khác reminder | Dashboard dùng ScheduledAt < now; worker dùng OverdueAfterMinutes và plan Active | KPI/notification không cùng định nghĩa; thống nhất hoặc đặt tên phân biệt rõ |
 | Preventive reminder đánh dấu sent dù không có Vet recipient | BackgroundWorkers: vòng recipient rồi ReminderSent=true | Giao Vet sau có thể không nhận reminder; thêm retry/recipient-aware tracking |
-| WriteGate dùng chung cho tất cả writes và SMTP | TransactionMiddleware và EmailWorker | Gửi mail chậm chặn write trong process; cần đo và tách delivery nếu triển khai |
-| Ghi file trước khi transaction DB commit | AttachmentWorkflow/IncidentPhotoWorkflow | DB rollback có thể để lại file mồ côi; cần cleanup/compensation |
+| Khóa process chung của writes/SMTP | Đã bỏ trong refactor 07/10/2026 | SQL transaction và worker application lock vẫn bảo vệ dữ liệu; test SMTP chậm không chặn write độc lập |
+| Ghi file trước khi transaction DB commit | AttachmentService/IncidentPhotoService | DB rollback có thể để lại file mồ côi; cần cleanup/compensation |
 | Training history chưa ghi mọi transition | Start/SubmitResult/Skip/Evaluation có audit nhưng không gọi TrainingHistory | Nếu UI history cần đủ trạng thái, bổ sung snapshot/events theo contract |
-| Xung đột lịch mới dựa cùng instant cho Rider | TrainingService.ApplySession | Chưa đảm bảo horse/rider không overlap theo thời lượng |
-| Evaluation true chỉ lưu cờ | TrainingWorkflow.PostSessionsByIdEvaluation | Không được hiển thị rằng lịch đã tự điều chỉnh |
+| Xung đột lịch mới dựa cùng instant cho Rider | TrainingSessionService.ApplySession | Chưa đảm bảo horse/rider không overlap theo thời lượng |
+| Evaluation true chỉ lưu cờ | TrainingPlanService/TrainingSessionService.PostSessionsByIdEvaluation | Không được hiển thị rằng lịch đã tự điều chỉnh |
 | Return nhiều anonymous objects và Task<object> | Endpoints và Workflows | Cần kiểm response schemas OpenAPI; typed response DTO/metadata giúp FE hiểu field, nullability và lỗi |
 
 ## 8. Danh sách task có thể giao việc

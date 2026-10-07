@@ -1,46 +1,33 @@
-# Kiến trúc HorseClub
+# Kiến trúc HorseClub hiện tại
 
-Monorepo để nhóm phối hợp FE/BE và API contract trong cùng PR. Backend đã triển khai theo cấu trúc bên dưới; frontend vẫn là phần dự kiến. Xem BACKEND_GUIDE.md để biết cấu hình và giới hạn thực tế.
+Backend ASP.NET Core .NET 10 được chia thành ba project. Frontend React/Vite/JavaScript nằm tại repository riêng `E:\SWP391\HorseClub-frontend\HRCMS-Frontend` và đã nối API.
 
 ```text
-HorseClub/
-  Horse_BackEnd/          API: routes, HTTP pipeline, composition root
-  HorseClub.BLL/         BLL: workflows, services, contracts, messages
-  HorseClub.DAL/         DAL: entities, enums, EF context, migrations
-  Horse_FrontEnd/         React + TypeScript, dự kiến tạo sau
-  tests/                 integration tests backend; E2E UI chưa có
-  docs/                  kế hoạch, contract, ERD, quyết định
-  .github/               CI và mẫu issue/PR
+Frontend pages → frontend services/Axios → HTTP
+Horse_BackEnd/Endpoints → HorseClub.BLL/<Module>/*Service
+                       → HorseClub.DAL/Data/ClubDbContext → Azure SQL
 ```
 
-## Công nghệ
+| Project/folder | Trách nhiệm |
+|---|---|
+| `Horse_BackEnd/Endpoints` | Route, binding, authorization metadata và HTTP response. Giữ Minimal API. |
+| `Horse_BackEnd/Infrastructure` | Middleware, bearer-token protocol, adapter identity/upload, OpenAPI và Data Protection. |
+| `HorseClub.BLL/Auth`, `Horses`, `Training`, `Medical`, `Care`, `Inventory`, `Attachments`, `Reporting`, `Metadata` | Scoped service cho từng module; dependencies được inject qua constructor. Không còn lớp Workflow đứng giữa endpoint và service. |
+| `HorseClub.BLL/Contracts/<Module>` | Mỗi DTO trong một file, giữ namespace `HorseClub.BLL.Contracts` và JSON contract. |
+| `HorseClub.BLL/Common` | Quyền/phạm vi, validation, events, calendar, pagination, options và storage. |
+| `HorseClub.BLL/Workers` | Email, reminder và mail sender. |
+| `HorseClub.DAL/Entities`, `Enums` | Mỗi entity/enum trong một file. Namespace tương ứng tên project/folder. |
+| `HorseClub.DAL/Data/Configurations` | Mapping chung và index phục vụ truy vấn. |
+| `HorseClub.DAL/Data/Migrations/SqlServer` | Bốn migration SQL Server và model snapshot. |
 
-Backend có ba project theo luồng API → BLL → DAL. Xem [THREE_LAYER_AND_MESSAGES.md](THREE_LAYER_AND_MESSAGES.md) để biết quy tắc đặt code và sử dụng catalog thông báo chung.
+Hướng project reference: API → BLL → DAL. DAL không tham chiếu BLL/API; BLL không tham chiếu API. BLL dùng EF DbContext trực tiếp, chưa thêm repository bao quanh từng DbSet. Các thư viện Identity/Data Protection/hosting vẫn được BLL dùng; HTTP request/result được xử lý ở API qua adapter. `OperationResult` là kết quả ứng dụng, API chuyển sang HTTP bằng `OperationResultMapper`.
 
-React + TypeScript + Vite vẫn là đề xuất frontend. Backend dùng ASP.NET Core, EF Core, SQLite local và hỗ trợ SQL Server qua provider/context/migration riêng. ASP.NET Core PasswordHasher và opaque bearer tokens bảo vệ đăng nhập; email OTP/reset và staff invitation có expiry/attempt limit. Upload được đọc qua endpoint có quyền, tách khỏi webroot. Không triển khai microservices cho quy mô này.
+Một số response vẫn chứa entity để giữ tương thích frontend; chưa chuyển toàn bộ contract thành DTO độc lập. Không thêm tầng hoặc đổi payload chỉ để tổ chức lại file.
 
-Backend có refresh token và account-wide revocation qua security stamp. Frontend cần chốt chiến lược lưu token trước khi tích hợp. Hosting và SMTP thật chưa triển khai; SQL Server chưa được test trên server thật.
+Database runtime: SQL Server/Azure SQL duy nhất. Azure target là `hrcms.database.windows.net / HRCMS`, mật khẩu trong User Secrets/secret store; frontend không giữ SQL credentials. AutoMigrate runtime vẫn false.
 
-## Module và dữ liệu
+Request ghi có transaction Serializable và response buffering để rollback dữ liệu/file khi lỗi. Không còn semaphore dùng chung cho mọi request và worker. SQL transaction, concurrency token, unique constraint và application lock của worker bảo vệ tính nhất quán giữa các host. Xung đột trả 409; không tự replay POST. Refresh token là POST chỉ đọc, được đánh dấu để không mở transaction ghi.
 
-| Module | Entity dự kiến và quan hệ |
-| --- | --- |
-| Identity | User, Role, Permission, UserRole, verification/reset tokens; owner và staff cùng identity nhưng khác lifecycle |
-| Horse Intake | HorseRegistration → documents, measurements, declared health, boarding, preferred staff; owner là người gửi |
-| Horse | Horse → Owner; registration approved liên kết duy nhất Horse; measurements và boarding có history |
-| Assignment | HorseStaffAssignment, TrainerAssignment: staff, horse, start/end, status; không ghi đè history |
-| Training | StandardTemplate → HorseTrainingPlan → TrainingSession → SessionResult → TrainerEvaluation; session có assigned rider |
-| Medical | MedicalRecord → Injury/TreatmentPlan; MedicalRestriction/Lock và FollowUp/Clearance có hiệu lực theo thời gian |
-| Care | Stable/Stall và occupancy history; CareTask có thể liên kết TreatmentPlan; FeedingRecord; Incident |
-| Inventory | Item, StockMovement, ReplenishmentRequest; tồn kho dựa trên movement, không sửa số mà mất history |
-| Common | Notification, AuditEvent, attachment metadata, report projections và preventive care schedules |
+Dashboard tổng hợp bảy chỉ số trong một SQL command, phân trang dùng AsNoTracking và thứ tự ổn định. Reports chỉ lấy các cột cần dùng, có giới hạn số bản ghi. Reminder lấy người nhận theo batch thay vì query trong từng vòng lặp. Migration `QueryPerformanceIndexes` bổ sung index composite và thay index đơn trùng tiền tố; không đổi bảng/cột/dữ liệu nghiệp vụ.
 
-Schema vật lý hiện nằm trong HorseClub.DAL/Data/ClubDbContext.cs và migrations theo provider. Reports đọc dữ liệu nguồn theo quyền, không tạo bản sao y tế công khai. Bảng trên là bản đồ module; tên table thực tế theo DbSet trong context.
-
-## API contract và tính nhất quán
-
-Nhóm thống nhất REST/OpenAPI trước khi FE tích hợp: pagination, filters, sort whitelist, timestamps có timezone, unit đo, lỗi validation và mã lỗi nghiệp vụ. Session blocked trả reason/reference phù hợp quyền; không lộ diagnosis cho role không được xem.
-
-Server kiểm tra role và phạm vi entity trên mọi endpoint. Approval tạo Horse và đánh dấu registration trong cùng transaction, retry không tạo ngựa trùng. Session start/assignment recheck medical state tại thời điểm thao tác; dùng transaction/concurrency control để tránh race với Vet cập nhật lock. Result submission chống nộp trùng; audit ghi actor, action, entity và timestamp, tránh secrets/CCCD trong logs.
-
-Upload giới hạn loại/size, xác minh nội dung, tên lưu ngẫu nhiên, kiểm quyền tải và chính sách retention. OTP có TTL, giới hạn attempts/resend và không lưu plaintext. Dữ liệu demo phải giả lập.
+Xem [giải thích từng folder/file](PROJECT_STRUCTURE_EXPLAINED.md), [thay đổi và kiểm chứng hiệu năng](STRUCTURE_AND_PERFORMANCE.md), [quy tắc layer/message](THREE_LAYER_AND_MESSAGES.md) và [Azure SQL](AZURE_SQL_SETUP.md).

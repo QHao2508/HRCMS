@@ -14,7 +14,7 @@ Ngày hoàn thiện: 04/10/2026. Frontend được hoãn theo yêu cầu của n
 - 139 schemas, không còn response schema rỗng; đủ 87 operations yêu cầu Bearer token.
 - Cả hai upload mô tả multipart, trường bắt buộc, file binary và mã 201; các download mô tả PNG/JPEG/PDF theo chức năng.
 - Có operationId duy nhất để hỗ trợ công cụ sinh client. Các endpoint khai báo đúng 200/201/204, không giữ 200 rỗng do `Task<object>`.
-- Có DTO có tên cho account, paging, error, các projection/summary/detail và report trong `HorseClub.BLL/Contracts/Responses.cs`. Workflow trả kiểu cụ thể hoặc `IResult`; JSON giữ nguyên tên camelCase và shape hiện có.
+- Có DTO có tên cho account, paging, error, các projection/summary/detail và report trong `HorseClub.BLL/Contracts/`. Service trả kiểu cụ thể hoặc `OperationResult`, API map sang HTTP; JSON giữ nguyên tên camelCase và shape hiện có.
 - Follow-up yêu cầu `examination` khác null; validation kiểm DTO lồng nhau trước khi gọi workflow, trả 400 khi thiếu/sai dữ liệu.
 
 Snapshot có thể import vào Postman hoặc công cụ sinh client: [openapi.current.json](contracts/openapi.current.json). Inventory đầy đủ: [api-inventory.current.csv](contracts/api-inventory.current.csv). Kết quả audit: [openapi-audit.current.json](contracts/openapi-audit.current.json). Baseline bước 2 được giữ riêng để đối chiếu; không dùng baseline làm contract hiện tại.
@@ -23,7 +23,7 @@ Snapshot có thể import vào Postman hoặc công cụ sinh client: [openapi.c
 
 API local theo launch profile: `http://localhost:5299`. OpenAPI nằm tại `/openapi/v1.json` trong Development. Cấu hình `Cors:Origins` bằng origin frontend thực tế.
 
-1. Gọi `/api/auth/login` bằng email/password của tài khoản active, đã verify hoặc đã accept invitation.
+1. Gọi `/api/auth/login` bằng email hoặc username và password của tài khoản active, đã verify hoặc đã accept invitation. Field JSON vẫn là `email`, nhận cả username để giữ tương thích. Đăng ký/reset/invitation đều dùng OTP 6 chữ số; xem [hướng dẫn test](EMAIL_OTP_TEST_GUIDE.md).
 2. Lưu `accessToken`, `refreshToken` theo chính sách của ứng dụng. Gửi `Authorization: Bearer <accessToken>` cho các operation có security Bearer.
 3. Token là opaque ASP.NET Core Identity token; không decode như JWT. `expiresIn` là số giây, không phải timestamp.
 4. Lấy profile bằng `/api/auth/me`, enum bằng `/api/metadata/enums`. Enum request dùng đúng tên chuỗi, không dùng số hoặc tên tự dịch.
@@ -70,16 +70,16 @@ Frontend cần kiểm content type/body trước khi parse lỗi. Mã lỗi đư
 
 ## Kiểm chứng và tái xuất
 
-Ba test mới trong `ApiContractTests` kiểm toàn bộ operation/schema/security/status/multipart, shape runtime của account/page/error/login và request sai. Bộ hồi quy tại bước 4 có 37 trường hợp, chạy cả SQLite và SQL Server; kết quả mới nhất sau các bước tiếp theo được cập nhật trong README. CI chạy các test này cùng suite; chưa xác nhận run GitHub sau thay đổi.
-
-Kết quả local ngày 04/10/2026: SQL Server Express **37 pass/0 fail/0 skip**; SQLite **30 pass/0 fail/7 SQL-only skip**. Build Release đạt 0 warning/0 error. TRX được lưu trong thư mục Git-ignored `TestResults/step4/sqlite` và `TestResults/step4/sqlserver`.
+ApiContractTests kiểm operation/schema/security/status/multipart, shape runtime account/page/error/login và request sai trên SQL Server. Kết quả hiện tại xem [FRONTEND_READINESS.md](FRONTEND_READINESS.md).
 
 PowerShell tại repository root:
 
 ```powershell
+$env:HRCMS_TEST_SQLSERVER = 'Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
 $env:HRCMS_EXPORT_OPENAPI = Join-Path $PWD 'docs/contracts/openapi.current.json'
 dotnet test HorseClub.slnx -c Release --filter FullyQualifiedName~ApiContractTests
 Remove-Item Env:HRCMS_EXPORT_OPENAPI
+Remove-Item Env:HRCMS_TEST_SQLSERVER
 ./docs/Export-ContractInventory.ps1 -InputPath docs/contracts/openapi.current.json -OutputPath docs/contracts/api-inventory.current.csv -SummaryPath docs/contracts/openapi-audit.current.json
 ```
 

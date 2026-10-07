@@ -5,7 +5,7 @@ Ngày: 04/10/2026. Đã sửa và kiểm thử backend; chưa kết nối tài k
 ## Những thay đổi đã hoàn thành
 
 - Worker đọc `WorkerOptions.Enabled` lúc khởi chạy, tránh việc cấu hình test/host được áp sau thời điểm đăng ký service. Khi false, hai vòng nền kết thúc mà không xử lý queue; `RunOnce` là điểm chạy một lượt cho kiểm thử, không phải API public.
-- SQL Server dùng `sp_getapplock` riêng cho email/reminder, owner Transaction và timeout 0. Replica chưa lấy được khóa bỏ qua lượt, thử lại ở poll sau; khóa tự giải phóng khi commit/rollback. SQLite tiếp tục cần một backend instance và process WriteGate.
+- SQL Server dùng `sp_getapplock` riêng cho email/reminder, owner Transaction và timeout 0. Replica chưa lấy được khóa bỏ qua lượt, thử lại ở poll sau; khóa tự giải phóng khi commit/rollback.
 - Email commit từng message. Hủy ở message tiếp theo không rollback trạng thái của email đã gửi/lưu trước đó.
 - Thêm `Workers:EmailSendTimeoutSeconds`, mặc định 30, hợp lệ 1–300. Timeout được ghi như một delivery failure; shutdown cancellation giữ message đang xử lý chưa gửi thành công để lần chạy sau xử lý lại.
 - Retry giữ backoff 2, 4, 8, 16, 32, 60 phút, sau đó tối đa 60 phút; dừng khi đạt MaxEmailAttempts. Log chỉ có messageId, attempt và loại exception, không ghi recipient/body/mật khẩu SMTP. Đạt giới hạn retry có log Error.
@@ -18,7 +18,7 @@ Ngày: 04/10/2026. Đã sửa và kiểm thử backend; chưa kết nối tài k
 
 Development mặc định ghi email ở `Horse_BackEnd/App_Data/mail/*.eml`; các file này chứa mã xác thực, chỉ dùng môi trường phát triển và không đưa vào Git. Database xóa Body sau delivery nhưng file .eml vẫn tồn tại cho việc đọc thủ công.
 
-Production/Staging dùng `Email:Mode=Smtp`, `Host`, `Port` (mặc định 587), `From`, `Username`, `Password` qua cấu hình môi trường hoặc secret store. Sender luôn bật TLS. Không đưa mật khẩu thật vào appsettings/README. Chưa cấu hình SMTP cá nhân trong bước này.
+Production/Staging dùng `Email:Provider=Smtp`, `Email:FromAddress`, `Email:FromName` và `Email:Smtp:Host/Port/Username/Password/EnableSsl` qua cấu hình môi trường hoặc secret store. Gmail yêu cầu TLS, port mặc định 587. Không đưa mật khẩu thật vào appsettings/README. Xem [cấu hình dotnet user-secrets](GMAIL_USER_SECRETS.md).
 
 | Tùy chọn Workers | Mặc định | Tác dụng |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ Ngày preventive/follow-up dùng `Business:TimeZoneId`, mặc định Asia/Ho_Ch
 
 ## Migration
 
-Có migration `WorkerDeliveryReliability` cho cả SQLite và SQL Server. Thêm ba cột nullable ChallengeId/ExpiresAt/DiscardedAt, FK từ email tới challenge và indexes cho queue/reminder. Không có bảng nghiệp vụ mới. [database.sql](database.sql) đã được sinh lại bằng script SQL Server idempotent.
+Có migration `WorkerDeliveryReliability` cho SQL Server. Thêm ba cột nullable ChallengeId/ExpiresAt/DiscardedAt, FK từ email tới challenge và indexes cho queue/reminder. Không có bảng nghiệp vụ mới. [database.sql](database.sql) đã được sinh lại bằng script SQL Server idempotent.
 
 Trước khi chạy binary mới trên database cũ, áp migration đúng provider bằng quy trình [DATABASE_SQL.md](DATABASE_SQL.md). Các test tạo DB riêng, chạy cả migration mới và kiểm downgrade/upgrade trên DB thử nghiệm có dữ liệu; chưa áp migration vào database cá nhân bước 1 hoặc database production.
 
@@ -44,7 +44,7 @@ Email tồn tại từ trước migration có ChallengeId/ExpiresAt null, vẫn 
 
 Thêm 14 trường hợp: 11 dùng được trên cả hai provider và 3 SQL-only.
 
-Kết quả hồi quy cuối: **SQL Server Express 51 pass/0 fail/0 skip**, **SQLite 41 pass/0 fail/10 SQL-only skip**. Build Release 0 warning/0 error. TRX nằm trong thư mục Git-ignored `TestResults/step5/sqlite` và `TestResults/step5/sqlserver`.
+Kết quả hồi quy cuối: **SQL Server Express 51 pass/0 fail/0 skip**. Build Release 0 warning/0 error. TRX nằm trong thư mục Git-ignored `TestResults/step5/sqlserver`.
 
 - Retry đúng hạn, restart dùng state đã lưu, không gửi lại email SentAt khác null; bỏ qua future/exhausted và xử lý batch bounded.
 - Timeout, shutdown cancellation và message đã commit trước đó; mã expired/superseded không tới sender.

@@ -20,15 +20,6 @@ jobs:
         run: dotnet restore HorseClub.slnx
       - name: Build
         run: dotnet build HorseClub.slnx --configuration Release --no-restore
-      - name: Integration tests
-        run: dotnet test HorseClub.slnx --configuration Release --no-build --logger trx --results-directory TestResults
-      - name: Upload SQLite test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sqlite-test-results
-          path: TestResults/**/*.trx
-          if-no-files-found: ignore
 
   sqlserver-tests:
     runs-on: ubuntu-latest

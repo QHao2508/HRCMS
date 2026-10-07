@@ -1,6 +1,5 @@
 using System.Globalization;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Services;
+using HorseClub.DAL.Data;
 using HorseClub.BLL.Messaging;
 using Xunit;
 
@@ -20,6 +19,32 @@ public sealed class LayerAndMessageTests
         Assert.Contains(business.GetReferencedAssemblies(), x => x.Name == data.GetName().Name);
         Assert.DoesNotContain(business.GetReferencedAssemblies(), x => x.Name == api.GetName().Name);
         Assert.DoesNotContain(data.GetReferencedAssemblies(), x => x.Name == business.GetName().Name || x.Name == api.GetName().Name);
+        Assert.DoesNotContain(data.GetReferencedAssemblies(), x => x.Name!.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal));
+        foreach (var assembly in new[] { api, business, data })
+            Assert.DoesNotContain(assembly.GetReferencedAssemblies(), x => x.Name!.Contains("Sqlite", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void BusinessServicesDoNotExposeHttpRequestsOrResults()
+    {
+        var services = typeof(AuthenticationService).Assembly.GetExportedTypes()
+            .Where(x => x.Name.EndsWith("Service", StringComparison.Ordinal));
+        foreach (var service in services)
+            foreach (var method in service.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                var types = method.GetParameters().Select(x => x.ParameterType).Append(method.ReturnType);
+                foreach (var type in types.SelectMany(ExpandTypes))
+                    Assert.False(type.Namespace?.StartsWith("Microsoft.AspNetCore.Http", StringComparison.Ordinal) == true,
+                        $"{service.Name}.{method.Name} exposes HTTP type {type.Name}.");
+            }
+        Assert.DoesNotContain(typeof(AuthenticationService).Assembly.GetExportedTypes(), x => x.Name.EndsWith("Workflow", StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<Type> ExpandTypes(Type type)
+    {
+        yield return type;
+        foreach (var argument in type.GetGenericArguments())
+            foreach (var nested in ExpandTypes(argument)) yield return nested;
     }
 
     [Fact]

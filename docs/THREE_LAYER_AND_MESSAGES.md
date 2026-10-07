@@ -1,18 +1,12 @@
 # Ba layer và message dùng chung
 
-```text
-Horse_BackEnd (API) → HorseClub.BLL (Business) → HorseClub.DAL (Data)
-```
+API → BLL → DAL. API giữ Minimal API, HTTP binding/response/middleware; BLL chứa scoped services theo module; DAL giữ entity/enum/EF mapping/migrations. Endpoint không truy vấn database trực tiếp. DependencyInjection trong BLL đăng ký service; Program API ghép runtime.
 
-| Project | Trách nhiệm |
-| --- | --- |
-| `Horse_BackEnd` | Khai báo route, binding request, middleware/filter, cấu hình DI và startup. Endpoint gọi workflow trong BLL. |
-| `HorseClub.BLL` | Workflows, kiểm quyền/phạm vi, nghiệp vụ, services, DTO, options, calendar, background workers và catalog message. |
-| `HorseClub.DAL` | Entity, enum dữ liệu, EF DbContext, provider và migrations SQLite/SQL Server. |
+Không còn Workflow ở giữa endpoint và service. Dependencies được inject qua constructor. Không tạo repository bọc từng DbSet khi chưa cần. BLL vẫn dùng Identity/Data Protection/hosting; các kiểu HttpRequest/HttpContext/IResult không nằm trong signature service. Identity và upload được truyền qua interface/input riêng; API chuyển OperationResult thành HTTP.
 
-DAL không tham chiếu BLL/API; BLL không tham chiếu API. API cấu hình DbContext và truyền dependency vào workflow. BLL dùng ASP.NET Core framework cho authentication, file/result và host integration. Các namespace `Horse_BackEnd.*` hiện có được giữ để tránh thay đổi migration/model contract; tên project/assembly thể hiện layer.
+Entity/enum/DTO tách thành file riêng. Namespace DAL là HorseClub.DAL.Entities/Enums/Data; DTO giữ HorseClub.BLL.Contracts. Đổi vị trí/namespace không đổi JSON hoặc bảng. SQL Server là database duy nhất.
 
-Không đặt truy vấn EF hoặc xử lý nghiệp vụ trong endpoint. Thêm operation vào workflow/service BLL; API chỉ định route, policy và chuyển request. Schema và persistence configuration đặt trong DAL. Không đổi schema hay tạo migration chỉ vì di chuyển file.
+Transaction ghi nằm ở API, dùng Serializable và response buffering. Không giữ semaphore chung giữa request và SMTP. Worker dùng SQL application lock; conflict trả 409 và caller reload. Refresh là POST chỉ đọc. Xem ARCHITECTURE.md và STRUCTURE_AND_PERFORMANCE.md.
 
 ## Message dùng chung
 

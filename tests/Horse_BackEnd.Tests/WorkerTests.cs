@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-using Horse_BackEnd.Services;
+using HorseClub.DAL.Data;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -162,11 +161,10 @@ public sealed class WorkerTests
         using var restarted = Email(factory, clock);
         Assert.Equal(1, await restarted.RunOnce());
         Assert.Single(sender.Calls, x => x == "first");
-        Assert.Equal(1, factory.Services.GetRequiredService<WriteGate>().Semaphore.CurrentCount);
     }
 
     [Fact]
-    public async Task MailSendTimeoutBecomesRetryAndReleasesGate()
+    public async Task MailSendTimeoutBecomesRetryAndReleasesDatabaseLock()
     {
         var sender = new TestMailSender((_, token) => Task.Delay(Timeout.Infinite, token));
         await using var factory = new ClubFactory(mailSender: sender); var clock = new WorkerClock();
@@ -178,7 +176,6 @@ public sealed class WorkerTests
             var row = (await db.EmailMessages.FindAsync(message.Id))!;
             Assert.Equal(1, row.Attempts); Assert.Null(row.SentAt); Assert.Equal(clock.GetUtcNow().AddMinutes(2), row.NextAttemptAt);
         });
-        Assert.Equal(1, factory.Services.GetRequiredService<WriteGate>().Semaphore.CurrentCount);
     }
 
     [Fact]
@@ -237,7 +234,7 @@ public sealed class WorkerTests
     public async Task DevelopmentFileDeliveryCreatesOneFileAndClearsOutboxBody()
     {
         var directory = Path.Combine(Path.GetTempPath(), "horseclub-mail-" + Guid.NewGuid().ToString("N"));
-        var sender = new ClubMailSender(Options.Create(new EmailOptions { Mode = EmailDeliveryMode.DevelopmentFile }), new MailEnvironment(directory));
+        var sender = new ClubMailSender(Options.Create(new EmailOptions { Provider = EmailDeliveryMode.DevelopmentFile }), new MailEnvironment(directory));
         try
         {
             await using var factory = new ClubFactory(mailSender: sender); var clock = new WorkerClock();
@@ -264,17 +261,20 @@ public sealed class WorkerTests
     {
         await using var factory = new ClubFactory(new Dictionary<string, string?>
         {
-            ["Workers:Enabled"] = "true", ["Email:Mode"] = "Smtp", ["Email:Host"] = "", ["Email:From"] = ""
+            ["Workers:Enabled"] = "true",
+            ["Email:Provider"] = "Smtp",
+            ["Email:Smtp:Host"] = "",
+            ["Email:FromAddress"] = ""
         });
         var error = Assert.Throws<OptionsValidationException>(() => factory.CreateClient());
-        Assert.Contains(error.Failures, x => x.Contains("SMTP Host/From"));
+        Assert.Contains(error.Failures, x => x.Contains("Email:FromAddress"));
     }
 
     internal static EmailWorker Email(ClubFactory factory, TimeProvider clock, WorkerOptions? options = null) => new(
-        factory.Services.GetRequiredService<IServiceScopeFactory>(), factory.Services.GetRequiredService<WriteGate>(),
+        factory.Services.GetRequiredService<IServiceScopeFactory>(),
         NullLogger<EmailWorker>.Instance, clock, Options.Create(options ?? new WorkerOptions()));
     internal static ReminderWorker Reminder(ClubFactory factory, TimeProvider clock, WorkerOptions? options = null) => new(
-        factory.Services.GetRequiredService<IServiceScopeFactory>(), factory.Services.GetRequiredService<WriteGate>(), clock,
+        factory.Services.GetRequiredService<IServiceScopeFactory>(), clock,
         NullLogger<ReminderWorker>.Instance, Options.Create(options ?? new WorkerOptions()), factory.Services.GetRequiredService<IOptions<BusinessOptions>>());
     internal static async Task Read(ClubFactory factory, Func<ClubDbContext, Task> action)
     {

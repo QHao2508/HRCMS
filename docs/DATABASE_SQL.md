@@ -19,4 +19,4 @@ dotnet build HorseClub.slnx --configuration Release
 dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --configuration Release --no-build --output docs/database.sql
 ```
 
-File này dành cho SQL Server, không chạy trên SQLite/MySQL. Script được sinh thành công. Migrations đã chạy trên database SQL Server Express thử nghiệm, gồm kiểm upgrade có dữ liệu; chưa áp script này vào database cá nhân/production. Xem [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) cho migration mới và giới hạn queue email cũ.
+File này dành cho SQL Server, chỉ triển khai cho provider SQL Server. Script được sinh thành công. Migrations đã chạy trên database SQL Server Express thử nghiệm, gồm kiểm upgrade có dữ liệu; chưa áp script này vào database cá nhân/production. Xem [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) cho migration mới và giới hạn queue email cũ.

@@ -2,9 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Services;
+using HorseClub.DAL.Data;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -22,22 +23,25 @@ namespace Horse_BackEnd.Tests;
 public sealed class ClubFactory : WebApplicationFactory<Program>
 {
     private readonly IReadOnlyDictionary<string, string?> extraSettings;
-    public ClubFactory(IReadOnlyDictionary<string, string?>? settings = null, IClubMailSender? mailSender = null)
+    public ClubFactory(IReadOnlyDictionary<string, string?>? settings = null, IClubMailSender? mailSender = null, DbCommandInterceptor? interceptor = null, TimeProvider? clock = null)
     {
         this.mailSender = mailSender;
+        this.interceptor = interceptor;
+        this.clock = clock;
         extraSettings = settings ?? new Dictionary<string, string?>();
         var server = Environment.GetEnvironmentVariable("HRCMS_TEST_SQLSERVER");
-        if (!string.IsNullOrWhiteSpace(server))
-        {
-            // Never migrate or delete the database named by the supplied connection string.
-            ownedDatabase = "HRCMS_Test_" + Guid.NewGuid().ToString("N");
-            sqlConnection = new SqlConnectionStringBuilder(server) { InitialCatalog = ownedDatabase }.ConnectionString;
-        }
+        if (string.IsNullOrWhiteSpace(server))
+            throw new InvalidOperationException("Set HRCMS_TEST_SQLSERVER to a SQL Server instance with permission to create temporary test databases.");
+        // Never migrate or delete the database named by the supplied connection string.
+        ownedDatabase = "HRCMS_Test_" + Guid.NewGuid().ToString("N");
+        sqlConnection = new SqlConnectionStringBuilder(server) { InitialCatalog = ownedDatabase }.ConnectionString;
     }
     private ClubFactory(ClubFactory owner)
     {
         extraSettings = owner.extraSettings;
         mailSender = owner.mailSender;
+        interceptor = owner.interceptor;
+        clock = owner.clock;
         directory = owner.directory;
         sqlConnection = owner.sqlConnection;
     }
@@ -49,6 +53,8 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
     private readonly string? sqlConnection;
     internal string SqlTestConnection => sqlConnection ?? throw new InvalidOperationException("SQL Server fixture required.");
     private readonly IClubMailSender? mailSender;
+    private readonly DbCommandInterceptor? interceptor;
+    private readonly TimeProvider? clock;
     private readonly string? ownedDatabase;
     private bool configured;
     public const string Password = "TestPassword123!";
@@ -63,39 +69,36 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Database:Provider"] = "Sqlite", ["Database:AutoMigrate"] = "true",
-            ["ConnectionStrings:Sqlite"] = $"Data Source={Path.Combine(directory, "test.db")}",
-            ["DataProtection:Path"] = Path.Combine(directory, "keys"), ["Storage:Path"] = Path.Combine(directory, "uploads"),
-            ["Workers:Enabled"] = "false", ["Bootstrap:ManagerEmail"] = "manager@example.test", ["Bootstrap:ManagerPassword"] = Password,
+            ["Database:Provider"] = "SqlServer",
+            ["Database:AutoMigrate"] = "true",
+            ["DataProtection:Path"] = Path.Combine(directory, "keys"),
+            ["Storage:Path"] = Path.Combine(directory, "uploads"),
+            ["Storage:Provider"] = "Local",
+            ["Workers:Enabled"] = "false",
+            ["Bootstrap:ManagerEmail"] = "manager@example.test",
+            ["Bootstrap:ManagerPassword"] = Password,
             ["Business:TimeZoneId"] = "UTC"
-        }).AddInMemoryCollection(extraSettings).AddInMemoryCollection(sqlConnection is null ? [] : new Dictionary<string, string?>
+        }).AddInMemoryCollection(extraSettings).AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Database:Provider"] = "SqlServer",
             ["ConnectionStrings:SqlServer"] = sqlConnection
         }));
-        // Override the production provider explicitly for both test modes. Minimal hosting
+        // Override the production provider explicitly for the isolated test database. Minimal hosting
         // may register its DbContext before the test configuration callback is applied.
         // Tests must never inherit a developer's SQL Server connection from User Secrets.
+        builder.ConfigureTestServices(services =>
         {
-            builder.ConfigureTestServices(services =>
+            if (clock is not null) { services.RemoveAll<TimeProvider>(); services.AddSingleton(clock); }
+            services.RemoveAll<ClubDbContext>();
+            services.RemoveAll<SqlServerClubDbContext>();
+            services.RemoveAll<DbContextOptions<SqlServerClubDbContext>>();
+            services.AddDbContext<SqlServerClubDbContext>(o =>
             {
-                services.RemoveAll<ClubDbContext>();
-                services.RemoveAll<SqliteClubDbContext>();
-                services.RemoveAll<DbContextOptions<SqliteClubDbContext>>();
-                services.RemoveAll<SqlServerClubDbContext>();
-                services.RemoveAll<DbContextOptions<SqlServerClubDbContext>>();
-                if (sqlConnection is not null)
-                {
-                    services.AddDbContext<SqlServerClubDbContext>(o => o.UseSqlServer(sqlConnection));
-                    services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
-                }
-                else
-                {
-                    services.AddDbContext<SqliteClubDbContext>(o => o.UseSqlite($"Data Source={Path.Combine(directory, "test.db")}"));
-                    services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqliteClubDbContext>());
-                }
+                o.UseSqlServer(sqlConnection);
+                if (interceptor is not null) o.AddInterceptors(interceptor);
             });
-        }
+            services.AddScoped<ClubDbContext>(sp => sp.GetRequiredService<SqlServerClubDbContext>());
+        });
         if (mailSender is not null)
             builder.ConfigureTestServices(services => { services.RemoveAll<IClubMailSender>(); services.AddSingleton(mailSender); });
     }
@@ -132,7 +135,10 @@ public sealed class ClubFactory : WebApplicationFactory<Program>
     public async Task<string> Code(string email, string purpose)
     {
         using var scope = Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
-        var message = db.EmailMessages.Single(x => x.Recipient == email && x.Subject == $"HorseClub {purpose}");
+        var challengePurpose = Enum.Parse<ChallengePurpose>(purpose);
+        var message = await db.EmailMessages.Where(x => x.Recipient == email
+            && db.Challenges.Any(c => c.Id == x.ChallengeId && c.Purpose == challengePurpose))
+            .OrderByDescending(x => x.CreatedAt).FirstAsync();
         await Task.CompletedTask; return message.Body.Split('\n')[0].Split(": ")[1];
     }
     public static async Task<JsonElement> Post(HttpClient c, string path, object body)

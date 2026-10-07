@@ -1,7 +1,4 @@
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -17,7 +14,6 @@ public sealed class WorkerSqlServerTests
         await using var factory = new ClubFactory(mailSender: sender); var clock = new WorkerClock();
         var message = await WorkerTests.SeedEmail(factory, clock);
         await using var replica = factory.Replica();
-        Assert.NotSame(factory.Services.GetRequiredService<WriteGate>(), replica.Services.GetRequiredService<WriteGate>());
         using var first = WorkerTests.Email(factory, clock); using var second = WorkerTests.Email(replica, clock);
         var inFlight = first.RunOnce();
         try
@@ -63,7 +59,6 @@ public sealed class WorkerSqlServerTests
             Assert.All(await db.PreventiveCare.ToListAsync(), x => Assert.False(x.ReminderSent));
             await db.Database.ExecuteSqlRawAsync("DROP TRIGGER FailWorkerNotification");
         });
-        Assert.Equal(1, factory.Services.GetRequiredService<WriteGate>().Semaphore.CurrentCount);
         Assert.Equal(4, await worker.RunOnce()); Assert.Equal(0, await worker.RunOnce());
     }
 }

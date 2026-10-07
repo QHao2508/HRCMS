@@ -1,19 +1,22 @@
 # Backend HorseClub
 
-**BE-004 — 05/10/2026:** đã hoàn thiện Rider Plan scope, Plan session pagination, outcome history và precision speed theo cấu hình. Suite mới nhất 85 ca: SQL Server 84 pass/1 skip, SQLite 72 pass/13 skip. Không có migration mới ở BE-004; xem [hướng dẫn contract và demo](BE-004_TRAINING.md). Các kết quả trước BE-004 bên dưới là lịch sử.
+**Cấu hình Azure hiện tại — 07/10/2026:** appsettings chung trỏ tới `hrcms.database.windows.net / HRCMS`; mật khẩu được cấp qua User Secrets. Xem [AZURE_SQL_SETUP.md](AZURE_SQL_SETUP.md). Mô tả SQL Express bên dưới thuộc lần kiểm local trước đó; không dùng kết nối đó để triển khai schema Azure.
 
-**BE-003 — 05/10/2026:** intake đã hỗ trợ partial Draft nullable; Submit/Approval kiểm đủ dữ liệu và ảnh/chứng nhận; Manager edit giới hạn thông tin quản lý có audit. Cần áp migration PartialRegistrationDraft đúng provider trước chạy binary mới trên DB cũ. Suite mới nhất 73 ca: SQL Server 72 pass/1 skip, SQLite 60 pass/13 skip. Xem [hướng dẫn và lưu ý rollback BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md); các con số sau bước 6 bên dưới là kết quả lịch sử.
+**BE-004 — 05/10/2026:** đã hoàn thiện Rider Plan scope, Plan session pagination, outcome history và precision speed theo cấu hình. Không có migration mới ở BE-004; xem [hướng dẫn contract và demo](BE-004_TRAINING.md). Các kết quả trước BE-004 bên dưới là lịch sử.
+
+**BE-003 — 05/10/2026:** intake đã hỗ trợ partial Draft nullable; Submit/Approval kiểm đủ dữ liệu và ảnh/chứng nhận; Manager edit giới hạn thông tin quản lý có audit. Cần áp migration PartialRegistrationDraft đúng provider trước chạy binary mới trên DB cũ. Xem [hướng dẫn và lưu ý rollback BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md); các con số sau bước 6 bên dưới là kết quả lịch sử.
 
 Backend ASP.NET Core .NET 10 đã triển khai các API cho tài khoản, hồ sơ/phân công ngựa, huấn luyện, y tế, chăm sóc/chuồng, tồn kho, thông báo, audit và báo cáo. Đây là mã nguồn backend; chưa có frontend, kết nối SMTP thật hay triển khai production.
 
 ## Chạy local
 
-Cần .NET SDK 10 và SQL Server. API mặc định dùng SqlServer. ConnectionStrings:SqlServer trong appsettings.json kết nối trực tiếp tới database hiện có HRCMS tại .\SQLEXPRESS bằng Windows Authentication (không chứa mật khẩu). Cả profile http/https chọn SqlServer, không ghi đè connection string. Nếu instance/database local khác, sửa appsettings.json. AutoMigrate=false ở cả cấu hình chung/Development: schema phải được chuẩn bị trước; startup không tự tạo/cập nhật schema. User Secrets/biến môi trường vẫn có thể ghi đè theo thứ tự cấu hình .NET; đã bỏ connection string và AutoMigrate đã thêm vào User Secrets trên máy Khoa. Khi triển khai, cấp kết nối phù hợp qua secrets/biến môi trường, không dùng database local test cho production. SQLite chỉ dùng khi cấu hình tường minh trong fixture/utility; không tự fallback khi kết nối SQL Server lỗi. Chạy từ thư mục repository:
+Cần .NET SDK 10 và SQL Server. API mặc định dùng SqlServer. ConnectionStrings:SqlServer trong appsettings.json kết nối trực tiếp tới database HRCMS tại .\SQLEXPRESS bằng Windows Authentication (không chứa mật khẩu). Cả profile http/https chọn SqlServer, không ghi đè connection string. Nếu instance/database local khác, sửa appsettings.json. AutoMigrate=false ở cả cấu hình chung/Development: schema phải được chuẩn bị trước; startup không tự tạo/cập nhật schema. User Secrets/biến môi trường vẫn có thể ghi đè theo thứ tự cấu hình .NET; đã bỏ connection string và AutoMigrate đã thêm vào User Secrets trên máy Khoa. Khi triển khai, cấp kết nối phù hợp qua secrets/biến môi trường, không dùng database local test cho production. SQL Server là provider duy nhất; không có fallback sang database khác. Chạy từ thư mục repository:
 
 ```powershell
 dotnet restore HorseClub.slnx
 dotnet tool restore
 dotnet build HorseClub.slnx --configuration Release
+$env:HRCMS_TEST_SQLSERVER = 'Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
 dotnet test HorseClub.slnx --configuration Release
 dotnet run --project Horse_BackEnd --launch-profile http
 ```
@@ -22,7 +25,7 @@ API local theo launch profile: `http://localhost:5299`. Health check: `/health`.
 
 Chạy `dotnet run --project Horse_BackEnd --launch-profile http`, rồi mở `http://localhost:5299/swagger`. Trong Authentication, mở POST `/api/auth/login` → Try it out → nhập email/password tài khoản demo → Execute. Copy `accessToken` trong response, bấm Authorize, dán token nguyên bản (không thêm `Bearer`), rồi Authorize → Close. Gọi GET `/api/auth/me` để kiểm tra role trước khi thử API BE02. Đổi role bằng Logout trong hộp Authorize rồi đăng nhập và dán token người tiếp theo. Swagger không lưu token qua lần tải lại trang; chỉ bật trong Development. Upload dùng Try it out, chọn type và file. Request thử vẫn ghi vào database đang kết nối, nên dùng môi trường demo riêng.
 
-Development tự áp dụng migration. Database, upload, key và email local nằm dưới `Horse_BackEnd/App_Data`, đã bị Git ignore. Không xóa thư mục này nếu cần giữ dữ liệu/key; mất key khiến token và dữ liệu CCCD đã bảo vệ không đọc được.
+AutoMigrate=false: áp SQL Server migrations bằng dotnet ef hoặc script triển khai trước khi chạy. Upload, key và email local nằm dưới `Horse_BackEnd/App_Data`, đã bị Git ignore. Không xóa thư mục này nếu cần giữ dữ liệu/key; mất key khiến token và dữ liệu CCCD đã bảo vệ không đọc được.
 
 ## Tạo Club Manager đầu tiên
 
@@ -41,11 +44,11 @@ Manager tạo HeadTrainer/Trainer/WorkRider/Veterinarian/Groom bằng `POST /api
 
 Owner tạo account qua `/api/auth/register`, nhận mã email và xác thực bằng `/api/auth/verify-email`. Password/ConfirmPassword phải khớp. Chính sách độ dài, OTP, resend, attempts và lockout nằm trong `Security`.
 
-Local dùng `Email:Mode=DevelopmentFile`; worker ghi email thử nghiệm vào `App_Data/mail/*.eml`. Đây là đường thử local, không phải gửi email thật. Không có endpoint trả OTP. OTP sai bị đếm attempts; OTP đúng dùng một lần. Staff invitation/reset code có entropy cao, lưu hash trong database. Email outbox được lưu transaction với yêu cầu; body chứa code được xóa sau khi gửi thành công. Cần hạn chế quyền truy cập DB/mail/key và có chính sách dọn email local.
+Development hiện chọn Gmail SMTP thật; địa chỉ gửi/App Password nằm trong User Secrets. `DevelopmentFile` chỉ dùng khi chủ động cấu hình cho test. Không có endpoint trả OTP. Đăng ký/reset/kích hoạt staff đều dùng OTP 6 chữ số, mặc định hết hạn sau 10 phút và chỉ dùng một lần; 5 lần sai vô hiệu hóa OTP. OTP lưu hash trong database. Email outbox được lưu transaction với yêu cầu; body chứa OTP được xóa sau khi gửi thành công. Xem [hướng dẫn test OTP](EMAIL_OTP_TEST_GUIDE.md).
 
 Login trả `tokenType`, `accessToken`, `expiresIn`, `refreshToken`. Gửi `Authorization: Bearer <accessToken>` cho API protected. Đây là opaque bearer token do ASP.NET Core Data Protection bảo vệ, không phải JWT. Dùng `/api/auth/refresh` để nhận token mới. Logout, reset password hoặc disable staff làm token của account đó mất hiệu lực. Refresh token có thể dùng đến hết hạn hoặc bị thu hồi cùng security stamp; chưa triển khai rotation cho từng thiết bị.
 
-Production cấu hình `Email:Mode=Smtp`, `Email:Host`, `Email:Port`, `Email:From`, `Email:Username`, `Email:Password`. SMTP dùng TLS. Worker có retry/backoff. Email delivery là at-least-once; lỗi SMTP có thể làm retry gửi trùng cùng mã, nhưng mã vẫn chỉ dùng một lần.
+Production cấu hình `Email:Provider=Smtp`, `Email:FromAddress`, `Email:FromName` và `Email:Smtp:Host/Port/Username/Password/EnableSsl`. Gmail yêu cầu TLS. Xem [lệnh dotnet user-secrets](GMAIL_USER_SECRETS.md). Worker có retry/backoff. Email delivery là at-least-once; lỗi SMTP có thể làm retry gửi trùng cùng mã, nhưng mã vẫn chỉ dùng một lần.
 
 ## Enum và cấu hình
 
@@ -107,7 +110,7 @@ Lỗi nghiệp vụ có HTTP status và JSON `title`, `detail`, `referenceId`, `
 
 ## SQL Server và triển khai
 
-Có context/migration riêng cho SQLite và SQL Server. Không dùng SQLite migration để triển khai SQL Server. Đặt connection string bằng secrets hoặc biến môi trường. Ví dụ tạo migration SQL để review trước deployment:
+Chỉ có context/migrations SQL Server. Đặt connection string qua secrets hoặc biến môi trường. Ví dụ tạo migration SQL để review trước deployment:
 
 SQL tạo schema đã có sẵn tại [database.sql](database.sql); xem [hướng dẫn chạy bằng SSMS](DATABASE_SQL.md).
 
@@ -117,12 +120,12 @@ dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-proje
 
 Apply bằng công cụ triển khai phù hợp; application production mặc định `Database:AutoMigrate=false`. Khi cần `dotnet ef database update`, truyền connection thật qua `--connection` trong môi trường bảo mật; design-time factory chỉ có cấu hình local phục vụ scaffold, không đọc deployment secrets. Có thể dùng deployment script để tránh đưa credentials vào command history.
 
-SQLite local dùng một instance và persistent disk. Write requests dùng gate trong process và serializable transaction; response success chỉ gửi sau commit. Background worker cũng phối hợp gate/transaction. SQL Server hỗ trợ transaction/concurrency token nhưng cần integration/load test trên server thật trước production hoặc chạy nhiều replicas. SQLite chưa phù hợp scale-out.
+Write requests dùng process gate và serializable transaction; response success chỉ gửi sau commit. SQL Server bảo vệ concurrency giữa replica bằng transaction/concurrency token và worker application locks. Kiểm load trên môi trường triển khai trước khi scale-out.
 
 Production cần HTTPS, CORS origin thật, SMTP thật, persistence/backup cho database/uploads/key và giới hạn quyền filesystem. Ngoài Development mặc định yêu cầu key encryption Certificate hoặc WindowsDpapi trước startup; chưa tích hợp vault/KMS. NationalId protection cần giữ key ring và certificate/identity tương ứng. Upload kiểm signature/extension/size, force download/nosniff và cleanup file chưa commit; chưa có antivirus hoặc kiểm chứng nội dung đầy đủ. Xem [cấu hình keys và runbook khôi phục](STORAGE_AND_RECOVERY.md). Email worker gửi trong transaction/gate; SMTP chậm có thể tăng latency write, cần tách worker và cơ chế lease nếu triển khai tải cao.
 
 ## Kiểm thử và phạm vi còn lại
 
-Test suite dùng WebApplicationFactory và database riêng theo từng fixture, mặc định SQLite; đặt HRCMS_TEST_SQLSERVER để chạy trên SQL Server. Sau bước 6 ngày 04/10/2026 có 61 ca: SQL Server Express 60 pass/1 SQLite-only skip; SQLite 48 pass/13 SQL-only skip. Có kiểm workflow/OTP/medical/privacy/uploads, rollback/FK/concurrency giữa hai host, contract của 96 operations, worker/migration và storage/restore. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md), [API_CONTRACT.md](API_CONTRACT.md), [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) và [STORAGE_AND_RECOVERY.md](STORAGE_AND_RECOVERY.md). Workers đã được kiểm bằng RunOnce, fake sender và DevelopmentFile thật; SMTP bên ngoài và load testing chưa được nghiệm thu. CI chưa xác nhận run GitHub mới trong phiên này.
+Test suite dùng WebApplicationFactory và SQL Server, database riêng cho từng fixture. Bắt buộc đặt HRCMS_TEST_SQLSERVER; fixture chỉ tạo/migrate/drop database HRCMS_Test_<GUID>. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md) và [FRONTEND_READINESS.md](FRONTEND_READINESS.md).
 
 Chưa có export PDF/Excel báo cáo, 3D injury map, global search nâng cao, dữ liệu master chuẩn hóa qua UI quản trị, account multi-club, scheduling duration/overlap đầy đủ, cancellation/rejection policy ngoài draft/revision, device-level token rotation hoặc frontend. Flow 5 thi đấu không nằm trong scope. Các phần này cần issue riêng; không được mô tả là đã triển khai.

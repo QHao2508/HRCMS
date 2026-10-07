@@ -13,7 +13,7 @@ Không có bước đăng ký staff hoặc chỉnh medical clearance trong BE-00
 | Layer | File chính | Việc thực hiện |
 | --- | --- | --- |
 | API | HorseEndpoints.cs | Binding RegistrationDraftRequest cho POST/PUT; gọi workflow BLL; không query EF hoặc xử lý duyệt tại endpoint |
-| BLL | Requests.cs, HorseWorkflow.cs, HorseService.cs | DTO partial, quyền/state, kiểm dữ liệu đã nhập, ValidateReady khi submit/approve, manager allowlist và audit |
+| BLL | Requests.cs, HorseRegistrationService.cs, HorseRegistrationService.cs | DTO partial, quyền/state, kiểm dữ liệu đã nhập, ValidateReady khi submit/approve, manager allowlist và audit |
 | BLL | ClubOptions.cs, MessageKey.cs, messages.en.json | Giới hạn height/weight từ Business options; thông báo dùng enum key/catalog; không nối câu lỗi nghiệp vụ trong service |
 | DAL | Entities.cs, migrations hai provider | Nullable dữ liệu chưa nhập của HorseRegistration; Horse/Measurement chính thức vẫn yêu cầu dữ liệu đầy đủ |
 
@@ -44,11 +44,11 @@ Namespace Horse_BackEnd.* trong BLL/DAL được giữ như quy ước dự án.
 
 ## Cấu hình giới hạn
 
-Business:MinHorseHeightCm=1, MaxHorseHeightCm=300, MinHorseWeightKg=1, MaxHorseWeightKg=2000 là default core. Có thể override qua configuration; startup kiểm min <= max. Không hardcode bounds ở HorseService. MaxLength của DTO là giới hạn cấu trúc contract, HTTP status/error code/field identifiers là định danh kỹ thuật theo quy ước layer/messages.
+Business:MinHorseHeightCm=1, MaxHorseHeightCm=300, MinHorseWeightKg=1, MaxHorseWeightKg=2000 là default core. Có thể override qua configuration; startup kiểm min <= max. Không hardcode bounds ở HorseRegistrationService. MaxLength của DTO là giới hạn cấu trúc contract, HTTP status/error code/field identifiers là định danh kỹ thuật theo quy ước layer/messages.
 
 ## Migration và ảnh hưởng frontend
 
-Thêm **PartialRegistrationDraft** cho SQLite và SQL Server; SQL idempotent [database.sql](database.sql) đã sinh lại. Migration Up chỉ đổi nullability intake, không xóa dữ liệu đầy đủ trước đây; đã kiểm downgrade/upgrade trên fixture chứa intake đầy đủ. Chưa áp migration vào database cá nhân/production.
+Thêm **PartialRegistrationDraft** cho SQL Server; SQL idempotent [database.sql](database.sql) đã sinh lại. Migration Up chỉ đổi nullability intake, không xóa dữ liệu đầy đủ trước đây; đã kiểm downgrade/upgrade trên fixture chứa intake đầy đủ. Chưa áp migration vào database cá nhân/production.
 
 Trước dùng binary mới, BE05 review và áp migration đúng provider trong môi trường có backup. **Không tự downgrade khi còn partial Draft:** Down được EF sinh có default để thay null khi quay về schema cũ, có thể làm mất ý nghĩa “chưa nhập”. Rollback an toàn cần restore bộ backup tương ứng hoặc xử lý dữ liệu trước theo quy trình BE05, không chạy Down tùy tiện.
 
@@ -60,7 +60,7 @@ Thêm 12 trường hợp trong IntakeTests (gồm theory): partial Draft/persist
 
 Giữ các test cũ về approval đồng thời, rollback sau SQL trigger, reassignment và Trainer cũ mất scope. LayerAndMessageTests kiểm dependency project và đầy đủ message templates. SQL concurrency fixture nay có intake/files metadata đầy đủ để validation không chặn trước khi kiểm lỗi DB.
 
-Kết quả cuối: **Release build 0 warning/0 error; SQL Server 72 pass/1 SQLite-only skip; SQLite 60 pass/13 SQL-only skip, tổng 73 ca, không fail.** TRX ở TestResults/BE003/sqlite-reviewed và TestResults/BE003/sqlserver-reviewed, Git ignored. OpenAPI giữ 96 operations, 139 schemas, 87 secured operations; POST/PUT intake mô tả DTO nullable mới.
+Kết quả cuối: **Release build 0 warning/0 error; SQL Server 72 pass/1 provider-specific skip, tổng 73 ca trong lần kiểm lịch sử, không fail.** TRX ở TestResults/BE003/sqlserver-reviewed, Git ignored. OpenAPI giữ 96 operations, 139 schemas, 87 secured operations; POST/PUT intake mô tả DTO nullable mới.
 
 Chạy lại:
 

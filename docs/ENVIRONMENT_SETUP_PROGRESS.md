@@ -1,16 +1,18 @@
 # Bước 1 — Chuẩn bị và kiểm chứng môi trường HRCMS
 
+Cập nhật 07/10/2026: database/runtime/tests dùng SQL Server duy nhất. Xem [báo cáo kiểm hiện tại](FRONTEND_READINESS.md) và [hướng dẫn test](SQLSERVER_TESTING.md).
+
 **Đổi tên database dự án — 05/10/2026:** theo yêu cầu Khoa, database đang dùng HorseClub_BE02_Test đã đổi tên thành **HRCMS**; giữ 5 account demo và 3 migration. HorseClub_IntegrationTest không có dữ liệu nghiệp vụ (chỉ history migration), đã xóa. Cả hai được native SQL backup COPY_ONLY/CHECKSUM và VERIFYONLY trước thao tác. appsettings.json, công cụ seed, credentials local và hướng dẫn demo đã cập nhật HRCMS. Tên database trong các bản ghi cũ bên dưới là lịch sử; không cần tạo lại hai database cũ.
 
 **Kết nối trực tiếp từ appsettings.json — cập nhật 05/10/2026:** theo yêu cầu Khoa, ConnectionStrings:SqlServer đã chuyển vào appsettings.json, Windows Authentication tới .\SQLEXPRESS/HorseClub_BE02_Test (database đã có). Bỏ connection string trong launch profiles và hai giá trị ConnectionStrings:SqlServer/Database:AutoMigrate đã thêm vào User Secrets. AutoMigrate=false cả chung/Development để không tự cập nhật schema hiện có. Debug build 0 warning/error; host tạm 5313 đọc cấu hình này, Health/Swagger 200, không chạy migration; đã dừng. Log: TestResults/SqlServerDefault/appsettings-connection.log. Các mô tả cấu hình trước đó dưới đây là lịch sử.
 
-**Xác nhận SQL Server mặc định — 05/10/2026:** appsettings chung/Development, fallback startup và cả profile http/https đã chọn SqlServer. Connection vẫn ở User Secrets, database local test `HorseClub_BE02_Test`. Đã chạy đúng profile http tại 5299: Health/Swagger 200, EmailWorker sinh `SELECT TOP(1) ... FROM [EmailMessages]`, không có LIMIT/PRAGMA trong log kiểm chứng. Host tạm đã dừng. SQLite chỉ còn là lựa chọn tường minh cho fixture/utility, không là mặc định API. Fixture test đã thay DI cho cả hai provider để không kế thừa database local từ User Secrets; 27 ca Intake/Training/layer-message pass sau sửa; toàn suite SQL Server 84 pass/1 SQLite-only skip, 0 fail. Log kiểm chứng: TestResults/SqlServerDefault/api-sqlserver.log; TRX: TestResults/SqlServerDefault/sqlserver (Git ignored).
+
 
 **Cấu hình test Swagger SQL Server — 05/10/2026:** User Secrets trên máy Khoa đã chọn `Database:Provider=SqlServer`, `Database:AutoMigrate=true`, kết nối Windows Authentication đến `.\SQLEXPRESS`, database mới `HorseClub_BE02_Test`. Database có 31 bảng nghiệp vụ và đủ InitialSqlServer, WorkerDeliveryReliability, PartialRegistrationDraft. Host kiểm chứng tạm tại cổng 5310 trả `/health` 200 healthy và `/swagger/index.html` 200; đã dừng sau khi kiểm tra. Không tạo tài khoản ứng dụng trong lần kiểm chứng, không thay đổi database `HorseClub` hoặc `HorseClub_IntegrationTest`. Khởi động lại profile http để dùng cấu hình này tại cổng 5299; kết nối nằm trong User Secrets, không được commit vào repo. Đây là smoke test kết nối, không thay cho suite nghiệp vụ SQL Server.
 
-**BE-004 — 05/10/2026:** hoàn thiện training scope/pagination/history/speed precision, thêm 12 ca test. Build Release 0 warning/error; SQL Server 84 pass/1 skip, SQLite 72 pass/13 skip. Không đổi schema hoặc medical clearance. Xem [bàn giao BE-004](BE-004_TRAINING.md); chờ reviewer BE03 và tích hợp frontend.
 
-**BE-003 — 05/10/2026:** đã triển khai partial Draft nullable, validate submit/approval, giới hạn Manager edit với before/after audit và kiểm quyền official assignment. Có migration PartialRegistrationDraft hai provider, SQL/OpenAPI đã xuất lại. Release build 0 warning/error; suite 73 ca: SQL Server 72 pass/1 skip, SQLite 60 pass/13 skip. Xem [bàn giao BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md). Chờ reviewer BE01; không migrate DB cá nhân hoặc tự làm BE-004/BE-005.
+
+
 
 **T02 — 05/10/2026:** đã đọc đầy đủ nguồn Word hợp nhất V1/V2 và lập [policy, traceability và gap backend](T02_POLICY_BASELINE.md). P01–P10 có quyết định/quy ước core; Khoa xác nhận clearance theo vấn đề được chọn, partial Draft và archive đóng vận hành giữ history. T02 hoàn thành phần chốt policy, chờ reviewer nhóm; chưa thay đổi API/schema hoặc tự thực hiện task module khác. Các ghi chú “chưa có nguồn Word” và “toàn bộ policy chờ xác nhận” ở phần lịch sử dưới đây phản ánh ngày 04/10.
 
@@ -38,7 +40,7 @@ Máy hiện có SDK **10.0.401**, phù hợp TargetFramework **net10.0** của d
 | Backend kết nối database test | `/health` HTTP 200, `{"status":"healthy"}` |
 | OpenAPI | HTTP 200, 73 path, 53 schema, có route login |
 
-Các tests hiện tại chạy workflow trên SQLite; test SQL Server hiện có kiểm model/migration generation. Không coi 21 test pass là bằng chứng toàn bộ workflow chạy đúng trên SQL Server.
+
 
 Lần chạy tests trong sandbox có 15 fail do quyền Windows Event Log và tài nguyên môi trường. Chạy lại đúng cùng bộ test ngoài sandbox đạt 21/21; không thay đổi code để làm tests pass.
 
@@ -64,7 +66,7 @@ Smoke test chạy backend tạm thời tại `http://localhost:5301`, dùng bi�
 
 **Cập nhật bước 2:** đã lập [bản đồ contract và API](CONTRACT_AND_SCREEN_MAP.md), [các quyết định nghiệp vụ](POLICY_DECISIONS.md) và inventory OpenAPI đầy đủ 96 operations. Đối chiếu frontend được hoãn theo người dùng vì bộ phận frontend chưa hoàn thành. Kiểm thử/sửa metadata backend tiếp tục theo behavior hiện có; không coi các policy đề xuất là đã được xác nhận.
 
-**Cập nhật bước 3:** đã chạy bộ test mở rộng: SQL Server 34 pass; SQLite 27 pass/7 SQL-only skip. Đã sửa SQL Server deadlock 1205 bị EF bọc làm API trả 500; nay trả 409 transaction_conflict. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md) cho phạm vi, hướng dẫn và giới hạn. Database test mỗi fixture được tạo/dọn riêng, không reset database bước 1.
+
 
 1. Lập bảng contract theo màn hình và action từ nguồn yêu cầu thật (T01/T05); thông tin từ code là baseline.
 2. Chốt policy medical lock/clearance, draft, quyền clinical, archive và lịch duration/overlap (T02).
@@ -74,6 +76,6 @@ Smoke test chạy backend tạm thời tại `http://localhost:5301`, dùng bi�
 
 **Cập nhật bước 5:** đã sửa/kiểm worker email và reminder, có 14 test mới và migration WorkerDeliveryReliability cho cả hai provider. Xem [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md). Chưa áp migration vào database cá nhân hoặc kết nối SMTP bên ngoài; SQL test dùng database riêng.
 
-**Cập nhật bước 6:** hoàn thiện upload cleanup theo transaction, giới hạn đường dẫn storage, cấu hình mã hóa key ring và CLI backup/verify/restore SQLite. Native SQL backup được restore vào DB test mới và đọc qua API. Toàn suite 61 ca: SQL Server 60 pass/1 skip, SQLite 48 pass/13 skip; build Release 0 warning/error. Kết quả TRX ở TestResults/step6/sqlserver và TestResults/step6/sqlite (Git ignored). Xem [STORAGE_AND_RECOVERY.md](STORAGE_AND_RECOVERY.md) cho hướng dẫn và giới hạn; chưa cấu hình certificate production, retention hoặc offsite backup scheduler.
+
 
 Chưa cấu hình tài khoản Manager cá nhân hoặc bật SMTP thực. Các thay đổi backend tới nay gồm xử lý deadlock, typed response/metadata và validation examination lồng nhau; không áp policy mới.

@@ -1,5 +1,5 @@
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Domain;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,6 +10,12 @@ namespace Horse_BackEnd.Infrastructure;
 
 public sealed class ApiContractTransformer : IOpenApiOperationTransformer
 {
+    /// <summary>
+    /// Bổ sung schema lỗi, bearer security, mã HTTP và hợp đồng multipart/download vào OpenAPI theo metadata endpoint.
+    /// </summary>
+    /// <param name="operation">Giá trị kiểu OpenApiOperation dùng trong TransformAsync.</param>
+    /// <param name="context">Giá trị kiểu OpenApiOperationTransformerContext dùng trong TransformAsync.</param>
+    /// <param name="cancellationToken">Giá trị kiểu CancellationToken dùng trong TransformAsync.</param>
     public async Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken)
     {
         var path = "/" + Regex.Replace(context.Description.RelativePath!, @"\{([^}:]+):[^}]+\}", "{$1}").Trim('/');
@@ -21,6 +27,7 @@ public sealed class ApiContractTransformer : IOpenApiOperationTransformer
         context.Document!.AddComponent(nameof(ApiErrorResponse), errorSchema);
         var error = new OpenApiSchemaReference(nameof(ApiErrorResponse), context.Document);
         operation.Responses ??= new OpenApiResponses();
+        // Bổ sung response lỗi OpenAPI khi mã HTTP chưa có để không ghi đè schema endpoint đã khai báo.
         void AddError(int status, string description) => operation.Responses.TryAdd(status.ToString(), new OpenApiResponse
         {
             Description = description,
@@ -37,7 +44,8 @@ public sealed class ApiContractTransformer : IOpenApiOperationTransformer
             context.Document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
             context.Document.Components.SecuritySchemes.TryAdd("Bearer", new OpenApiSecurityScheme
             {
-                Type = SecuritySchemeType.Http, Scheme = "bearer",
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
                 Description = "Opaque ASP.NET Core Identity access token from /api/auth/login or /refresh. Send Authorization: Bearer <accessToken>."
             });
             operation.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("Bearer", context.Document)] = [] }];

@@ -1,122 +1,55 @@
-# HorseClub – HRCMS
+# HorseClub — HRCMS
 
-Hệ thống quản lý câu lạc bộ và huấn luyện ngựa đua, từ tiếp nhận hồ sơ, phân công nhân sự đến huấn luyện, thú y, chăm sóc và quản lý kho. Hệ thống phục vụ 7 vai trò: Horse Owner, Club Manager, Head Trainer, Trainer, Work Rider, Veterinarian và Groom.
+Backend quản lý câu lạc bộ/ngựa đua: tài khoản, intake/approval, assignment, training, y tế, chăm sóc, kho, thông báo và báo cáo. ASP.NET Core .NET 10, EF Core và SQL Server duy nhất.
 
-## Chức năng chính
+## Cấu trúc
 
-- **Tài khoản và phân quyền:** Owner đăng ký/xác thực email; Manager tạo staff qua invitation; đăng nhập, refresh, reset mật khẩu và kiểm quyền/phạm vi dữ liệu phía server.
-- **Hồ sơ ngựa:** draft, submit tài liệu, revision, approval và Horse Profile; phân công Head Trainer/Trainer/Vet/Groom, giữ lịch sử.
-- **Huấn luyện:** template, plan, session, giao Work Rider, kết quả và đánh giá. Kiểm medical restrictions khi lập lịch, assign và start.
-- **Thú y:** khám, chấn thương, điều trị, restrictions, follow-up/clearance và preventive care; giới hạn clinical records theo quyền.
-- **Vận hành:** care/feeding, incidents/photos, stable/stall/occupancy, stock movements và replenishment.
-- **Dùng chung:** notifications, reminders, audit, dashboard và reports theo phạm vi từng role.
+```text
+Horse_BackEnd/Endpoints → HorseClub.BLL/<Module>/*Service → HorseClub.DAL/Data
+```
 
-Backend đã có API và kiểm thử. Thiết kế frontend đã hoàn thành trên [Figma](https://www.figma.com/design/AKLYJd26mWHeG1W8V0ach5/Figma-basics--Copy-?node-id=1669-162202) theo thông tin nhóm; mã frontend sẽ được push và tích hợp sau tại repository riêng [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Repository HRCMS này dành cho backend, database và tài liệu liên quan. Đặc tả nguồn: `Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx`; quyết định V2 được ưu tiên khi xung đột V1.
+Giữ Minimal API và ba project API → BLL → DAL. Services theo module, entity/enum/DTO theo file riêng. Đọc [cấu trúc từng folder/file](docs/PROJECT_STRUCTURE_EXPLAINED.md), [kiến trúc](docs/ARCHITECTURE.md) và [thay đổi/hiệu năng](docs/STRUCTURE_AND_PERFORMANCE.md).
 
-## Công nghệ và cấu trúc
+## Azure SQL và chạy API
 
-ASP.NET Core **.NET 10**, EF Core, SQL Server; hỗ trợ SQLite cho môi trường thử nghiệm. Role/status/type dùng enum, thông báo dùng catalog chung qua `MessageKey`, giới hạn vận hành dùng options và secrets tách khỏi mã nguồn.
-
-| Project/thư mục | Trách nhiệm |
-| --- | --- |
-| `Horse_BackEnd` | API: routes, request binding, HTTP pipeline, DI và startup |
-| `HorseClub.BLL` | Business: workflows, services, DTO, quyền và catalog message |
-| `HorseClub.DAL` | Data: entities/enums, DbContext, provider và migrations |
-| `tests/Horse_BackEnd.Tests` | Kiểm thử nghiệp vụ, phân quyền, layer và messages |
-| `docs` | SQL schema, hướng dẫn và bảng phân công backend |
-
-Luồng phụ thuộc: **API → BLL → DAL**. Xem [quy tắc ba layer và message](docs/THREE_LAYER_AND_MESSAGES.md).
-
-## Chuẩn bị môi trường
-
-Cài .NET SDK 10 và SQL Server; quản lý database bằng SSMS hoặc `sqlcmd`. Clone repository rồi chạy terminal tại thư mục chứa `HorseClub.slnx`:
+Server `hrcms.database.windows.net`, database `HRCMS`. Mật khẩu SQL Login lưu trong User Secrets, không commit source. Chi tiết: [AZURE_SQL_SETUP.md](docs/AZURE_SQL_SETUP.md).
 
 ```powershell
 dotnet restore HorseClub.slnx
 dotnet tool restore
 dotnet build HorseClub.slnx --configuration Release
-```
-
-## Kết nối backend với SQL Server
-
-### 1. Tạo database và schema
-
-Trên máy đã thiết lập, instance `localhost` có database **HorseClub**, gồm 31 bảng nghiệp vụ. Máy của thành viên khác cần tạo database và cấu hình riêng; User Secrets không được đồng bộ qua Git.
-
-Trong SSMS: kết nối bằng Windows Authentication, tạo database `HorseClub`, mở [docs/database.sql](docs/database.sql), chọn đúng database trong dropdown và Execute.
-
-Hoặc dùng `sqlcmd` nếu đã cài công cụ:
-
-```powershell
-sqlcmd -S localhost -E -C -b -Q "IF DB_ID(N'HorseClub') IS NULL CREATE DATABASE [HorseClub];"
-sqlcmd -S localhost -d HorseClub -E -C -b -i docs/database.sql
-```
-
-Script tạo bảng, khóa, indexes và kiểm lịch sử để bỏ qua migration đã áp dụng. Dùng cho database trống hoặc database quản lý bằng migrations của dự án; không reset dữ liệu hiện có. Xem [hướng dẫn SQL](docs/DATABASE_SQL.md).
-
-### 2. Lưu kết nối trong User Secrets
-
-Chạy từ thư mục gốc repository:
-
-```powershell
-dotnet user-secrets set "Database:Provider" "SqlServer" --project Horse_BackEnd
-dotnet user-secrets set "ConnectionStrings:SqlServer" "Server=localhost;Database=HorseClub;Integrated Security=True;Encrypt=True;TrustServerCertificate=True" --project Horse_BackEnd
-dotnet user-secrets set "Database:AutoMigrate" "false" --project Horse_BackEnd
-```
-
-Windows Authentication dùng tài khoản Windows chạy backend; tài khoản này cần quyền đọc/ghi database. Nếu dùng named instance, thay server bằng tên thật, ví dụ `.\SQLEXPRESS`, trong cả lệnh SQL và connection string. `TrustServerCertificate=True` phục vụ SQL Server local có certificate tự ký.
-
-`AutoMigrate=false` vì đã áp schema SQL ở bước 1. User Secrets được đọc khi chạy môi trường **Development** qua launch profile. Môi trường triển khai dùng biến môi trường `Database__Provider`, `ConnectionStrings__SqlServer` hoặc secret store phù hợp. Không commit connection string có mật khẩu.
-
-### 3. Chạy và kiểm tra
-
-```powershell
+./tools/Set-AzureSqlConnection.ps1
+./tools/Update-AzureSqlDatabase.ps1
 dotnet run --project Horse_BackEnd --configuration Release --no-build --launch-profile http
 ```
 
-| URL | Kết quả cần kiểm tra |
-| --- | --- |
-| `http://localhost:5299/health` | HTTP 200, `{"status":"healthy"}` khi database kết nối được |
-| `http://localhost:5299/openapi/v1.json` | API contract trong Development; import vào Postman |
+Script kết nối chỉ cần chạy khi cấu hình máy/kết nối mới; script schema chạy khi có migration mới. AutoMigrate runtime false. Bootstrap Manager dùng cấu hình riêng trong secrets; không có mật khẩu mặc định.
 
-Chưa có Swagger UI. Có requests mẫu tại [Horse_BackEnd.http](Horse_BackEnd/Horse_BackEnd.http). Nếu backend đang chạy ở cổng 5299, dùng instance đó hoặc dừng trước khi chạy thêm.
+- API/health: `http://localhost:5299/health`
+- Swagger development: `http://localhost:5299/swagger`
+- OpenAPI: `http://localhost:5299/openapi/v1.json`
 
-### 4. Tạo Manager đầu tiên
+## Frontend
 
-Schema không có tài khoản hay mật khẩu mặc định. Thay placeholder bằng thông tin riêng:
+React/Vite/JavaScript tại `E:\SWP391\HorseClub-frontend\HRCMS-Frontend`, repository [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Đã có auth, dashboard, registration/review, horse và training. Vite cổng 5173 proxy API tới 5299. Frontend không kết nối SQL trực tiếp. Xem [FRONTEND_READINESS.md](docs/FRONTEND_READINESS.md) và `docs/API_INTEGRATION.md` trong frontend.
 
-```powershell
-dotnet user-secrets set "Bootstrap:ManagerEmail" "<email của bạn>" --project Horse_BackEnd
-dotnet user-secrets set "Bootstrap:ManagerPassword" "<mật khẩu riêng đạt chính sách Security>" --project Horse_BackEnd
-```
-
-Khởi động lại backend để tạo Manager nếu chưa có Manager. Sau khi tạo thành công, có thể xóa cấu hình bootstrap:
+## Kiểm thử
 
 ```powershell
-dotnet user-secrets remove "Bootstrap:ManagerEmail" --project Horse_BackEnd
-dotnet user-secrets remove "Bootstrap:ManagerPassword" --project Horse_BackEnd
-```
-
-Manager tạo staff qua invitation; Owner tự đăng ký qua API. Development ghi email thử vào `Horse_BackEnd/App_Data/mail`; cấu hình SMTP thật khi cần gửi email. Không commit password, OTP, uploads hoặc Data Protection keys. Chi tiết tại [BACKEND_GUIDE.md](docs/BACKEND_GUIDE.md).
-
-## Kiểm thử và tích hợp frontend
-
-```powershell
+$env:HRCMS_TEST_SQLSERVER = 'Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
 dotnet test HorseClub.slnx --configuration Release
 ```
 
-Bộ kiểm thử hiện có 85 trường hợp; CI build/test trên PR và khi push `main`. Kiểm chứng local sau BE-004 ngày 05/10/2026: SQL Server Express chạy 84 pass/1 SQLite-only skip; SQLite chạy 72 pass/13 SQL-only skip. Đã kiểm workflow, FK/rollback, race giữa hai backend độc lập, hợp đồng OpenAPI cho 96 operations, worker retry/expiry/reminder và storage/backup/restore. CI có thêm job SQL Server; chưa xác nhận job mới đã chạy trên GitHub. Xem [cách chạy SQL Server](docs/SQLSERVER_TESTING.md), [contract API hiện tại](docs/API_CONTRACT.md), [worker/migration bước 5](docs/WORKER_RELIABILITY.md) và [storage/khôi phục bước 6](docs/STORAGE_AND_RECOVERY.md). BE-003 đã bổ sung partial Draft, kiểm submit/approval và Manager edit có audit; xem [bàn giao BE-003](docs/BE-003_INTAKE_AND_ASSIGNMENT.md). BE-004 bổ sung training scope, pagination và history; xem [bàn giao BE-004](docs/BE-004_TRAINING.md). Ngoài Development cần cấu hình key encryption trước startup. SMTP bên ngoài, UI, kill-process recovery và load testing vẫn chưa được nghiệm thu.
+Tests tạo/drop database tạm `HRCMS_Test_<GUID>` trên SQL local; không dùng Azure HRCMS làm database test. Xem [SQLSERVER_TESTING.md](docs/SQLSERVER_TESTING.md).
 
-Frontend gọi **API**, backend truy cập **database**. Khi tích hợp, đặt API base URL theo môi trường, cấu hình `Cors:Origins` cho origin frontend thực tế và sử dụng DTO/enum trong OpenAPI. Chủ module backend phối hợp xử lý mismatch sau khi nhận mã frontend.
+## Tài liệu
 
-## Phân công backend và tài liệu nhóm
+[Backend guide](docs/BACKEND_GUIDE.md), [API contract](docs/API_CONTRACT.md), [quy tắc layer/message](docs/THREE_LAYER_AND_MESSAGES.md), [phân công](docs/BACKEND_TASK_ASSIGNMENT.md), [backlog](docs/BACKLOG.md), [contributing](CONTRIBUTING.md).
 
-**File phân chia backend: [docs/BACKEND_TASK_ASSIGNMENT.md](docs/BACKEND_TASK_ASSIGNMENT.md)**. Bảng có 5 vị trí BE01–BE05, 14 task, reviewer, dependency, ưu tiên và tiêu chí nghiệm thu. Nhóm điền tên thành viên/deadline trước khi nhận việc.
+## Đọc và bảo trì code
 
-- [Hướng dẫn backend/API](docs/BACKEND_GUIDE.md)
-- [SQL schema](docs/database.sql) và [hướng dẫn database](docs/DATABASE_SQL.md)
-- [Kiến trúc](docs/ARCHITECTURE.md) và [ba layer/message](docs/THREE_LAYER_AND_MESSAGES.md)
-- [Kế hoạch ban đầu](docs/IMPLEMENTATION_PLAN.md) và [backlog](docs/BACKLOG.md)
-- [Quy trình đóng góp](CONTRIBUTING.md) và [thiết lập GitHub](docs/GITHUB_SETUP.md)
+- [Chức năng từng folder](docs/FOLDERS.md)
+- [Tra cứu từng function](docs/FUNCTION_REFERENCE.md)
+- [Nội dung dọn dẹp](docs/CLEANUP.md)
 
-`main` là nhánh dùng chung sau khi merge backend. Mỗi nhiệm vụ tạo nhánh riêng và gửi PR kèm kiểm thử/reviewer. Phạm vi chưa có gồm report export, 3D injury nâng cao và scheduling duration/overlap đầy đủ; xem BACKEND_GUIDE. Flow 5 thi đấu nằm ngoài phạm vi hiện tại.
+Chú thích XML/JSDoc giải thích mục đích, đầu vào và điểm cần lưu ý ngay trước function. Giữ migration, package lock và Data Protection keys khi dọn project.

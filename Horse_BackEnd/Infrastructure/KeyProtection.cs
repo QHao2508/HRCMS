@@ -9,6 +9,10 @@ namespace Horse_BackEnd.Infrastructure;
 
 public static class KeyProtection
 {
+    /// <summary>
+    /// Đăng ký kho Data Protection key và cơ chế mã hóa theo môi trường; giữ key ổn định giữa các lần chạy để token còn giải mã được.
+    /// </summary>
+    /// <param name="builder">Giá trị kiểu WebApplicationBuilder dùng trong AddClubKeyProtection.</param>
     public static void AddClubKeyProtection(this WebApplicationBuilder builder)
     {
         builder.Services.AddDataProtection().SetApplicationName("HorseClub");
@@ -23,6 +27,10 @@ public static class KeyProtection
 
     private sealed class ConfiguredCertificateEncryptor(X509Certificate2 certificate, ILoggerFactory logs) : IXmlEncryptor
     {
+        /// <summary>
+        /// Mã hóa XML Data Protection bằng certificate đã cấu hình và chỉ định decryptor dùng khi khôi phục key.
+        /// </summary>
+        /// <param name="plaintextElement">Giá trị kiểu XElement dùng trong Encrypt.</param>
         public EncryptedXmlInfo Encrypt(XElement plaintextElement)
         {
             var result = new CertificateXmlEncryptor(certificate, logs).Encrypt(plaintextElement);
@@ -33,6 +41,10 @@ public static class KeyProtection
     // Public constructor is required by the Data Protection key deserializer.
     public sealed class ConfiguredCertificateDecryptor(IServiceProvider services) : IXmlDecryptor
     {
+        /// <summary>
+        /// Giải mã XML key bằng certificate gốc từ DI; không thể khôi phục token nếu thiếu private key tương ứng.
+        /// </summary>
+        /// <param name="encryptedElement">Giá trị kiểu XElement dùng trong Decrypt.</param>
         public XElement Decrypt(XElement encryptedElement)
         {
             var certificate = services.GetRequiredService<KeyMaterial>().Certificate
@@ -51,6 +63,11 @@ public static class KeyProtection
         public string Path { get; }
         public string Mode { get; }
         public X509Certificate2? Certificate { get; }
+        /// <summary>
+        /// Đọc cấu hình đường dẫn/key encryption, kiểm môi trường và certificate private key; tạo kho key cần được giữ khi dọn build.
+        /// </summary>
+        /// <param name="config">Giá trị kiểu IConfiguration dùng trong KeyMaterial.</param>
+        /// <param name="environment">Giá trị kiểu IWebHostEnvironment dùng trong KeyMaterial.</param>
         public KeyMaterial(IConfiguration config, IWebHostEnvironment environment)
         {
             var section = config.GetSection("DataProtection");
@@ -76,6 +93,9 @@ public static class KeyProtection
                 default: throw new InvalidOperationException("DataProtection:KeyEncryption must be None, Certificate, or WindowsDpapi.");
             }
         }
+        /// <summary>
+        /// Giải phóng certificate/nguồn lực mật mã khi DI scope/container kết thúc.
+        /// </summary>
         public void Dispose() => Certificate?.Dispose();
     }
 }

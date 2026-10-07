@@ -3,7 +3,7 @@ namespace HorseClub.BLL.Messaging;
 public enum MessageKey
 {
     ConfigureConnectionStringsSqlServer = 1,
-    DatabaseProviderMustBeSqliteOrSqlServer = 2,
+    DatabaseProviderMustBeSqlServer = 2,
     ConfigureBothBootstrapManagerEmailAndBootstrapManagerPasswordOrNeither = 3,
     BootstrapManagerEmailIsInvalid = 4,
     RecordChangedReloadAndRetry = 5,
@@ -157,4 +157,10 @@ public enum MessageKey
     RegistrationMissingFields = 153,
     ManagerMayOnlyEditAdministrativeRegistrationFields = 154,
     HorseMeasurementsOutsideConfiguredLimits = 155,
+    VerificationEmailSubject = 156,
+    VerificationEmailBody = 157,
+    PasswordResetEmailSubject = 158,
+    PasswordResetEmailBody = 159,
+    StaffInvitationEmailSubject = 160,
+    StaffInvitationEmailBody = 161,
 }

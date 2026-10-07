@@ -15,11 +15,11 @@ Tạm chia thành 5 vị trí **BE01–BE05**, chưa gán tên người thật. 
 
 | Vị trí | Thành viên | Module chịu trách nhiệm | Nơi sửa chính | Reviewer |
 | --- | --- | --- | --- | --- |
-| BE01 – Nền tảng & tích hợp | Chưa gán | Auth/OTP/token, staff, RBAC chung, API contract, cấu hình/CI và điều phối tích hợp | BLL `AuthenticationService`, `AuthWorkflow`, helpers; API startup/pipeline/auth routes | BE05; BE03 kiểm quyền dữ liệu y tế |
-| BE02 – Ngựa & huấn luyện | Chưa gán | Intake/approval, assignment, templates/plans/sessions/results/evaluation | BLL `HorseService`, `TrainingService`, `HorseWorkflow`, `TrainingWorkflow`; routes tương ứng | BE03 kiểm medical guard; BE01 kiểm auth/scope |
-| BE03 – Thú y | Chưa gán | Hồ sơ khám, chấn thương, restriction, treatment, follow-up/clearance và preventive care | BLL `MedicalWorkflow`; phần medical guard trong `TrainingService` phối hợp BE02 | BE02; BE05 kiểm bảo mật |
-| BE04 – Chăm sóc & kho | Chưa gán | Care/feeding, incidents/photos, stable/stall, inventory và replenishment | BLL `CareWorkflow`, `InventoryWorkflow`, `IncidentPhotoWorkflow`, `AttachmentWorkflow` | BE03 kiểm treatment privacy; BE02 kiểm horse scope |
-| BE05 – Dữ liệu, báo cáo & QA | Chưa gán | SQL Server/migrations, reports/dashboard, audit/notifications/reminders, test/UAT và bàn giao | DAL `Data`; BLL `ReportingWorkflow`, `BackgroundWorkers`; tests và tài liệu | BE01; chủ module xác nhận số liệu |
+| BE01 – Nền tảng & tích hợp | Chưa gán | Auth/OTP/token, staff, RBAC chung, API contract, cấu hình/CI và điều phối tích hợp | BLL `AuthenticationService`, `AuthenticationService`, helpers; API startup/pipeline/auth routes | BE05; BE03 kiểm quyền dữ liệu y tế |
+| BE02 – Ngựa & huấn luyện | Chưa gán | Intake/approval, assignment, templates/plans/sessions/results/evaluation | BLL `HorseRegistrationService`, `TrainingSessionService`, `HorseRegistrationService`, `TrainingPlanService/TrainingSessionService`; routes tương ứng | BE03 kiểm medical guard; BE01 kiểm auth/scope |
+| BE03 – Thú y | Chưa gán | Hồ sơ khám, chấn thương, restriction, treatment, follow-up/clearance và preventive care | BLL `MedicalService`; phần medical guard trong `TrainingSessionService` phối hợp BE02 | BE02; BE05 kiểm bảo mật |
+| BE04 – Chăm sóc & kho | Chưa gán | Care/feeding, incidents/photos, stable/stall, inventory và replenishment | BLL `CareService`, `InventoryService`, `IncidentPhotoService`, `AttachmentService` | BE03 kiểm treatment privacy; BE02 kiểm horse scope |
+| BE05 – Dữ liệu, báo cáo & QA | Chưa gán | SQL Server/migrations, reports/dashboard, audit/notifications/reminders, test/UAT và bàn giao | DAL `Data`; BLL `ReportingService`, `BackgroundWorkers`; tests và tài liệu | BE01; chủ module xác nhận số liệu |
 
 Mọi người tự viết kiểm thử cho phần mình sửa. BE05 điều phối và kiểm thử liên module; không nhận toàn bộ kiểm thử thay cả nhóm. BE05 quản lý thay đổi schema, nhưng chủ module phải đề xuất entity/field/quan hệ và tiêu chí dữ liệu trước khi tạo migration.
 

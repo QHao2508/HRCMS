@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

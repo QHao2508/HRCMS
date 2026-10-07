@@ -21,7 +21,7 @@ Không diễn giải tình trạng branch HEAD frontend thành bằng chứng r�
 
 Mọi route nghiệp vụ dưới `/api`; bảng viết route tương đối cho ngắn. O=HorseOwner, M=ClubManager, H=HeadTrainer, T=Trainer, R=WorkRider, V=Veterinarian, G=Groom. HS=Horse scope: Owner đúng OwnerId, Manager, staff có assignment Active, Rider có session được giao. Route training loại Groom bằng filter dù Groom có HS. Session của Rider còn phải đúng RiderId.
 
-Tên DTO là request trong `HorseClub.BLL/Contracts/Requests.cs`. Tên entity/shape response lấy từ source, chưa phải response DTO có schema đầy đủ trong OpenAPI. `Page<T>` viết tắt `{items,page,pageSize,total}`. HTTP success trong bảng lấy từ code; không có nghĩa mọi nhánh đã được probe runtime.
+Tên DTO là request trong `HorseClub.BLL/Contracts/`. Tên entity/shape response lấy từ source, chưa phải response DTO có schema đầy đủ trong OpenAPI. `Page<T>` viết tắt `{items,page,pageSize,total}`. HTTP success trong bảng lấy từ code; không có nghĩa mọi nhánh đã được probe runtime.
 
 ## Màn hình/hành động → API → quyền và contract
 
