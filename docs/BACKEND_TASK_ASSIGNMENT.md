@@ -68,3 +68,10 @@ Chưa gán ngày cố định vì chưa có số người thực tế, thời gi
 Policy clearance toàn ngựa hay từng injury; thời lượng session và overlap lịch; future assignment; cancel/reject ngoài draft/revision; report export; SMTP/deployment target. Những thay đổi này chỉ đưa vào task triển khai khi nhóm xác nhận cần cho sản phẩm. 3D injury nâng cao và Flow 5 thi đấu không mặc định thuộc bảng này.
 
 Tài liệu liên quan: [API và cấu hình](BACKEND_GUIDE.md), [ba layer/message](THREE_LAYER_AND_MESSAGES.md), [SQL database](DATABASE_SQL.md), [quy trình đóng góp](../CONTRIBUTING.md).
+
+## Nhật ký bàn giao BE01
+
+- **BE-001 – mapping contract:** [CONTRACT_AND_SCREEN_MAP.md](CONTRACT_AND_SCREEN_MAP.md) ghi quyền, scope, routes và các điểm cần xác minh; [API_CONTRACT.md](API_CONTRACT.md) là contract hiện tại theo code/OpenAPI. Chưa xác nhận từng màn hình với chủ Figma nên mapping chưa được xem là contract UI cuối cùng.
+- **BE-002 – auth/scope:** integration tests kiểm OTP hết hạn cho Verify/Reset/Invite, giới hạn attempt, lockout, role injection, token revocation, và ma trận bảy role cho staff directory cùng thao tác Manager-only. Cần chạy trên .NET 10 với SQL Server test trước khi đóng task.
+- **BE-012 – frontend handoff:** [Horse_BackEnd.http](../Horse_BackEnd/Horse_BackEnd.http) có request mẫu an toàn cho auth, enum, upload, error, Owner và Manager. [BACKEND_GUIDE.md](BACKEND_GUIDE.md) và [API_CONTRACT.md](API_CONTRACT.md) ghi API base URL, CORS, cấu hình secret, status/error và cách dùng bearer token.
+- **BE-013 – UI integration:** chưa thể hoàn tất cho đến khi frontend được xác nhận sẵn sàng để tích hợp và các câu hỏi contract còn mở được chủ trách nhiệm chốt.

@@ -71,6 +71,37 @@ public sealed class WorkflowTests
     }
 
     [Fact]
+    public async Task StaffDirectory_IsAvailableToAuthenticatedRolesWithoutContactDetails_ManagementIsManagerOnly()
+    {
+        await using var f = new ClubFactory();
+        var manager = await f.Client();
+        var trainer = await f.User(Role.Trainer, "private-trainer@example.test");
+        await f.User(Role.Veterinarian, "private-vet@example.test");
+
+        foreach (var role in Enum.GetValues<Role>())
+        {
+            var client = role == Role.ClubManager ? manager : await f.Client(await f.User(role));
+            var directoryResponse = await client.GetAsync("/api/staff/directory?page=1&pageSize=20");
+            Assert.Equal(HttpStatusCode.OK, directoryResponse.StatusCode);
+            var directory = await directoryResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var directoryJson = directory.GetProperty("items").GetRawText();
+            Assert.Contains(trainer.FirstName, directoryJson);
+            Assert.DoesNotContain("private-trainer@example.test", directoryJson);
+            Assert.DoesNotContain("private-vet@example.test", directoryJson);
+
+            var staffListResponse = await client.GetAsync("/api/staff?page=1&pageSize=20");
+            Assert.Equal(role == Role.ClubManager ? HttpStatusCode.OK : HttpStatusCode.Forbidden, staffListResponse.StatusCode);
+
+            if (role != Role.ClubManager)
+            {
+                var activateResponse = await client.PutAsJsonAsync(
+                    $"/api/staff/{trainer.Id}/active", new ActiveRequest(true), ClubFactory.Json);
+                Assert.Equal(HttpStatusCode.Forbidden, activateResponse.StatusCode);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Intake_Revision_Approval_Assignment_AndCrossOwnerIsolation()
     {
         await using var f = new ClubFactory(); var owner = await f.User(Role.HorseOwner); var head = await f.User(Role.HeadTrainer); var trainer = await f.User(Role.Trainer);
