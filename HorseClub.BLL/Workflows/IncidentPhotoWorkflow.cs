@@ -1,3 +1,4 @@
+using Horse_BackEnd.Contracts;
 using HorseClub.BLL.Messaging;
 using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
@@ -9,14 +10,14 @@ namespace HorseClub.BLL.Workflows;
 
 public static class IncidentPhotoWorkflow
 {
-    public static async Task<object> GetList(Guid incidentId, ClubDbContext db, ClubAccess access, CurrentUser current)
+    public static async Task<List<IncidentPhotoResponse>> GetList(Guid incidentId, ClubDbContext db, ClubAccess access, CurrentUser current)
     {
             await Check(incidentId, db, access, current);
-            return await db.IncidentPhotos.Where(x => x.IncidentId == incidentId).Select(x => new { x.Id, x.FileName, x.ContentType, x.Length }).ToListAsync();
+            return await db.IncidentPhotos.Where(x => x.IncidentId == incidentId).Select(x => new IncidentPhotoResponse(x.Id, x.FileName, x.ContentType, x.Length)).ToListAsync();
         }
 
-    public static async Task<object> Handle02(Guid incidentId, HttpRequest request, ClubDbContext db, ClubAccess access, CurrentUser current, ClubEvents events,
-            IOptions<StorageOptions> limits, IConfiguration config, IWebHostEnvironment env)
+    public static async Task<IResult> Handle02(Guid incidentId, HttpRequest request, ClubDbContext db, ClubAccess access, CurrentUser current, ClubEvents events,
+            IOptions<StorageOptions> limits, UploadStorage storage)
     {
             var incident = await Check(incidentId, db, access, current);
             var user = await current.Get(); Ensure.That(incident.ReporterId == user.Id, Messages.Get(MessageKey.OnlyTheIncidentReporterMayUploadPhotos), 403, "forbidden");
@@ -29,15 +30,15 @@ public static class IncidentPhotoWorkflow
             Ensure.That(contentType == "image/png" && extension == ".png" || contentType == "image/jpeg" && extension is ".jpg" or ".jpeg", Messages.Get(MessageKey.UploadAPNGOrJPEGImage));
             var photo = new IncidentPhoto { IncidentId = incidentId, UploadedBy = user.Id, FileName = Path.GetFileName(file.FileName), StorageName = Guid.NewGuid().ToString("N"), ContentType = contentType!, Length = file.Length };
             Ensure.That(photo.FileName.Length <= 200, Messages.Get(MessageKey.FilenameIsTooLong));
-            var storage = AttachmentWorkflow.Storage(config, env); Directory.CreateDirectory(storage); await File.WriteAllBytesAsync(Path.Combine(storage, photo.StorageName), bytes);
+            await storage.Write(photo.StorageName, bytes, request.HttpContext.RequestAborted);
             db.IncidentPhotos.Add(photo); await events.Audit(AuditAction.AttachmentUploaded, photo.Id); await db.SaveChangesAsync();
-            return Results.Created($"/api/care/incidents/{incidentId}/photos/{photo.Id}", new { photo.Id, photo.FileName, photo.Length });
+            return Results.Created($"/api/care/incidents/{incidentId}/photos/{photo.Id}", new IncidentPhotoCreatedResponse(photo.Id, photo.FileName, photo.Length));
         }
 
-    public static async Task<object> GetById(Guid incidentId, Guid id, ClubDbContext db, ClubAccess access, CurrentUser current, IConfiguration config, IWebHostEnvironment env)
+    public static async Task<IResult> GetById(Guid incidentId, Guid id, ClubDbContext db, ClubAccess access, CurrentUser current, UploadStorage storage)
     {
             await Check(incidentId, db, access, current); var photo = Ensure.Found(await db.IncidentPhotos.SingleOrDefaultAsync(x => x.Id == id && x.IncidentId == incidentId));
-            var file = Path.Combine(AttachmentWorkflow.Storage(config, env), photo.StorageName); Ensure.That(File.Exists(file), Messages.Get(MessageKey.PhotoUnavailable), 404, "not_found");
+            var file = storage.Resolve(photo.StorageName); Ensure.That(File.Exists(file), Messages.Get(MessageKey.PhotoUnavailable), 404, "not_found");
             return Results.File(file, photo.ContentType, photo.FileName);
         }
 

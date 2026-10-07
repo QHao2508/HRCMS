@@ -1,6 +1,6 @@
 # SQL Server database
 
-[database.sql](database.sql) là script schema sinh từ migration `InitialSqlServer`: tạo bảng, khóa chính, khóa ngoại, indexes và lịch sử migration. Script dùng `GO`, chạy được bằng SQL Server Management Studio (SSMS) hoặc `sqlcmd`.
+[database.sql](database.sql) là script schema sinh từ migrations `InitialSqlServer` và `WorkerDeliveryReliability`: tạo bảng, khóa chính, khóa ngoại, indexes, các cột email expiry/discard và lịch sử migration. Script dùng `GO`, chạy được bằng SQL Server Management Studio (SSMS) hoặc `sqlcmd`.
 
 ## Chạy bằng SSMS
 
@@ -19,4 +19,4 @@ dotnet build HorseClub.slnx --configuration Release
 dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --configuration Release --no-build --output docs/database.sql
 ```
 
-File này dành cho SQL Server, không chạy trên SQLite/MySQL. Script được sinh thành công và model/migration đã có kiểm thử; chưa chạy trên SQL Server thực tế trong phiên này.
+File này dành cho SQL Server, không chạy trên SQLite/MySQL. Script được sinh thành công. Migrations đã chạy trên database SQL Server Express thử nghiệm, gồm kiểm upgrade có dữ liệu; chưa áp script này vào database cá nhân/production. Xem [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) cho migration mới và giới hạn queue email cũ.

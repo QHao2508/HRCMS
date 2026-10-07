@@ -62,7 +62,7 @@ public sealed record InjuryRequest(Guid MedicalRecordId, DateOnly InjuryDate, [p
 public sealed record TreatmentRequest(Guid MedicalRecordId, Guid? InjuryId, DateOnly StartDate, DateOnly EndDate,
     DateOnly FollowUpDate, [property: Required] string Objective, [property: Required] string Instructions,
     string Medication, [property: Required] string Frequency);
-public sealed record FollowUpRequest(Guid PreviousRecordId, MedicalRequest Examination, bool Clearance, [property: Required] string Outcome);
+public sealed record FollowUpRequest(Guid PreviousRecordId, [property: Required] MedicalRequest Examination, bool Clearance, [property: Required] string Outcome);
 public sealed record CareRequest(Guid HorseId, Guid GroomId, Guid? TreatmentPlanId, [property: JsonRequired] CareType Type,
     DateTimeOffset ScheduledAt, [property: Required] string Instructions, [property: Range(0, 100)] decimal? ApprovedPortionKg);
 public sealed record CareCompletionRequest([property: JsonRequired] CareStatus Status, [property: Range(0, 100)] decimal? ActualPortionKg, [property: Required] string Notes);

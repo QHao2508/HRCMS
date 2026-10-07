@@ -18,7 +18,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     private readonly PasswordHasher<User> hasher = new();
     private readonly PasswordHasher<EmailChallenge> challengeHasher = new();
     public static string Normalize(string value) => value.Trim().ToLowerInvariant();
-    public static object View(User u) => new { u.Id, u.Email, u.UserName, u.FirstName, u.LastName, u.Phone, u.Address, u.Role, u.EmailVerified, u.Active };
+    public static UserResponse View(User u) => new(u.Id, u.Email, u.UserName, u.FirstName, u.LastName, u.Phone, u.Address, u.Role, u.EmailVerified, u.Active);
 
     public async Task<User> Register(RegisterRequest r)
     {
@@ -61,7 +61,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
         var challenge = new EmailChallenge { UserId = user.Id, Purpose = purpose, CreatedAt = now, ExpiresAt = now.AddMinutes(minutes) };
         challenge.CodeHash = challengeHasher.HashPassword(challenge, code);
         db.Challenges.Add(challenge);
-        db.EmailMessages.Add(new EmailMessage { Recipient = user.Email, Subject = Messages.Get(MessageKey.HorseClub, purpose), Body = Messages.Get(MessageKey.YourCodeExpiresAtNeverShareThisCode, purpose, code, challenge.ExpiresAt) });
+        db.EmailMessages.Add(new EmailMessage { Recipient = user.Email, Subject = Messages.Get(MessageKey.HorseClub, purpose), Body = Messages.Get(MessageKey.YourCodeExpiresAtNeverShareThisCode, purpose, code, challenge.ExpiresAt), ChallengeId = challenge.Id, ExpiresAt = challenge.ExpiresAt });
     }
     public async Task<bool> Consume(User user, ChallengePurpose purpose, string code)
     {

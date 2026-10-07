@@ -9,7 +9,7 @@ namespace HorseClub.BLL.Workflows;
 
 public static class CareWorkflow
 {
-    public static async Task<object> GetTasks(Guid? horseId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<CareTaskSummaryResponse>> GetTasks(Guid? horseId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var u = await current.Get(); var horses = (await access.Horses()).Select(x => x.Id); var q = db.CareTasks.Where(x => horses.Contains(x.HorseId));
             Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.Groom, Role.Veterinarian);
@@ -20,12 +20,10 @@ public static class CareWorkflow
             if (to.HasValue) q = q.Where(x => x.ScheduledAt <= to.Value);
             // Only executing Groom, assigned Vet and Manager see treatment instructions.
             var clinical = u.Role is Role.Groom or Role.Veterinarian or Role.ClubManager;
-            return await pager.Page(q.OrderBy(x => x.ScheduledAt).Select(x => new { x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt,
-                x.ApprovedPortionKg, x.ActualPortionKg, instructions = clinical || x.Type != CareType.Treatment ? x.Instructions : null,
-                notes = clinical || x.Type != CareType.Treatment ? x.Notes : null }), page, pageSize);
+            return await pager.Page(q.OrderBy(x => x.ScheduledAt).Select(x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type != CareType.Treatment ? x.Instructions : null, clinical || x.Type != CareType.Treatment ? x.Notes : null)), page, pageSize);
         }
 
-    public static async Task<object> PostTasks(CareRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<CareTask> PostTasks(CareRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             var u = await current.Get(); await access.Horse(r.HorseId);
             Ensure.Role(u, Role.ClubManager, Role.Veterinarian);
@@ -42,7 +40,7 @@ public static class CareWorkflow
             await events.Audit(AuditAction.CareTaskCreated, task.Id); await db.SaveChangesAsync(); return task;
         }
 
-    public static async Task<object> PostTasksByIdRecord(Guid id, CareCompletionRequest r, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock)
+    public static async Task<CareTask> PostTasksByIdRecord(Guid id, CareCompletionRequest r, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock)
     {
             var u = await current.Get(); Ensure.Role(u, Role.Groom); var t = Ensure.Found(await db.CareTasks.FindAsync(id));
             Ensure.That(t.GroomId == u.Id, Messages.Get(MessageKey.TaskIsNotAssignedToYou), 403, "forbidden"); await access.Horse(t.HorseId);
@@ -59,7 +57,7 @@ public static class CareWorkflow
             await events.Audit(AuditAction.CareTaskRecorded, id); await db.SaveChangesAsync(); return t;
         }
 
-    public static async Task<object> GetIncidents(Guid? horseId, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<Incident>> GetIncidents(Guid? horseId, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Veterinarian, Role.Trainer, Role.Groom, Role.WorkRider);
             var horses = (await access.Horses()).Select(x => x.Id); var q = db.Incidents.Where(x => horses.Contains(x.HorseId));
@@ -69,7 +67,7 @@ public static class CareWorkflow
             return await pager.Page(q.OrderByDescending(x => x.OccurredAt), page, pageSize);
         }
 
-    public static async Task<object> PostIncidents(IncidentRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<Incident> PostIncidents(IncidentRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             var u = await current.Get(); Ensure.Role(u, Role.Groom, Role.WorkRider, Role.Trainer, Role.Veterinarian);
             await access.Horse(r.HorseId); Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Get(MessageKey.RouteIncidentToTrainerOrVeterinarian));
@@ -79,35 +77,35 @@ public static class CareWorkflow
             await events.Audit(AuditAction.IncidentCreated, incident.Id); await db.SaveChangesAsync(); return incident;
         }
 
-    public static async Task<object> PostIncidentsByIdResolve(Guid id, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<IResult> PostIncidentsByIdResolve(Guid id, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events)
     {
             var u = await current.Get(); var incident = Ensure.Found(await db.Incidents.FindAsync(id)); await access.Horse(incident.HorseId);
             Ensure.That(u.Role == incident.RoutedTo, Messages.Get(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
             incident.Resolved = true; await events.Audit(AuditAction.IncidentResolved, id); await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> GetStables(CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<Stable>> GetStables(CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     { Ensure.Role(await current.Get(), Role.ClubManager, Role.Groom); return await pager.Page(db.Stables.OrderBy(x => x.Name), page, pageSize); }
 
-    public static async Task<object> PostStables(NameRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<Stable> PostStables(NameRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.ClubManager); var stable = new Stable { Name = r.Name }; db.Stables.Add(stable);
             await events.Audit(AuditAction.StableCreated, stable.Id); await db.SaveChangesAsync(); return stable;
         }
 
-    public static async Task<object> GetStalls(Guid? stableId, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<PageResponse<StallSummaryResponse>> GetStalls(Guid? stableId, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             Ensure.Role(await current.Get(), Role.ClubManager, Role.Groom); var q = db.Stalls.AsQueryable(); if (stableId.HasValue) q = q.Where(x => x.StableId == stableId);
-            return await pager.Page(q.OrderBy(x => x.Name).Select(x => new { x.Id, x.StableId, x.Name, x.CleaningStatus }), page, pageSize);
+            return await pager.Page(q.OrderBy(x => x.Name).Select(x => new StallSummaryResponse(x.Id, x.StableId, x.Name, x.CleaningStatus)), page, pageSize);
         }
 
-    public static async Task<object> PostStalls(StallRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
+    public static async Task<Stall> PostStalls(StallRequest r, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             Ensure.Role(await current.Get(), Role.ClubManager); Ensure.Found(await db.Stables.FindAsync(r.StableId));
             var stall = new Stall { StableId = r.StableId, Name = r.Name }; db.Stalls.Add(stall); await events.Audit(AuditAction.StallCreated, stall.Id); await db.SaveChangesAsync(); return stall;
         }
 
-    public static async Task<object> PostStallsByIdOccupancy(Guid id, OccupancyRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
+    public static async Task<StallOccupancy> PostStallsByIdOccupancy(Guid id, OccupancyRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
     {
             Ensure.Role(await current.Get(), Role.ClubManager); Ensure.Found(await db.Stalls.FindAsync(id)); await access.Horse(r.HorseId);
             Ensure.That(!await db.Occupancies.AnyAsync(x => x.StallId == id && x.EndedAt == null), Messages.Get(MessageKey.StallIsOccupiedVacateItFirst), 409, "stall_occupied");
@@ -115,13 +113,13 @@ public static class CareWorkflow
             var o = new StallOccupancy { StallId = id, HorseId = r.HorseId }; db.Occupancies.Add(o); await events.Audit(AuditAction.StallOccupied, id); await db.SaveChangesAsync(); return o;
         }
 
-    public static async Task<object> PostStallsByIdVacate(Guid id, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
+    public static async Task<IResult> PostStallsByIdVacate(Guid id, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock)
     {
             Ensure.Role(await current.Get(), Role.ClubManager); var occupancy = Ensure.Found(await db.Occupancies.SingleOrDefaultAsync(x => x.StallId == id && x.EndedAt == null));
             occupancy.EndedAt = clock.GetUtcNow(); await events.Audit(AuditAction.StallVacated, id); await db.SaveChangesAsync(); return Results.NoContent();
         }
 
-    public static async Task<object> PostStallsByIdCleaned(Guid id, CurrentUser current, ClubDbContext db, ClubAccess access, ClubEvents events)
+    public static async Task<IResult> PostStallsByIdCleaned(Guid id, CurrentUser current, ClubDbContext db, ClubAccess access, ClubEvents events)
     {
             var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom); var stall = Ensure.Found(await db.Stalls.FindAsync(id));
             if (u.Role == Role.Groom)

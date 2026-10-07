@@ -3,4 +3,5 @@
   <Project Path="HorseClub.BLL/HorseClub.BLL.csproj" />
   <Project Path="Horse_BackEnd/Horse_BackEnd.csproj" />
   <Project Path="tests/Horse_BackEnd.Tests/Horse_BackEnd.Tests.csproj" />
+  <Project Path="tools/HorseClub.Maintenance/HorseClub.Maintenance.csproj" />
 </Solution>

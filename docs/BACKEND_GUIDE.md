@@ -52,7 +52,7 @@ Frontend lấy tên enum từ `GET /api/metadata/enums`, tránh tự copy một 
 | `Security` | Password, TTL OTP/reset/invite, attempts/resend/lockout, token lifetime, auth rate limit, RequireNationalId/NationalIdDigits |
 | `Storage` | Path, MaxFileBytes, MaxAttachmentsPerRecord, RequestsPerMinute |
 | `Business` | TimeZoneId, page/report limits, schedule grace, StartEarlyMinutes, overdue threshold |
-| `Workers` | Enabled, polling, batch sizes và retry attempts |
+| `Workers` | Enabled, polling, batch sizes, retry attempts và EmailSendTimeoutSeconds |
 | `Database` | Provider và AutoMigrate |
 | `Email` | Delivery mode và SMTP |
 | `Cors:Origins` | Danh sách origin frontend được phép; không AllowAnyOrigin |
@@ -113,10 +113,10 @@ Apply bằng công cụ triển khai phù hợp; application production mặc đ
 
 SQLite local dùng một instance và persistent disk. Write requests dùng gate trong process và serializable transaction; response success chỉ gửi sau commit. Background worker cũng phối hợp gate/transaction. SQL Server hỗ trợ transaction/concurrency token nhưng cần integration/load test trên server thật trước production hoặc chạy nhiều replicas. SQLite chưa phù hợp scale-out.
 
-Production cần HTTPS, CORS origin thật, SMTP thật, persistence/backup cho database/uploads/key, giới hạn quyền filesystem và key encryption phù hợp nền tảng. Key mặc định lưu local, chưa tích hợp vault/KMS; national ID protection phụ thuộc vào việc bảo vệ key. Upload hiện kiểm signature/extension/size và force download; chưa có antivirus hoặc kiểm chứng nội dung đầy đủ. Email worker gửi trong transaction/gate; SMTP chậm có thể tăng latency write, cần tách worker và cơ chế lease nếu triển khai tải cao.
+Production cần HTTPS, CORS origin thật, SMTP thật, persistence/backup cho database/uploads/key và giới hạn quyền filesystem. Ngoài Development mặc định yêu cầu key encryption Certificate hoặc WindowsDpapi trước startup; chưa tích hợp vault/KMS. NationalId protection cần giữ key ring và certificate/identity tương ứng. Upload kiểm signature/extension/size, force download/nosniff và cleanup file chưa commit; chưa có antivirus hoặc kiểm chứng nội dung đầy đủ. Xem [cấu hình keys và runbook khôi phục](STORAGE_AND_RECOVERY.md). Email worker gửi trong transaction/gate; SMTP chậm có thể tăng latency write, cần tách worker và cơ chế lease nếu triển khai tải cao.
 
 ## Kiểm thử và phạm vi còn lại
 
-Test suite dùng WebApplicationFactory và SQLite thật theo từng fixture, kiểm state/ownership/medical guards/OTP/lockout/refresh/CCCD/uploads/stock/stall/concurrent approval, OpenAPI và configurable limits. SQL Server chỉ được kiểm model/migration/sinh SQL; chưa xác minh với database server thật. CI chạy build và integration tests.
+Test suite dùng WebApplicationFactory và database riêng theo từng fixture, mặc định SQLite; đặt HRCMS_TEST_SQLSERVER để chạy trên SQL Server. Sau bước 6 ngày 04/10/2026 có 61 ca: SQL Server Express 60 pass/1 SQLite-only skip; SQLite 48 pass/13 SQL-only skip. Có kiểm workflow/OTP/medical/privacy/uploads, rollback/FK/concurrency giữa hai host, contract của 96 operations, worker/migration và storage/restore. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md), [API_CONTRACT.md](API_CONTRACT.md), [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) và [STORAGE_AND_RECOVERY.md](STORAGE_AND_RECOVERY.md). Workers đã được kiểm bằng RunOnce, fake sender và DevelopmentFile thật; SMTP bên ngoài và load testing chưa được nghiệm thu. CI chưa xác nhận run GitHub mới trong phiên này.
 
 Chưa có export PDF/Excel báo cáo, 3D injury map, global search nâng cao, dữ liệu master chuẩn hóa qua UI quản trị, account multi-club, scheduling duration/overlap đầy đủ, cancellation/rejection policy ngoài draft/revision, device-level token rotation hoặc frontend. Flow 5 thi đấu không nằm trong scope. Các phần này cần issue riêng; không được mô tả là đã triển khai.
