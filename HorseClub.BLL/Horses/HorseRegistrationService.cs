@@ -1,15 +1,14 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace HorseClub.BLL.Horses;
 
-public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar, IOptions<BusinessOptions> options, PageReader pager)
+public sealed class HorseRegistrationService(IRegistrationRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar, IOptions<BusinessOptions> options, PageReader pager) : IHorseRegistrationService
 {
     /// <summary>
     /// Điểm vào tạo dữ liệu của HorseRegistrationService; chuyển dữ liệu request vào hàm nghiệp vụ rồi đóng gói kết quả API.
@@ -21,9 +20,9 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
         var u = await current.Get(); Ensure.Role(u, Role.HorseOwner);
         var registration = new HorseRegistration { OwnerId = u.Id };
         await Apply(registration, r);
-        db.Registrations.Add(registration);
+        repository.Add(registration);
         await events.Audit(AuditAction.RegistrationDraftCreated, registration.Id);
-        await db.SaveChangesAsync(); return registration;
+        await events.RefreshRegistration(registration); await unitOfWork.SaveChangesAsync(); return registration;
     }
     /// <summary>
     /// Chỉnh sửa dữ liệu của module trong HorseRegistrationService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -65,7 +64,7 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
             Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
             await Apply(reg, r); await events.Audit(AuditAction.RegistrationEdited, reg.Id);
         }
-        await db.SaveChangesAsync(); return reg;
+        await events.RefreshRegistration(reg); await unitOfWork.SaveChangesAsync(); return reg;
     }
     /// <summary>
     /// Gửi dữ liệu của module trong HorseRegistrationService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -81,7 +80,7 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
         r.Status = RegistrationStatus.PendingReview; r.ReviewReason = null;
         await events.Managers(NotificationType.RegistrationReview, MessageKey.AHorseRegistrationRequiresReview, id);
         await events.Audit(AuditAction.RegistrationSubmitted, id);
-        await db.SaveChangesAsync();
+        await events.RefreshRegistration(r); await unitOfWork.SaveChangesAsync();
     }
     /// <summary>
     /// Cho quản lý duyệt hoặc yêu cầu chỉnh sửa; khi duyệt tạo hồ sơ ngựa chính thức, khi từ chối giữ hồ sơ cùng lý do.
@@ -101,7 +100,7 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
             r.Status = RegistrationStatus.RevisionRequired; r.ReviewReason = request.Reason;
             events.Notify(r.OwnerId, NotificationType.RegistrationRevision, MessageKey.YourHorseRegistrationRequiresRevision, id);
             await events.Audit(AuditAction.RegistrationRevisionRequested, id);
-            await db.SaveChangesAsync(); return new RegistrationReviewResponse(r, (Guid?)null);
+            await events.RefreshRegistration(r); await unitOfWork.SaveChangesAsync(); return new RegistrationReviewResponse(r, (Guid?)null);
         }
         await ValidateReady(r);
         r.Status = RegistrationStatus.Approved; r.ReviewReason = null;
@@ -120,11 +119,10 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
             BoardingEnd = r.BoardingEnd
         };
         // Owner health is a declaration, not medical clearance; official status starts Monitoring.
-        db.Horses.Add(horse);
-        db.Measurements.Add(new Measurement { HorseId = horse.Id, Date = r.MeasurementDate!.Value, HeightCm = r.HeightCm!.Value, WeightKg = r.WeightKg!.Value });
+        repository.AddApprovedHorse(horse, new Measurement { HorseId = horse.Id, Date = r.MeasurementDate!.Value, HeightCm = r.HeightCm!.Value, WeightKg = r.WeightKg!.Value });
         events.Notify(r.OwnerId, NotificationType.RegistrationApproved, MessageKey.YourHorseRegistrationWasApproved, horse.Id);
         await events.Audit(AuditAction.RegistrationApproved, id);
-        await db.SaveChangesAsync(); return new RegistrationReviewResponse(r, (Guid?)horse.Id);
+        await events.RefreshRegistration(r); await unitOfWork.SaveChangesAsync(); return new RegistrationReviewResponse(r, (Guid?)horse.Id);
     }
     /// <summary>
     /// Áp dụng các trường intake được phép lên hồ sơ, kiểm ngày/giới hạn thể chất và giữ quy tắc riêng cho chỉnh sửa hành chính.
@@ -166,8 +164,8 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
             if (field.Value is null) missing.Add(field.Name);
         Ensure.That(missing.Count == 0, Messages.Get(MessageKey.RegistrationMissingFields, string.Join(", ", missing)));
         await Apply(r, Draft(r));
-        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == r.Id && x.Type == AttachmentType.HorsePhoto), Messages.Get(MessageKey.AddAHorsePhotoBeforeSubmission));
-        Ensure.That(await db.Attachments.AnyAsync(x => x.RegistrationId == r.Id && x.Type == AttachmentType.Certificate), Messages.Get(MessageKey.AddACertificateBeforeSubmission));
+        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.HorsePhoto), Messages.Get(MessageKey.AddAHorsePhotoBeforeSubmission));
+        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.Certificate), Messages.Get(MessageKey.AddACertificateBeforeSubmission));
     }
 
     /// <summary>
@@ -194,10 +192,9 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
     public async Task<PageResponse<HorseRegistration>> ListRegistrations(RegistrationStatus? status, int? page, int? pageSize)
     {
         var u = await current.Get(); Ensure.Role(u, Role.HorseOwner, Role.ClubManager);
-        var q = db.Registrations.AsQueryable();
-        if (u.Role == Role.HorseOwner) q = q.Where(x => x.OwnerId == u.Id);
-        if (status.HasValue) q = q.Where(x => x.Status == status);
-        return await pager.Page(q.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, pageSize);
+        var (p, size) = pager.Read(page, pageSize);
+        var data = await repository.ListAsync(u.Role == Role.HorseOwner ? u.Id : null, status, p, size);
+        return new(data.Items, p, size, data.Total);
     }
 
     /// <summary>
@@ -242,7 +239,7 @@ public sealed class HorseRegistrationService(ClubDbContext db, CurrentUser curre
         var record = await access.Registration(id);
         Ensure.That(record.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.OnlyDraftRevisionRegistrationsMayBeCancelled), 409, "invalid_state");
         record.Status = RegistrationStatus.Cancelled; await events.Audit(AuditAction.RegistrationCancelled, id);
-        await db.SaveChangesAsync(); return OperationResult.NoContent();
+        await events.RefreshRegistration(record); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
 }

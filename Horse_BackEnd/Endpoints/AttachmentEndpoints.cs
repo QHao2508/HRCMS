@@ -11,11 +11,11 @@ public static class AttachmentEndpoints
     public static void MapAttachments(this RouteGroupBuilder api)
     {
         // Public profile images are still protected by the horse scope; staff cannot access intake medical files.
-        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, AttachmentService moduleService) => (await moduleService.GetHorsePhoto(horseId)).ToHttpResult()).RequireAuthorization().WithTags("Attachments").Produces<byte[]>(200, contentType: "application/octet-stream");
+        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, IAttachmentService moduleService) => (await moduleService.GetHorsePhoto(horseId)).ToHttpResult()).RequireAuthorization().WithTags("Attachments").Produces<byte[]>(200, contentType: "application/octet-stream");
         var a = api.MapGroup("/registrations/{registrationId:guid}/attachments").WithTags("Attachments").RequireAuthorization();
-        a.MapGet("", async (Guid registrationId, AttachmentService moduleService) => await moduleService.ListAttachments(registrationId)).Produces<List<AttachmentResponse>>(200);
-        a.MapPost("", async (Guid registrationId, HttpRequest request, AttachmentService moduleService) => (await moduleService.UploadAttachment(registrationId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<AttachmentCreatedResponse>(201);
-        a.MapGet("/{id:guid}", async (Guid registrationId, Guid id, AttachmentService moduleService) => (await moduleService.DownloadAttachment(registrationId, id)).ToHttpResult()).Produces<byte[]>(200, contentType: "application/octet-stream");
+        a.MapGet("", async (Guid registrationId, IAttachmentService moduleService) => await moduleService.ListAttachments(registrationId)).Produces<List<AttachmentResponse>>(200);
+        a.MapPost("", async (Guid registrationId, HttpRequest request, IAttachmentService moduleService) => (await moduleService.UploadAttachment(registrationId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<AttachmentCreatedResponse>(201);
+        a.MapGet("/{id:guid}", async (Guid registrationId, Guid id, IAttachmentService moduleService) => (await moduleService.DownloadAttachment(registrationId, id)).ToHttpResult()).Produces<byte[]>(200, contentType: "application/octet-stream");
     }
 
 }

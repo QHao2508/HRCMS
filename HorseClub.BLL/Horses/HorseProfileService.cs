@@ -1,13 +1,12 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace HorseClub.BLL.Horses;
 
-public sealed class HorseProfileService(ClubAccess access, PageReader pager, ClubDbContext db, CurrentUser current, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
+public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHorseRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubEvents events, TimeProvider clock, ClubCalendar calendar) : IHorseProfileService
 {
 
     /// <summary>
@@ -20,10 +19,9 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, Clu
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize)
     {
-        var q = await access.Horses();
-        if (!string.IsNullOrWhiteSpace(search)) q = q.Where(x => x.Name.Contains(search) || x.RegistrationNumber != null && x.RegistrationNumber.Contains(search));
-        if (healthStatus.HasValue) q = q.Where(x => x.HealthStatus == healthStatus);
-        return await pager.Page(q.OrderBy(x => x.Name).ThenBy(x => x.Id), page, pageSize);
+        var scope = await access.Scope(); var (p, size) = pager.Read(page, pageSize);
+        var data = await repository.ListAsync(scope, search, healthStatus, p, size);
+        return new(data.Items, p, size, data.Total);
     }
 
     /// <summary>
@@ -34,10 +32,10 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, Clu
     public async Task<HorseDetailResponse> GetHorse(Guid id)
     {
         var horse = await access.Horse(id);
-        var photo = await db.Attachments.AsNoTracking().Where(x => x.RegistrationId == horse.RegistrationId && x.Type == AttachmentType.HorsePhoto)
-            .OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id)
-            .Select(x => new HorsePhotoResponse(x.Id, x.FileName, x.StorageName, x.ContentType, x.Length, $"/api/horses/{id}/photo")).FirstOrDefaultAsync();
-        return new HorseDetailResponse(horse, await db.Measurements.Where(x => x.HorseId == id).OrderByDescending(x => x.Date).FirstOrDefaultAsync(), await db.Assignments.Where(x => x.HorseId == id).OrderByDescending(x => x.CreatedAt).ToListAsync(), await db.Occupancies.Where(x => x.HorseId == id && x.EndedAt == null).FirstOrDefaultAsync(), await db.Registrations.Where(x => x.Id == horse.RegistrationId).Select(x => new HorsePreferencesResponse(x.PreferredHeadTrainerId, x.PreferredGroomId, x.PreferredVeterinarianId)).SingleAsync(), photo);
+        var attachment = await repository.GetPhotoAsync(horse.RegistrationId);
+        var photo = attachment is null ? null : new HorsePhotoResponse(attachment.Id, attachment.FileName, attachment.StorageName, attachment.ContentType, attachment.Length, $"/api/horses/{id}/photo");
+        var registration = await repository.GetRegistrationAsync(horse.RegistrationId);
+        return new HorseDetailResponse(horse, await repository.GetLatestMeasurementAsync(id), await repository.GetAssignmentsAsync(id), await repository.GetOccupancyAsync(id), new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo);
     }
 
     /// <summary>
@@ -48,7 +46,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, Clu
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListMeasurements.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<Measurement>> ListMeasurements(Guid id, int? page, int? pageSize)
-    { await access.Horse(id); return await pager.Page(db.Measurements.Where(x => x.HorseId == id).OrderByDescending(x => x.Date).ThenByDescending(x => x.Id), page, pageSize); }
+    { await access.Horse(id); var (p, size) = pager.Read(page, pageSize); var data = await repository.ListMeasurementsAsync(id, p, size); return new(data.Items, p, size, data.Total); }
 
     /// <summary>
     /// Bổ sung số đo thể chất trong HorseProfileService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -62,7 +60,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, Clu
         var horse = await access.Horse(id);
         Ensure.That(request.Date >= horse.DateOfBirth && request.Date <= calendar.Today(clock), Messages.Get(MessageKey.InvalidMeasurementDate));
         var m = new Measurement { HorseId = id, Date = request.Date, HeightCm = request.HeightCm, WeightKg = request.WeightKg };
-        db.Measurements.Add(m); await events.Audit(AuditAction.HorseMeasurementAdded, id); await db.SaveChangesAsync(); return m;
+        repository.AddMeasurement(m); await events.Audit(AuditAction.HorseMeasurementAdded, id); await events.RefreshHorse(id); await unitOfWork.SaveChangesAsync(); return m;
     }
 
     /// <summary>
@@ -73,10 +71,10 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, Clu
     public async Task<OperationResult> ArchiveHorse(Guid id)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var horse = await access.Horse(id);
-        Ensure.That(!await db.Sessions.AnyAsync(x => x.HorseId == id && x.Status == SessionStatus.InProgress), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
+        Ensure.That(!await repository.HasActiveSessionAsync(id), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
         horse.Archived = true;
-        foreach (var occupancy in await db.Occupancies.Where(x => x.HorseId == id && x.EndedAt == null).ToListAsync()) occupancy.EndedAt = DateTimeOffset.UtcNow;
-        await events.Audit(AuditAction.HorseArchived, id); await db.SaveChangesAsync(); return OperationResult.NoContent();
+        foreach (var occupancy in await repository.GetOccupanciesAsync(id)) occupancy.EndedAt = DateTimeOffset.UtcNow;
+        await events.Audit(AuditAction.HorseArchived, id); await events.RefreshHorse(id); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
 }

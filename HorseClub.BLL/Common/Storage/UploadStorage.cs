@@ -1,12 +1,11 @@
 using System.Text.RegularExpressions;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.BLL.Messaging;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Common;
 
-public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnvironment environment, ClubDbContext db, ILogger<UploadStorage> logger, AzureBlobStore blobs)
+public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnvironment environment, IFileRepository repository, ILogger<UploadStorage> logger, AzureBlobStore blobs)
 {
     private readonly List<string> created = [];
     private bool committed;
@@ -95,7 +94,7 @@ public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnviron
             {
                 // A commit acknowledgement can be lost. Keep any file referenced by the DB.
                 // If the database is unavailable, preserve the file for later reconciliation.
-                if (await db.Attachments.AnyAsync(x => x.StorageName == name) || await db.IncidentPhotos.AnyAsync(x => x.StorageName == name)) continue;
+                if (await repository.IsStorageReferencedAsync(name)) continue;
                   if (UsesAzure)
                   {
                       using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));

@@ -1,17 +1,28 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
 using System.Data;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace HorseClub.BLL.Common;
 
-public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
+public sealed class ClubEvents(IEventRepository repository, CurrentUser current)
 {
+    public async Task RefreshHorse(Guid horseId)
+    {
+        foreach (var recipient in await repository.GetHorseAudienceAsync(horseId)) repository.AddDataSignal(recipient);
+    }
+    public async Task RefreshRegistration(HorseRegistration registration)
+    {
+        foreach (var recipient in (await repository.GetManagersAsync()).Append(registration.OwnerId).Distinct()) repository.AddDataSignal(recipient);
+    }
+    public async Task RefreshRoles(params Role[] roles)
+    {
+        foreach (var recipient in await repository.GetRoleAudienceAsync(roles)) repository.AddDataSignal(recipient);
+    }
     /// <summary>
     /// Lưu snapshot kế hoạch/buổi tập/kết quả/đánh giá để có lịch sử thay đổi và xem lại diễn biến.
     /// </summary>
@@ -25,7 +36,7 @@ public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
             : session is null ? plan : session;
         var snapshot = JsonSerializer.Serialize(state,
             new JsonSerializerOptions(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } });
-        db.TrainingRevisions.Add(new TrainingRevision { PlanId = plan.Id, SessionId = session?.Id, ActorId = (await current.Get()).Id, Snapshot = snapshot });
+        repository.AddRevision(new TrainingRevision { PlanId = plan.Id, SessionId = session?.Id, ActorId = (await current.Get()).Id, Snapshot = snapshot });
     }
     /// <summary>
     /// Xếp sự kiện audit vào DbContext với người thực hiện và đối tượng liên quan; caller lưu cùng thay đổi nghiệp vụ.
@@ -36,7 +47,7 @@ public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
     public async Task Audit(AuditAction action, Guid referenceId, string detail = "")
     {
         var u = await current.Get();
-        db.Audit.Add(new AuditEvent { ActorId = u.Id, Action = action, ReferenceId = referenceId, Detail = detail });
+        repository.AddAudit(new AuditEvent { ActorId = u.Id, Action = action, ReferenceId = referenceId, Detail = detail });
     }
     /// <summary>
     /// Xếp thông báo theo enum và MessageKey cho người nhận, giữ cùng transaction nghiệp vụ.
@@ -46,7 +57,7 @@ public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
     /// <param name="message">Giá trị kiểu MessageKey dùng trong Notify.</param>
     /// <param name="reference">Giá trị kiểu Guid? dùng trong Notify.</param>
     public void Notify(Guid recipient, NotificationType type, MessageKey message, Guid? reference = null)
-        => db.Notifications.Add(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
+        => repository.AddNotification(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
     /// <summary>
     /// Lấy người quản lý hoạt động để định tuyến các yêu cầu cần duyệt.
     /// </summary>
@@ -55,7 +66,7 @@ public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
     /// <param name="reference">Giá trị kiểu Guid dùng trong Managers.</param>
     public async Task Managers(NotificationType type, MessageKey message, Guid reference)
     {
-        foreach (var id in await db.Users.Where(x => x.Active && x.Role == Role.ClubManager).Select(x => x.Id).ToListAsync()) Notify(id, type, message, reference);
+        foreach (var id in await repository.GetManagersAsync()) Notify(id, type, message, reference);
     }
     /// <summary>
     /// Lấy nhân viên đang được phân công cho ngựa để định tuyến thông báo đúng người.
@@ -66,7 +77,7 @@ public sealed class ClubEvents(ClubDbContext db, CurrentUser current)
     /// <param name="roles">Giá trị kiểu Role[] dùng trong HorseStaff.</param>
     public async Task HorseStaff(Guid horseId, NotificationType type, MessageKey message, params Role[] roles)
     {
-        foreach (var id in await db.Assignments.Where(x => x.HorseId == horseId && x.Active && roles.Contains(x.Role)).Select(x => x.StaffId).Distinct().ToListAsync())
+        foreach (var id in await repository.GetHorseStaffAsync(horseId, roles))
             Notify(id, type, message, horseId);
     }
 }

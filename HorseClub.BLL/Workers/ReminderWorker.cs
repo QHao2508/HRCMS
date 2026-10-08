@@ -1,9 +1,8 @@
 using HorseClub.BLL.Messaging;
 using System.Data;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
@@ -18,48 +17,31 @@ public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clo
     public async Task<int> RunOnce(CancellationToken token = default)
     {
         using var scope = scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, token);
-        if (!await WorkerDatabaseLock.TryAcquire(db, "HorseClub.Worker.Reminder", token)) return 0;
+        var repository = scope.ServiceProvider.GetRequiredService<IWorkerRepository>();
+        var eventRepository = scope.ServiceProvider.GetRequiredService<IEventRepository>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        await using var tx = await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, token);
+        if (!await unitOfWork.TryAcquireWorkerLockAsync("HorseClub.Worker.Reminder", token)) return 0;
         var now = clock.GetUtcNow();
         var today = scope.ServiceProvider.GetRequiredService<ClubCalendar>().DateAt(now);
-        var vets = db.Assignments.Where(x => x.Active && x.Role == Role.Veterinarian
-            && db.Users.Any(u => u.Id == x.StaffId && u.Active && u.Role == Role.Veterinarian));
-        var trainers = db.Assignments.Where(x => x.Active && x.Role == Role.Trainer
-            && db.Users.Any(u => u.Id == x.StaffId && u.Active && u.Role == Role.Trainer));
+        var batch = await repository.GetRemindersAsync(now, now.AddMinutes(-business.Value.OverdueAfterMinutes), today, options.Value.ReminderBatchSize, token);
         var notificationCount = 0;
         // Tạo thông báo từ MessageKey cho người nhận trong lô công việc, tăng bộ đếm và chờ transaction commit.
         void Notify(Guid recipient, NotificationType type, MessageKey message, Guid reference)
         {
-            db.Notifications.Add(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
+            eventRepository.AddNotification(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
             notificationCount++;
         }
 
         // Filter eligible recipients before Take, so unassigned records cannot starve a batch.
-        var preventive = await db.PreventiveCare.Where(x => x.CompletedDate == null && x.DueDate <= today && !x.ReminderSent
-            && db.Horses.Any(h => h.Id == x.HorseId && !h.Archived) && vets.Any(a => a.HorseId == x.HorseId))
-            .OrderBy(x => x.DueDate).ThenBy(x => x.Id).Take(options.Value.ReminderBatchSize).ToListAsync(token);
-        var preventiveHorseIds = preventive.Select(x => x.HorseId).Distinct().ToArray();
-        var preventiveRecipients = (await vets.Where(x => preventiveHorseIds.Contains(x.HorseId))
-            .Select(x => new { x.HorseId, x.StaffId }).Distinct().ToListAsync(token)).ToLookup(x => x.HorseId, x => x.StaffId);
+        var preventive = batch.Preventive; var preventiveRecipients = batch.PreventiveRecipients;
         foreach (var item in preventive)
         {
             foreach (var recipient in preventiveRecipients[item.HorseId])
                 Notify(recipient, NotificationType.MedicalPreventiveDue, MessageKey.PreventiveCareIsDue, item.Id);
             item.ReminderSent = true;
         }
-        var overdue = await db.Sessions.Where(x => x.ScheduledAt < now.AddMinutes(-business.Value.OverdueAfterMinutes)
-            && x.Status == SessionStatus.Assigned && db.Plans.Any(p => p.Id == x.PlanId && p.Status == PlanStatus.Active)
-            && !db.Notifications.Any(n => n.ReferenceId == x.Id && n.Type == NotificationType.SessionOverdue)
-            && db.Horses.Any(h => h.Id == x.HorseId && !h.Archived)
-            && (trainers.Any(a => a.HorseId == x.HorseId) || db.Users.Any(u => u.Id == x.RiderId && u.Active && u.Role == Role.WorkRider)))
-            .OrderBy(x => x.ScheduledAt).ThenBy(x => x.Id).Take(options.Value.ReminderBatchSize).ToListAsync(token);
-        var overdueHorseIds = overdue.Select(x => x.HorseId).Distinct().ToArray();
-        var overdueRecipients = (await trainers.Where(x => overdueHorseIds.Contains(x.HorseId))
-            .Select(x => new { x.HorseId, x.StaffId }).Distinct().ToListAsync(token)).ToLookup(x => x.HorseId, x => x.StaffId);
-        var overdueRiderIds = overdue.Where(x => x.RiderId.HasValue).Select(x => x.RiderId!.Value).Distinct().ToArray();
-        var activeRiders = (await db.Users.Where(x => overdueRiderIds.Contains(x.Id) && x.Active && x.Role == Role.WorkRider)
-            .Select(x => x.Id).ToListAsync(token)).ToHashSet();
+        var overdue = batch.Overdue; var overdueRecipients = batch.OverdueRecipients; var activeRiders = batch.ActiveRiders;
         foreach (var session in overdue)
         {
             var recipients = overdueRecipients[session.HorseId].ToList();
@@ -68,18 +50,12 @@ public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clo
             foreach (var recipient in recipients.Distinct())
                 Notify(recipient, NotificationType.SessionOverdue, MessageKey.ATrainingSessionIsOverdue, session.Id);
         }
-        var followups = await db.Treatments.Where(x => !x.Completed && x.FollowUpDate <= today
-            && !db.Notifications.Any(n => n.ReferenceId == x.Id && n.Type == NotificationType.MedicalFollowUpDue)
-            && db.Horses.Any(h => h.Id == x.HorseId && !h.Archived) && vets.Any(a => a.HorseId == x.HorseId))
-            .OrderBy(x => x.FollowUpDate).ThenBy(x => x.Id).Take(options.Value.ReminderBatchSize).ToListAsync(token);
-        var followupHorseIds = followups.Select(x => x.HorseId).Distinct().ToArray();
-        var followupRecipients = (await vets.Where(x => followupHorseIds.Contains(x.HorseId))
-            .Select(x => new { x.HorseId, x.StaffId }).Distinct().ToListAsync(token)).ToLookup(x => x.HorseId, x => x.StaffId);
+        var followups = batch.FollowUps; var followupRecipients = batch.FollowUpRecipients;
         foreach (var treatment in followups)
             foreach (var recipient in followupRecipients[treatment.HorseId])
                 Notify(recipient, NotificationType.MedicalFollowUpDue, MessageKey.MedicalFollowUpIsDue, treatment.Id);
 
-        await db.SaveChangesAsync(token); await tx.CommitAsync(token);
+        await unitOfWork.SaveChangesAsync(token); await tx.CommitAsync(token);
         return notificationCount;
     }
 

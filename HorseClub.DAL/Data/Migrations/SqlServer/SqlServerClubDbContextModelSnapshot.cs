@@ -893,6 +893,58 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                     b.ToTable("PreventiveCare");
                 });
 
+            modelBuilder.Entity("HorseClub.DAL.Entities.RealtimeOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<Guid?>("LeaseOwner")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long?>("LockedUntil")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("NextAttemptAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("RecipientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long?>("SentAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("SourceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceId", "SourceVersion")
+                        .IsUnique();
+
+                    b.HasIndex("SentAt", "NextAttemptAt", "LockedUntil");
+
+                    b.ToTable("RealtimeOutboxMessages");
+                });
+
             modelBuilder.Entity("HorseClub.DAL.Entities.ReplenishmentRequest", b =>
                 {
                     b.Property<Guid>("Id")

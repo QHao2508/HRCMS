@@ -4,8 +4,9 @@ Backend ASP.NET Core .NET 10 được chia thành ba project. Frontend React/Vit
 
 ```text
 Frontend pages → frontend services/Axios → HTTP
-Horse_BackEnd/Endpoints → HorseClub.BLL/<Module>/*Service
-                       → HorseClub.DAL/Data/ClubDbContext → Azure SQL
+Horse_BackEnd/Endpoints → BLL/Abstractions/Services/I…Service → BLL/<Module>/*Service
+                       → DAL/Abstractions/I…Repository + IUnitOfWork → EF Core → SQL
+SQL outbox đã commit → RealtimeDispatchWorker → SignalR → frontend tải lại REST
 ```
 
 | Project/folder | Trách nhiệm |
@@ -18,9 +19,12 @@ Horse_BackEnd/Endpoints → HorseClub.BLL/<Module>/*Service
 | `HorseClub.BLL/Workers` | Email, reminder và mail sender. |
 | `HorseClub.DAL/Entities`, `Enums` | Mỗi entity/enum trong một file. Namespace tương ứng tên project/folder. |
 | `HorseClub.DAL/Data/Configurations` | Mapping chung và index phục vụ truy vấn. |
-| `HorseClub.DAL/Data/Migrations/SqlServer` | Bốn migration SQL Server và model snapshot. |
+| `HorseClub.BLL/Abstractions/Services` | Hợp đồng của 15 service nghiệp vụ. |
+| `HorseClub.DAL/Abstractions`, `Repositories`, `Queries` | Repository theo nghiệp vụ, query báo cáo và Unit of Work. |
+| `Horse_BackEnd/Realtime`, `HorseClub.BLL/Realtime` | Hub, adapter gửi realtime và hợp đồng sự kiện. |
+| `HorseClub.DAL/Data/Migrations/SqlServer` | Migration SQL Server và model snapshot; ba migration bổ sung cho realtime outbox. |
 
-Hướng project reference: API → BLL → DAL. DAL không tham chiếu BLL/API; BLL không tham chiếu API. BLL dùng EF DbContext trực tiếp, chưa thêm repository bao quanh từng DbSet. Các thư viện Identity/Data Protection/hosting vẫn được BLL dùng; HTTP request/result được xử lý ở API qua adapter. `OperationResult` là kết quả ứng dụng, API chuyển sang HTTP bằng `OperationResultMapper`.
+Hướng project reference: API → BLL → DAL. DAL không tham chiếu BLL/API; BLL không tham chiếu API hoặc EF Core. API inject service interface; BLL quyết định quyền, validation và chuyển trạng thái rồi gọi repository/query interface. Repository và Unit of Work dùng chung DbContext scoped. Các thư viện Identity/Data Protection/hosting vẫn được BLL dùng; HTTP request/result được xử lý ở API qua adapter. `OperationResult` là kết quả ứng dụng, API chuyển sang HTTP bằng `OperationResultMapper`.
 
 Một số response vẫn chứa entity để giữ tương thích frontend; chưa chuyển toàn bộ contract thành DTO độc lập. Không thêm tầng hoặc đổi payload chỉ để tổ chức lại file.
 
@@ -30,4 +34,6 @@ Request ghi có transaction Serializable và response buffering để rollback d
 
 Dashboard tổng hợp bảy chỉ số trong một SQL command, phân trang dùng AsNoTracking và thứ tự ổn định. Reports chỉ lấy các cột cần dùng, có giới hạn số bản ghi. Reminder lấy người nhận theo batch thay vì query trong từng vòng lặp. Migration `QueryPerformanceIndexes` bổ sung index composite và thay index đơn trùng tiền tố; không đổi bảng/cột/dữ liệu nghiệp vụ.
 
-Xem [giải thích từng folder/file](PROJECT_STRUCTURE_EXPLAINED.md), [thay đổi và kiểm chứng hiệu năng](STRUCTURE_AND_PERFORMANCE.md), [quy tắc layer/message](THREE_LAYER_AND_MESSAGES.md) và [Azure SQL](AZURE_SQL_SETUP.md).
+SignalR self-host tại `/hubs/club`, dùng bearer token hiện có. Notification và tín hiệu thay đổi được lưu vào outbox cùng transaction; dispatcher claim bằng lease rồi gửi ngoài transaction. Giao diện chống event trùng, gom burst và tải lại danh sách khi reconnect. Bản này hỗ trợ một API instance; cần backplane hoặc dịch vụ SignalR khi scale nhiều instance. Xem [triển khai và vận hành realtime](REPOSITORY_SIGNALR_IMPLEMENTATION.md).
+
+Xem [giải thích từng folder/file](archive/PROJECT_STRUCTURE_EXPLAINED.md), [thay đổi và kiểm chứng hiệu năng](archive/STRUCTURE_AND_PERFORMANCE.md), [quy tắc layer/message](THREE_LAYER_AND_MESSAGES.md) và [Azure SQL](AZURE_SQL_SETUP.md).

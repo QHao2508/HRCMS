@@ -1,14 +1,24 @@
 using HorseClub.BLL.Messaging;
 using System.Data;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace HorseClub.BLL.Common;
 
-public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
+public sealed class ClubAccess(CurrentUser current, IHorseRepository horses, IAccessRepository records, IAssignmentRepository assignments)
 {
+    public async Task<HorseClub.DAL.Abstractions.HorseScope> Scope()
+    {
+        var user = await current.Get();
+        return user.Role switch
+        {
+            Role.ClubManager => new(),
+            Role.HorseOwner => new(OwnerId: user.Id),
+            Role.WorkRider => new(RiderId: user.Id),
+            _ => new(StaffId: user.Id)
+        };
+    }
     /// <summary>
     /// Lấy hồ sơ ngựa trong phạm vi sở hữu hoặc phân công của người đang đăng nhập; chặn truy cập ngoài phạm vi.
     /// </summary>
@@ -17,26 +27,14 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
     public async Task<Horse> Horse(Guid id, bool allowArchived = false)
     {
         var user = await current.Get();
-        var horse = Ensure.Found(await db.Horses.FindAsync(id));
+        var horse = Ensure.Found(await horses.FindAsync(id));
         if (horse.Archived && !allowArchived) throw new ApiException(409, "horse_archived", Messages.Get(MessageKey.HorseIsArchived));
         if (user.Role == Role.ClubManager) return horse;
         if (user.Role == Role.HorseOwner && horse.OwnerId == user.Id) return horse;
-        if (await db.Assignments.AnyAsync(x => x.HorseId == id && x.StaffId == user.Id && x.Active)) return horse;
+        if (await assignments.IsAssignedAsync(id, user.Id)) return horse;
         // Riders only see horses with sessions specifically assigned to them.
-        if (user.Role == Role.WorkRider && await db.Sessions.AnyAsync(x => x.HorseId == id && x.RiderId == user.Id)) return horse;
+        if (user.Role == Role.WorkRider && await records.HasRiderSessionAsync(id, user.Id)) return horse;
         throw new ApiException(403, "forbidden", Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope));
-    }
-    /// <summary>
-    /// Xây dựng IQueryable đã giới hạn phạm vi ngựa theo vai trò/danh tính để mọi truy vấn danh sách dùng cùng chính sách.
-    /// </summary>
-    public async Task<IQueryable<Horse>> Horses()
-    {
-        var u = await current.Get();
-        var q = db.Horses.Where(x => !x.Archived);
-        if (u.Role == Role.ClubManager) return q;
-        if (u.Role == Role.HorseOwner) return q.Where(x => x.OwnerId == u.Id);
-        if (u.Role == Role.WorkRider) return q.Where(x => db.Sessions.Any(s => s.HorseId == x.Id && s.RiderId == u.Id));
-        return q.Where(x => db.Assignments.Any(a => a.HorseId == x.Id && a.StaffId == u.Id && a.Active));
     }
     /// <summary>
     /// Xác nhận người dùng là huấn luyện viên hiện đang được phân công cho ngựa trước khi thay đổi huấn luyện.
@@ -48,7 +46,7 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
         var u = await current.Get();
         Ensure.Role(u, Role.Trainer);
         await Horse(horseId);
-        Ensure.That(await db.Assignments.AnyAsync(x => x.HorseId == horseId && x.StaffId == u.Id && x.Role == Role.Trainer && x.Active),
+        Ensure.That(await assignments.IsAssignedAsync(horseId, u.Id, Role.Trainer),
             Messages.Get(MessageKey.OnlyTheCurrentAssignedTrainerMayChangeTraining), 403, "forbidden");
     }
     /// <summary>
@@ -68,7 +66,7 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
     /// <param name="role">Role enum chính xác của backend để kiểm quyền/lọc dữ liệu.</param>
     public async Task<User> Staff(Guid id, Role role)
     {
-        var user = Ensure.Found(await db.Users.FindAsync(id));
+        var user = Ensure.Found(await records.FindUserAsync(id));
         Ensure.That(user.Active && user.Role == role, Messages.Get(MessageKey.StaffMustBeAnActive, role));
         return user;
     }
@@ -79,7 +77,7 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
     public async Task<HorseRegistration> Registration(Guid id)
     {
         var u = await current.Get();
-        var r = Ensure.Found(await db.Registrations.FindAsync(id));
+        var r = Ensure.Found(await records.FindRegistrationAsync(id));
         Ensure.That(u.Role == Role.ClubManager || (u.Role == Role.HorseOwner && r.OwnerId == u.Id), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
         return r;
     }

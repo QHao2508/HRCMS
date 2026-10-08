@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace HorseClub.BLL.Common;
 

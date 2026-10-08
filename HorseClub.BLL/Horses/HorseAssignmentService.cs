@@ -1,13 +1,12 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace HorseClub.BLL.Horses;
 
-public sealed class HorseAssignmentService(ClubDbContext db, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
+public sealed class HorseAssignmentService(IAssignmentRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar) : IHorseAssignmentService
 {
     /// <summary>
     /// Kiểm vai trò người phân công, nhân sự được chọn và ngày bắt đầu; kết thúc phân công cũ, ghi phân công mới cùng audit/thông báo.
@@ -22,21 +21,21 @@ public sealed class HorseAssignmentService(ClubDbContext db, CurrentUser current
         if (r.Role == Role.Trainer)
         {
             Ensure.Role(u, Role.HeadTrainer);
-            Ensure.That(await db.Assignments.AnyAsync(x => x.HorseId == horseId && x.StaffId == u.Id && x.Active && x.Role == Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
+            Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
         }
         else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Get(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
         await access.Staff(r.StaffId, r.Role);
-        foreach (var old in await db.Assignments.Where(x => x.HorseId == horseId && x.Role == r.Role && x.Active).ToListAsync())
+        foreach (var old in await repository.GetActiveAsync(horseId, r.Role))
         {
             Ensure.That(r.StartDate >= old.StartDate, Messages.Get(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
             old.Active = false; old.EndDate = r.StartDate;
         }
         var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, Notes = r.Notes };
-        db.Assignments.Add(a);
+        repository.Add(a);
         events.Notify(r.StaffId, NotificationType.HorseAssignment, MessageKey.YouHaveBeenAssignedToAHorse, horseId);
         events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
         await events.Audit(AuditAction.HorseStaffAssigned, horseId, r.Role.ToString());
-        await db.SaveChangesAsync(); return a;
+        await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return a;
     }
 
     /// <summary>

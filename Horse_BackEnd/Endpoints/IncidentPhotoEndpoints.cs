@@ -11,9 +11,9 @@ public static class IncidentPhotoEndpoints
     public static void MapIncidentPhotos(this RouteGroupBuilder api)
     {
         var group = api.MapGroup("/care/incidents/{incidentId:guid}/photos").RequireAuthorization().WithTags("Incident photos");
-        group.MapGet("", async (Guid incidentId, IncidentPhotoService moduleService) => await moduleService.ListPhotos(incidentId)).Produces<List<IncidentPhotoResponse>>(200);
-        group.MapPost("", async (Guid incidentId, HttpRequest request, IncidentPhotoService moduleService) => (await moduleService.UploadPhoto(incidentId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<IncidentPhotoCreatedResponse>(201);
-        group.MapGet("/{id:guid}", async (Guid incidentId, Guid id, IncidentPhotoService moduleService) => (await moduleService.DownloadPhoto(incidentId, id)).ToHttpResult()).Produces<byte[]>(200, contentType: "application/octet-stream");
+        group.MapGet("", async (Guid incidentId, IIncidentPhotoService moduleService) => await moduleService.ListPhotos(incidentId)).Produces<List<IncidentPhotoResponse>>(200);
+        group.MapPost("", async (Guid incidentId, HttpRequest request, IIncidentPhotoService moduleService) => (await moduleService.UploadPhoto(incidentId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<IncidentPhotoCreatedResponse>(201);
+        group.MapGet("/{id:guid}", async (Guid incidentId, Guid id, IIncidentPhotoService moduleService) => (await moduleService.DownloadPhoto(incidentId, id)).ToHttpResult()).Produces<byte[]>(200, contentType: "application/octet-stream");
     }
 
 }

@@ -14,9 +14,9 @@ Run from the backend repository in your own PowerShell terminal:
 
 The script prompts for a hidden password and updates only the SQL connection/provider/migration settings. It keeps other existing secrets. It does not apply migrations, print credentials or write a password into the repository. User Secrets are local development storage; for deployment provide the connection via the hosting environment's secret configuration.
 
-Schema preview: [azure-sql-schema.sql](azure-sql-schema.sql), generated from InitialSqlServer, WorkerDeliveryReliability, PartialRegistrationDraft and QueryPerformanceIndexes. It contains 31 business tables plus __EFMigrationsHistory, keys, indexes and intake/worker changes. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
+Current schema: [azure-sql-schema.sql](azure-sql-schema.sql), generated from all seven migrations, including the three realtime outbox migrations. It contains 32 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
 
-After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies 31 business tables and the migrations present in the DAL source (currently four). It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
+After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies 32 application tables and the migrations present in the DAL source (currently seven). It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
 
 Verified on 07/10/2026: the Azure database was empty before migration. All three migrations were applied successfully; 31 business tables plus __EFMigrationsHistory are present. The full SQL Login connection is stored in local User Secrets, without a password in source.
 
@@ -27,3 +27,5 @@ Runtime AutoMigrate remains false. Future schema changes require reviewed migrat
 TLS uses Encrypt=True and TrustServerCertificate=False. Reference: [Microsoft SqlClient connection string syntax](https://learn.microsoft.com/en-us/sql/connect/ado-net/connection-string-syntax?view=sql-server-ver17).
 
 The fourth migration adds composite query indexes and replaces redundant single-column indexes. No business tables/columns or stored records are changed. The earlier three-migration verification above is the initial Azure setup history.
+
+Verified again on 08/10/2026 at the user's request: the three realtime outbox migrations were applied to shared HRCMS. Current schema has 32 application tables plus __EFMigrationsHistory and seven migrations. docs/azure-sql-schema.sql now includes all seven migrations; Update-AzureSqlDatabase.ps1 verifies the current count. Temporary API smoke passed health, login/me, dashboard, horse/notification reads, SignalR negotiate and authenticated WebSocket handshake. Outbox insert/update/read and rollback passed without retaining a test row. Workers and dispatcher were disabled during this smoke; the temporary API was stopped afterward. Full integration fixtures remain isolated from the shared database.

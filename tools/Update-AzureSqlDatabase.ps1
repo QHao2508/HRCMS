@@ -1,3 +1,4 @@
+param([string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'))
 $ErrorActionPreference = 'Stop'
 $secretPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Microsoft/UserSecrets/horseclub-backend/secrets.json'
 if (!(Test-Path -LiteralPath $secretPath)) { throw 'Run Set-AzureSqlConnection.ps1 first.' }
@@ -8,7 +9,7 @@ $connection = [System.Data.SqlClient.SqlConnectionStringBuilder]::new($connectio
 if ($connection.DataSource -ne 'tcp:hrcms.database.windows.net,1433' -or $connection.InitialCatalog -ne 'HRCMS' -or $connection.IntegratedSecurity -or !$connection.Encrypt -or $connection.TrustServerCertificate -or [string]::IsNullOrEmpty($connection.Password)) {
     throw 'Expected the authenticated, encrypted Azure SQL connection for hrcms.database.windows.net / HRCMS. Run Set-AzureSqlConnection.ps1 first.'
 }
-$schemaPath = Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'
+$schemaPath = $SchemaPath
 $migrationFolder = Join-Path $PSScriptRoot '../HorseClub.DAL/Data/Migrations/SqlServer'
 $migrationIds = @(Get-ChildItem -LiteralPath $migrationFolder -File | Where-Object { $_.Name -match '^\d{14}_[A-Za-z0-9_]+\.cs$' } | Sort-Object BaseName | ForEach-Object { $_.BaseName })
 if ($migrationIds.Count -eq 0) { throw 'No SQL Server migrations found.' }
@@ -34,14 +35,14 @@ SELECT DB_NAME() AS TargetDatabase, COUNT(*) AS ExistingTables FROM sys.tables W
     if ($LASTEXITCODE -ne 0) { throw 'Migration failed. Review the SQL error before retrying.' }
     $verify = @"
 SET NOCOUNT ON;
-IF (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0 AND name <> '__EFMigrationsHistory') <> 31 THROW 51000, 'Unexpected business table count.', 1;
+IF (SELECT COUNT(*) FROM sys.tables WHERE is_ms_shipped = 0 AND name <> '__EFMigrationsHistory') <> 32 THROW 51000, 'Unexpected business table count.', 1;
 IF (SELECT COUNT(*) FROM dbo.__EFMigrationsHistory) <> $expectedMigrationCount THROW 51000, 'Unexpected migration count.', 1;
 SELECT COUNT(*) AS BusinessTables FROM sys.tables WHERE is_ms_shipped = 0 AND name <> '__EFMigrationsHistory';
 SELECT MigrationId FROM dbo.__EFMigrationsHistory ORDER BY MigrationId;
 "@
     & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -b -l 30 -Q $verify
     if ($LASTEXITCODE -ne 0) { throw 'Schema verification failed.' }
-    Write-Host "Azure SQL schema verified: 31 business tables and $expectedMigrationCount migrations."
+    Write-Host "Azure SQL schema verified: 32 application tables and $expectedMigrationCount migrations."
 }
 finally {
     $env:SQLCMDPASSWORD = $previousPassword

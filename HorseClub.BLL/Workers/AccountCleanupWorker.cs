@@ -1,6 +1,5 @@
 using System.Data;
-using HorseClub.DAL.Data;
-using Microsoft.EntityFrameworkCore;
+using HorseClub.DAL.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
@@ -15,9 +14,9 @@ public sealed class AccountCleanupWorker(IServiceScopeFactory scopes, TimeProvid
     public async Task<int> RunOnce(CancellationToken token = default)
     {
         using var scope = scopes.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
-        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, token);
-        if (!await WorkerDatabaseLock.TryAcquire(db, "HorseClub.Worker.AccountCleanup", token)) return 0;
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        await using var tx = await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, token);
+        if (!await unitOfWork.TryAcquireWorkerLockAsync("HorseClub.Worker.AccountCleanup", token)) return 0;
         var removed = await scope.ServiceProvider.GetRequiredService<PendingRegistrationCleanup>().RemoveExpired(options.Value.AccountCleanupBatchSize, token);
         await tx.CommitAsync(token);
         if (removed > 0) logger.LogInformation("Removed {Count} expired unverified registrations", removed);

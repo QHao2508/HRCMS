@@ -10,7 +10,7 @@ Remove-Item Env:HRCMS_TEST_SQLSERVER
 
 ClubFactory thay InitialCatalog bằng HRCMS_Test_<GUID>, tự migrate và chỉ drop database fixture sở hữu. Replica dùng cùng database nhưng không sở hữu cleanup. Tests không migrate/drop HRCMS hoặc database trong connection string đầu vào. Nếu tiến trình bị kill, kiểm tên database trước khi dọn thủ công.
 
-CI build Release và chạy toàn suite trên SQL Server 2022 container. Windows local dùng SQL Server Express. Kết quả kiểm hiện tại nằm trong [FRONTEND_READINESS.md](FRONTEND_READINESS.md); phần dưới mô tả phạm vi các test đã có và lịch sử sửa lỗi concurrency.
+CI build Release và chạy toàn suite trên SQL Server 2022 container. Windows local dùng SQL Server Express. Kết quả kiểm hiện tại nằm trong [FRONTEND_READINESS.md](archive/FRONTEND_READINESS.md); phần dưới mô tả phạm vi các test đã có và lịch sử sửa lỗi concurrency.
 
 ## Đã kiểm những gì?
 

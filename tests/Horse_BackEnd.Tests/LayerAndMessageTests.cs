@@ -8,6 +8,18 @@ namespace Horse_BackEnd.Tests;
 public sealed class LayerAndMessageTests
 {
     [Fact]
+    public void BusinessUsesServiceContractsAndHasNoEntityFrameworkDependency()
+    {
+        var business = typeof(AuthenticationService).Assembly;
+        Assert.DoesNotContain(business.GetReferencedAssemblies(), x => x.Name!.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal));
+        foreach (var service in business.GetExportedTypes().Where(x => x.IsClass && x.Name.EndsWith("Service", StringComparison.Ordinal)))
+            Assert.Contains(service.GetInterfaces(), x => x.FullName == "HorseClub.BLL.Abstractions.Services.I" + service.Name);
+        foreach (var type in typeof(Program).Assembly.GetTypes().Where(x => x.FullName?.StartsWith("Horse_BackEnd.Endpoints.", StringComparison.Ordinal) == true))
+            foreach (var parameter in type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly).SelectMany(x => x.GetParameters()))
+                Assert.False(parameter.ParameterType.IsClass && parameter.ParameterType.Assembly == business && parameter.ParameterType.Name.EndsWith("Service", StringComparison.Ordinal), $"{type.Name} depends on concrete {parameter.ParameterType.Name}");
+    }
+
+    [Fact]
     public void LayerDependenciesHaveNoReverseReferences()
     {
         var api = typeof(Program).Assembly;

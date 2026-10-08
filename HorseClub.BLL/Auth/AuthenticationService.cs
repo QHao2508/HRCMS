@@ -1,10 +1,9 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -12,7 +11,7 @@ using Microsoft.AspNetCore.DataProtection;
 
 namespace HorseClub.BLL.Auth;
 
-public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, IOptions<SecurityOptions> options, IDataProtectionProvider protection, CurrentUser current, PageReader pager, ClubEvents events, PendingRegistrationCleanup cleanup)
+public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWork unitOfWork, TimeProvider clock, IOptions<SecurityOptions> options, IDataProtectionProvider protection, CurrentUser current, PageReader pager, ClubEvents events, PendingRegistrationCleanup cleanup) : IAuthenticationService
 {
     /// <summary>
     /// Đối chiếu tài khoản, trạng thái kích hoạt và SecurityStamp để xác định token còn hợp lệ; trả null khi phiên bị thu hồi.
@@ -21,7 +20,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     /// <param name="stamp">Giá trị kiểu string? dùng trong ValidateSession.</param>
     public async Task<User?> ValidateSession(Guid id, string? stamp)
     {
-        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id);
+        var user = await repository.GetSessionUserAsync(id);
         return user is { Active: true, EmailVerified: true } && user.SecurityStamp == stamp ? user : null;
     }
     private readonly SecurityOptions settings = options.Value;
@@ -51,13 +50,13 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
         if (!string.IsNullOrWhiteSpace(r.NationalId)) Ensure.That(r.NationalId.Length == settings.NationalIdDigits && r.NationalId.All(char.IsAsciiDigit), Messages.Get(MessageKey.InvalidNationalIDFormat));
         var email = Normalize(r.Email); var name = Normalize(r.UserName);
         await cleanup.RemoveExpired(100, email: email, userName: name);
-        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name || x.Email == name || x.UserName == email), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
+        Ensure.That(!await repository.HasIdentityConflictAsync(email, name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone.Trim(), Address = r.Address.Trim(), Role = Role.HorseOwner, CreatedAt = clock.GetUtcNow() };
         user.PasswordHash = hasher.HashPassword(user, r.Password);
         if (!string.IsNullOrWhiteSpace(r.NationalId)) user.NationalIdProtected = protection.CreateProtector("HorseClub.PersonalData.NationalId").Protect(r.NationalId);
-        db.Users.Add(user);
+        repository.AddUser(user);
         await Challenge(user, ChallengePurpose.Verify);
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         return user;
     }
     /// <summary>
@@ -69,12 +68,12 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     {
         Ensure.That(r.Role != Role.HorseOwner && r.Role != Role.ClubManager, Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
         var email = Normalize(r.Email); var name = Normalize(r.UserName);
-        Ensure.That(!await db.Users.AnyAsync(x => x.Email == email || x.UserName == name || x.Email == name || x.UserName == email), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
+        Ensure.That(!await repository.HasIdentityConflictAsync(email, name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone, Address = r.Address, Role = r.Role };
         // Staff choose their own password with a one-use email invitation; no shared initial password.
-        db.Users.Add(user);
+        repository.AddUser(user);
         await Challenge(user, ChallengePurpose.Invite);
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         return user;
     }
     /// <summary>
@@ -86,8 +85,8 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     {
         var now = clock.GetUtcNow();
         // A generic response also applies to known/throttled accounts, avoiding email enumeration.
-        if (await db.Challenges.AnyAsync(x => x.UserId == user.Id && x.Purpose == purpose && x.CreatedAt > now.AddSeconds(-settings.ResendSeconds))) return;
-        var previous = await db.Challenges.Where(x => x.UserId == user.Id && x.Purpose == purpose && !x.Consumed).ToListAsync();
+        if (await repository.HasRecentChallengeAsync(user.Id, purpose, now.AddSeconds(-settings.ResendSeconds))) return;
+        var previous = await repository.GetPendingChallengesAsync(user.Id, purpose);
         foreach (var p in previous) p.Consumed = true;
         var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString(System.Globalization.CultureInfo.InvariantCulture);
         var minutes = purpose switch { ChallengePurpose.Invite => settings.InvitationMinutes, ChallengePurpose.Reset => settings.ResetMinutes, _ => settings.VerificationMinutes };
@@ -96,7 +95,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
             expires = user.CreatedAt.AddHours(settings.PendingRegistrationHours);
         var challenge = new EmailChallenge { UserId = user.Id, Purpose = purpose, CreatedAt = now, ExpiresAt = expires };
         challenge.CodeHash = challengeHasher.HashPassword(challenge, code);
-        db.Challenges.Add(challenge);
+        repository.AddEmailChallenge(challenge);
         var (subject, body) = purpose switch
         {
             ChallengePurpose.Verify => (MessageKey.VerificationEmailSubject, MessageKey.VerificationEmailBody),
@@ -104,7 +103,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
             ChallengePurpose.Invite => (MessageKey.StaffInvitationEmailSubject, MessageKey.StaffInvitationEmailBody),
             _ => throw new ArgumentOutOfRangeException(nameof(purpose))
         };
-        db.EmailMessages.Add(new EmailMessage { Recipient = user.Email, Subject = Messages.Get(subject), Body = Messages.Get(body, code, minutes, user.UserName), ChallengeId = challenge.Id, ExpiresAt = challenge.ExpiresAt });
+        repository.AddEmailMessage(new EmailMessage { Recipient = user.Email, Subject = Messages.Get(subject), Body = Messages.Get(body, code, minutes, user.UserName), ChallengeId = challenge.Id, ExpiresAt = challenge.ExpiresAt });
     }
     /// <summary>
     /// Kiểm tra mã OTP mới nhất theo đúng mục đích, hạn dùng và số lần thử; tăng số lần thử, so sánh hash, đánh dấu dùng một lần khi thành công hoặc vượt giới hạn.
@@ -114,7 +113,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     /// <param name="code">OTP 6 chữ số theo đúng mục đích; không log hoặc lưu vào URL.</param>
     public async Task<bool> Consume(User user, ChallengePurpose purpose, string code)
     {
-        var c = await db.Challenges.Where(x => x.UserId == user.Id && x.Purpose == purpose && !x.Consumed).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
+        var c = await repository.GetLatestChallengeAsync(user.Id, purpose);
         if (c is null || c.ExpiresAt <= clock.GetUtcNow() || c.Attempts >= settings.MaxCodeAttempts) return false;
         c.Attempts++;
         // Invalid formats still consume an attempt, preventing unlimited guessing.
@@ -132,8 +131,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     {
         // Keep the existing JSON field "email" compatible, while accepting a username too.
         var identifier = Normalize(r.Email);
-        var user = await db.Users.Where(x => x.Email == identifier || x.UserName == identifier)
-            .OrderByDescending(x => x.Email == identifier).FirstOrDefaultAsync();
+        var user = await repository.GetLoginUserAsync(identifier);
         if (user is null)
         {
             // Hash verification work is still performed for unknown email addresses.
@@ -145,10 +143,10 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
         {
             user.FailedLogins++;
             if (user.FailedLogins >= settings.MaxLoginAttempts) { user.LockedUntil = clock.GetUtcNow().AddMinutes(settings.LockoutMinutes); user.FailedLogins = 0; }
-            await db.SaveChangesAsync(); return new(LoginStatus.InvalidCredentials);
+            await unitOfWork.SaveChangesAsync(); return new(LoginStatus.InvalidCredentials);
         }
         user.FailedLogins = 0; user.LockedUntil = null;
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         return new(user.EmailVerified ? LoginStatus.Authenticated
             : user.CreatedAt <= clock.GetUtcNow().AddHours(-settings.PendingRegistrationHours) ? LoginStatus.RegistrationExpired
             : LoginStatus.VerificationRequired, user);
@@ -200,11 +198,11 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<OperationResult> VerifyEmail(VerifyRequest r)
     {
-        var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
+        var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         var ok = u is { Active: true, EmailVerified: false, Role: Role.HorseOwner }
             && u.CreatedAt > clock.GetUtcNow().AddHours(-settings.PendingRegistrationHours) && await Consume(u, ChallengePurpose.Verify, r.Code);
         if (ok) u!.EmailVerified = true;
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         return OperationResult.Ok(new VerificationResponse(ok));
     }
 
@@ -215,10 +213,10 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<OperationResult> ResendVerification(EmailRequest r)
     {
-        var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
+        var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         if (u is { Active: true, EmailVerified: false, Role: Role.HorseOwner }
             && u.CreatedAt > clock.GetUtcNow().AddHours(-settings.PendingRegistrationHours)) await Challenge(u, ChallengePurpose.Verify);
-        await db.SaveChangesAsync(); return OperationResult.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleACodeWillBeEmailed)));
+        await unitOfWork.SaveChangesAsync(); return OperationResult.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleACodeWillBeEmailed)));
     }
 
     /// <summary>
@@ -228,9 +226,9 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<OperationResult> ForgotPassword(EmailRequest r)
     {
-        var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
+        var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         if (u is { Active: true, EmailVerified: true }) await Challenge(u, ChallengePurpose.Reset);
-        await db.SaveChangesAsync(); return OperationResult.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleAResetCodeWillBeEmailed)));
+        await unitOfWork.SaveChangesAsync(); return OperationResult.Ok(new MessageResponse(Messages.Get(MessageKey.IfEligibleAResetCodeWillBeEmailed)));
     }
 
     /// <summary>
@@ -246,7 +244,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     public async Task<OperationResult> Logout()
     {
         (await current.Get()).SecurityStamp = Guid.NewGuid().ToString();
-        await db.SaveChangesAsync(); return OperationResult.NoContent();
+        await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>
@@ -259,9 +257,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     public async Task<PageResponse<StaffResponse>> ListStaff(int? page, int? pageSize, Role? role)
     {
         Ensure.Role(await current.Get(), Role.ClubManager);
-        var q = db.Users.Where(x => x.Role != Role.HorseOwner);
-        if (role.HasValue) q = q.Where(x => x.Role == role.Value);
-        return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new StaffResponse(x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified)), page, pageSize);
+        return PageReader.Map(await pager.Page(page, pageSize, (p, size) => repository.ListStaffAsync(role, false, p, size)), x => new StaffResponse(x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified));
     }
 
     /// <summary>
@@ -273,9 +269,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     public async Task<PageResponse<StaffDirectoryResponse>> ListStaffDirectory(Role? role, int? page, int? pageSize)
     {
         await current.Get();
-        var q = db.Users.Where(x => x.Active && x.Role != Role.HorseOwner && x.Role != Role.ClubManager);
-        if (role.HasValue) q = q.Where(x => x.Role == role);
-        return await pager.Page(q.OrderBy(x => x.UserName).Select(x => new StaffDirectoryResponse(x.Id, x.FirstName, x.LastName, x.Role)), page, pageSize);
+        return PageReader.Map(await pager.Page(page, pageSize, (p, size) => repository.ListStaffAsync(role, true, p, size)), x => new StaffDirectoryResponse(x.Id, x.FirstName, x.LastName, x.Role));
     }
 
     /// <summary>
@@ -288,7 +282,7 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
         Ensure.Role(await current.Get(), Role.ClubManager);
         var u = await CreateStaff(r);
         await events.Audit(AuditAction.StaffCreated, u.Id);
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         return OperationResult.Created($"/api/staff/{u.Id}", AuthenticationService.View(u));
     }
 
@@ -301,11 +295,11 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     public async Task<OperationResult> SetStaffActive(Guid id, ActiveRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager);
-        var u = Ensure.Found(await db.Users.FindAsync(id));
+        var u = Ensure.Found(await repository.FindUserAsync(id));
         Ensure.That(u.Role != Role.ClubManager && u.Role != Role.HorseOwner, Messages.Get(MessageKey.OnlyStaffAccountsCanBeChangedHere));
         u.Active = r.Active; u.SecurityStamp = Guid.NewGuid().ToString();
         await events.Audit(AuditAction.StaffActiveChanged, id);
-        await db.SaveChangesAsync(); return OperationResult.NoContent();
+        await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>
@@ -318,13 +312,13 @@ public sealed class AuthenticationService(ClubDbContext db, TimeProvider clock, 
     {
         Ensure.That(r.Password == r.ConfirmPassword, Messages.Get(MessageKey.PasswordsDoNotMatch));
         ValidatePassword(r.Password);
-        var u = await db.Users.SingleOrDefaultAsync(x => x.Email == AuthenticationService.Normalize(r.Email));
+        var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         var eligible = u is { Active: true } && (purpose == ChallengePurpose.Invite
             ? !u.EmailVerified && u.Role != Role.HorseOwner && u.Role != Role.ClubManager
             : purpose == ChallengePurpose.Reset && u.EmailVerified);
         var ok = eligible && await Consume(u!, purpose, r.Code);
         if (ok) SetPassword(u!, r.Password);
-        await db.SaveChangesAsync(); return OperationResult.Ok(new PasswordChangedResponse(ok));
+        await unitOfWork.SaveChangesAsync(); return OperationResult.Ok(new PasswordChangedResponse(ok));
     }
 
 }

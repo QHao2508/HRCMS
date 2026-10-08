@@ -27,7 +27,7 @@ API local theo launch profile: `http://localhost:5299`. OpenAPI nằm tại `/op
 2. Lưu `accessToken`, `refreshToken` theo chính sách của ứng dụng. Gửi `Authorization: Bearer <accessToken>` cho các operation có security Bearer.
 3. Token là opaque ASP.NET Core Identity token; không decode như JWT. `expiresIn` là số giây, không phải timestamp.
 4. Lấy profile bằng `/api/auth/me`, enum bằng `/api/metadata/enums`. Enum request dùng đúng tên chuỗi, không dùng số hoặc tên tự dịch.
-5. Role chỉ là một điều kiện. Backend còn kiểm OwnerId, assignment active, RiderId, trạng thái ngựa/session và quyền xem clinical. Xem [bản đồ quyền theo hành động](CONTRACT_AND_SCREEN_MAP.md).
+5. Role chỉ là một điều kiện. Backend còn kiểm OwnerId, assignment active, RiderId, trạng thái ngựa/session và quyền xem clinical. Xem [bản đồ quyền theo hành động](archive/CONTRACT_AND_SCREEN_MAP.md).
 
 List phân trang trả `{ items, page, pageSize, total }`; page bắt đầu từ 1, giới hạn pageSize theo `Business:MaxPageSize`. Không phải mọi list đều phân trang: attachments/photos trả mảng trực tiếp. DateOnly dùng `yyyy-MM-dd`; DateTimeOffset dùng ISO 8601 có offset. Trường nullable có thể trả null, ví dụ latestMeasurement/currentStall, result/evaluation và clinical bị giới hạn theo role.
 
@@ -70,7 +70,7 @@ Frontend cần kiểm content type/body trước khi parse lỗi. Mã lỗi đư
 
 ## Kiểm chứng và tái xuất
 
-ApiContractTests kiểm operation/schema/security/status/multipart, shape runtime account/page/error/login và request sai trên SQL Server. Kết quả hiện tại xem [FRONTEND_READINESS.md](FRONTEND_READINESS.md).
+ApiContractTests kiểm operation/schema/security/status/multipart, shape runtime account/page/error/login và request sai trên SQL Server. Kết quả hiện tại xem [FRONTEND_READINESS.md](archive/FRONTEND_READINESS.md).
 
 PowerShell tại repository root:
 
@@ -85,6 +85,6 @@ Remove-Item Env:HRCMS_TEST_SQLSERVER
 
 Test dùng fixture/database riêng, không cần chạy API thủ công. Export là tùy chọn; CI không sửa snapshot trong checkout. Workflow test không thay thế load testing, worker nhiều replica hoặc UI E2E.
 
-Các response đang trả entity nghiệp vụ tiếp tục giữ các trường hiện có, bao gồm Version/CreatedAt nếu entity có. Bước này bổ sung kiểu/schema và DTO cho projection, không tách toàn bộ contract khỏi DAL hoặc thay chính sách clinical/clearance/archive. Nếu đổi trường entity về sau, cần xem ảnh hưởng API và version contract. Các policy đề xuất vẫn nằm ở [POLICY_DECISIONS.md](POLICY_DECISIONS.md).
+Các response đang trả entity nghiệp vụ tiếp tục giữ các trường hiện có, bao gồm Version/CreatedAt nếu entity có. Bước này bổ sung kiểu/schema và DTO cho projection, không tách toàn bộ contract khỏi DAL hoặc thay chính sách clinical/clearance/archive. Nếu đổi trường entity về sau, cần xem ảnh hưởng API và version contract. Các policy đề xuất vẫn nằm ở [POLICY_DECISIONS.md](archive/POLICY_DECISIONS.md).
 
 Cơ chế transformer dựa trên [OpenAPI customization của ASP.NET Core 10](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/customize-openapi?view=aspnetcore-10.0).

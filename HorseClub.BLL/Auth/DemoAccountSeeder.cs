@@ -1,16 +1,16 @@
 using HorseClub.BLL.Messaging;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 namespace HorseClub.BLL.Auth;
 
-// Invoked only by the local demo CLI, never exposed through an API route.
-public sealed class DemoAccountSeeder(ClubDbContext db)
+// Invoked only by an explicitly selected demo CLI, never exposed through an API route.
+public sealed class DemoAccountSeeder(IAuthRepository repository, IUnitOfWork unitOfWork)
 {
-    public sealed record Account(string Email, string UserName, Role Role);
+    public sealed record Account(string Email, string UserName, Role Role,
+        string? FirstName = null, string? LastName = null, string? Phone = null, string? Address = null);
 
     /// <summary>
     /// Tạo bộ dữ liệu demo theo vai trò/phân công; chỉ chạy công cụ demo được gọi rõ ràng, không thuộc request thường.
@@ -24,13 +24,13 @@ public sealed class DemoAccountSeeder(ClubDbContext db)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(password);
         var hasher = new PasswordHasher<User>();
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        await using var transaction = await unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted);
         var created = 0;
         foreach (var account in accounts)
         {
             var email = AuthenticationService.Normalize(account.Email);
             var name = AuthenticationService.Normalize(account.UserName);
-            var existing = await db.Users.SingleOrDefaultAsync(u => u.Email == email || u.UserName == name);
+            var existing = await repository.GetDemoAccountAsync(email, name);
             if (existing is not null)
             {
                 // Matching accounts stay unchanged unless the local CLI explicitly requests a password reset.
@@ -53,16 +53,18 @@ public sealed class DemoAccountSeeder(ClubDbContext db)
                 Email = email,
                 UserName = name,
                 Role = account.Role,
-                FirstName = "BE02",
-                LastName = account.Role.ToString(),
+                FirstName = account.FirstName?.Trim() ?? "BE02",
+                LastName = account.LastName?.Trim() ?? account.Role.ToString(),
+                Phone = account.Phone?.Trim() ?? "",
+                Address = account.Address?.Trim() ?? "",
                 Active = true,
                 EmailVerified = true
             };
             user.PasswordHash = hasher.HashPassword(user, password);
-            db.Users.Add(user);
+            repository.AddUser(user);
             created++;
         }
-        await db.SaveChangesAsync();
+        await unitOfWork.SaveChangesAsync();
         await transaction.CommitAsync();
         return created;
     }

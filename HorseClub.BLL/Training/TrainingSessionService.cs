@@ -1,14 +1,13 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager)
+public sealed class TrainingSessionService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager) : ITrainingSessionService
 {
     /// <summary>
     /// Kiểm tình trạng ngựa và hạn chế y tế tại thời điểm buổi tập; chặn bài tập, cường độ hoặc quãng đường không phù hợp.
@@ -20,11 +19,11 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <param name="at">Thời điểm nghiệp vụ được kiểm, tính theo UTC rồi quy đổi múi giờ khi cần.</param>
     public async Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at)
     {
-        var horse = Ensure.Found(await db.Horses.FindAsync(horseId));
+        var horse = Ensure.Found(await repository.FindHorseAsync(horseId));
         Ensure.That(!horse.Archived, Messages.Get(MessageKey.HorseIsArchived), 409, "horse_archived");
         if (horse.HealthStatus == HealthStatus.Isolated || horse.HealthStatus == HealthStatus.Injured && intensity == Intensity.Heavy)
             throw new ApiException(409, "medical_block", Messages.Get(MessageKey.CurrentHealthStatusPreventsThisTraining), horseId);
-        var restrictions = await db.Restrictions.Where(x => x.HorseId == horseId && !x.Cleared && x.ValidFrom <= at && (x.ValidUntil == null || x.ValidUntil >= at)).ToListAsync();
+        var restrictions = await repository.GetRestrictionsAsync(horseId, at);
         foreach (var r in restrictions)
             if (r.BlockAllTraining || r.TrainingLock && intensity == Intensity.Heavy || r.MaxIntensity.HasValue && intensity > r.MaxIntensity
                 || r.MaxDistanceMetres.HasValue && distance > r.MaxDistanceMetres || r.NoSprint && type == TrainingType.Sprint)
@@ -38,15 +37,15 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<TrainingSession> CreateSession(Guid planId, SessionRequest r)
     {
-        var plan = Ensure.Found(await db.Plans.FindAsync(planId));
+        var plan = Ensure.Found(await repository.FindPlanAsync(planId));
         await access.Trainer(plan.HorseId);
         Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var session = new TrainingSession { PlanId = planId, HorseId = plan.HorseId };
         await ApplySession(session, plan, r);
-        db.Sessions.Add(session);
+        repository.AddSession(session);
         await events.TrainingHistory(plan, session);
         if (r.RiderId.HasValue) events.Notify(r.RiderId.Value, NotificationType.SessionAssigned, MessageKey.ATrainingSessionWasAssignedToYou, session.Id);
-        await events.Audit(AuditAction.TrainingSessionCreated, session.Id); await db.SaveChangesAsync(); return session;
+        await events.Audit(AuditAction.TrainingSessionCreated, session.Id); await events.RefreshHorse(session.HorseId); await unitOfWork.SaveChangesAsync(); return session;
     }
     /// <summary>
     /// Chỉnh sửa buổi tập trong TrainingSessionService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -56,16 +55,16 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<TrainingSession> EditSession(Guid id, SessionRequest r)
     {
-        var session = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Trainer(session.HorseId);
+        var session = Ensure.Found(await repository.FindSessionAsync(id)); await access.Trainer(session.HorseId);
         Ensure.That(session.Status is SessionStatus.Planned or SessionStatus.Assigned, Messages.Get(MessageKey.OnlyUnstartedSessionsCanBeEdited), 409, "invalid_state");
-        var plan = Ensure.Found(await db.Plans.FindAsync(session.PlanId));
+        var plan = Ensure.Found(await repository.FindPlanAsync(session.PlanId));
         Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var oldRider = session.RiderId;
         await ApplySession(session, plan, r);
         await events.TrainingHistory(plan, session);
         if (r.RiderId != oldRider && r.RiderId.HasValue) events.Notify(r.RiderId.Value, NotificationType.SessionAssigned, MessageKey.ATrainingSessionWasAssignedToYou, id);
         if (oldRider.HasValue && oldRider != r.RiderId) events.Notify(oldRider.Value, NotificationType.SessionUnassigned, MessageKey.ATrainingAssignmentWasRemoved, id);
-        await events.Audit(AuditAction.TrainingSessionEdited, id); await db.SaveChangesAsync(); return session;
+        await events.Audit(AuditAction.TrainingSessionEdited, id); await events.RefreshHorse(session.HorseId); await unitOfWork.SaveChangesAsync(); return session;
     }
     /// <summary>
     /// Kiểm thời gian trong kế hoạch/múi giờ, sức khỏe và lịch người cưỡi; áp dụng dữ liệu và chọn trạng thái Planned hoặc Assigned.
@@ -82,7 +81,7 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
         if (r.RiderId.HasValue)
         {
             await access.Staff(r.RiderId.Value, Role.WorkRider);
-            Ensure.That(!await db.Sessions.AnyAsync(x => x.Id != s.Id && x.RiderId == r.RiderId && x.ScheduledAt == r.ScheduledAt && (x.Status == SessionStatus.Assigned || x.Status == SessionStatus.InProgress)), Messages.Get(MessageKey.RiderAlreadyHasASessionAtThisTime), 409, "rider_conflict");
+            Ensure.That(!await repository.HasRiderConflictAsync(s.Id, r.RiderId, r.ScheduledAt), Messages.Get(MessageKey.RiderAlreadyHasASessionAtThisTime), 409, "rider_conflict");
         }
         s.ScheduledAt = r.ScheduledAt.ToUniversalTime(); s.TrainingType = r.TrainingType; s.DistanceMetres = r.DistanceMetres;
         s.Intensity = r.Intensity; s.Surface = r.Surface; s.Target = r.Target; s.Notes = r.Notes; s.RiderId = r.RiderId;
@@ -96,20 +95,20 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     public async Task Start(Guid id)
     {
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
-        var s = Ensure.Found(await db.Sessions.FindAsync(id));
+        var s = Ensure.Found(await repository.FindSessionAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.Assigned, Messages.Get(MessageKey.SessionIsNotAssignedReady), 409, "invalid_state");
         Ensure.That(s.ScheduledAt <= clock.GetUtcNow().AddMinutes(options.Value.StartEarlyMinutes), Messages.Get(MessageKey.SessionIsNotDueToStartYet), 409, "invalid_state");
-        var plan = Ensure.Found(await db.Plans.FindAsync(s.PlanId));
+        var plan = Ensure.Found(await repository.FindPlanAsync(s.PlanId));
         Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var today = calendar.Today(clock);
         Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Get(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
-        Ensure.That(!await db.Sessions.AnyAsync(x => x.Status == SessionStatus.InProgress && (x.RiderId == u.Id || x.HorseId == s.HorseId)), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
+        Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
         await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow());
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
         await events.TrainingHistory(plan, s);
-        await events.Audit(AuditAction.TrainingSessionStarted, id); await db.SaveChangesAsync();
+        await events.Audit(AuditAction.TrainingSessionStarted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync();
     }
     /// <summary>
     /// Kiểm quyền người cưỡi và buổi tập đã bắt đầu, tránh kết quả trùng; lưu kết quả đo, chuyển trạng thái và thông báo huấn luyện viên.
@@ -120,11 +119,11 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     public async Task<SessionResult> SubmitResult(Guid id, ResultRequest r)
     {
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
-        var s = Ensure.Found(await db.Sessions.FindAsync(id));
+        var s = Ensure.Found(await repository.FindSessionAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.InProgress, Messages.Get(MessageKey.StartSessionBeforeSubmittingResults), 409, "invalid_state");
-        Ensure.That(!await db.Results.AnyAsync(x => x.SessionId == id), Messages.Get(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
+        Ensure.That(!await repository.HasResultAsync(id), Messages.Get(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
         // Always allow reporting actual activity, even if a medical lock was applied mid-session.
         // A newly conflicting restriction is recorded as an issue rather than discarding observations.
         var medicalIssue = false;
@@ -142,16 +141,16 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
             Feedback = r.Feedback,
             AbnormalObservation = issue
         };
-        db.Results.Add(result); s.Status = issue ? SessionStatus.IssueReported : SessionStatus.Completed;
+        repository.AddResult(result); s.Status = issue ? SessionStatus.IssueReported : SessionStatus.Completed;
         await events.HorseStaff(s.HorseId, NotificationType.SessionResult, MessageKey.ARiderSubmittedASessionResult, Role.Trainer);
         if (issue)
         {
-            db.Incidents.Add(new Incident { HorseId = s.HorseId, ReporterId = u.Id, SessionId = id, OccurredAt = clock.GetUtcNow(), Type = IncidentType.TrainingObservation, Description = r.Feedback, Severity = IncidentSeverity.NeedsReview, RoutedTo = Role.Veterinarian });
+            repository.AddIncident(new Incident { HorseId = s.HorseId, ReporterId = u.Id, SessionId = id, OccurredAt = clock.GetUtcNow(), Type = IncidentType.TrainingObservation, Description = r.Feedback, Severity = IncidentSeverity.NeedsReview, RoutedTo = Role.Veterinarian });
             await events.HorseStaff(s.HorseId, NotificationType.IncidentReported, MessageKey.ATrainingObservationRequiresReview, Role.Veterinarian, Role.Trainer);
         }
-        var plan = Ensure.Found(await db.Plans.FindAsync(s.PlanId));
+        var plan = Ensure.Found(await repository.FindPlanAsync(s.PlanId));
         await events.TrainingHistory(plan, s, result);
-        await events.Audit(AuditAction.TrainingResultSubmitted, id); await db.SaveChangesAsync(); return result;
+        await events.Audit(AuditAction.TrainingResultSubmitted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync(); return result;
     }
 
     /// <summary>
@@ -174,14 +173,11 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<TrainingSession>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize)
     {
-        var u = await current.Get(); var horses = (await access.Horses()).Select(x => x.Id);
-        var q = db.Sessions.Where(x => horses.Contains(x.HorseId));
-        if (u.Role == Role.WorkRider) q = q.Where(x => x.RiderId == u.Id);
-        if (horseId.HasValue) { await access.Horse(horseId.Value); q = q.Where(x => x.HorseId == horseId); }
-        if (status.HasValue) q = q.Where(x => x.Status == status);
-        if (from.HasValue) q = q.Where(x => x.ScheduledAt >= from.Value);
-        if (to.HasValue) q = q.Where(x => x.ScheduledAt <= to.Value);
-        return await pager.Page(q.OrderBy(x => x.ScheduledAt).ThenBy(x => x.Id), page, pageSize);
+        var u = await current.Get(); var scope = await access.Scope();
+        if (horseId.HasValue) await access.Horse(horseId.Value);
+        var (p, size) = pager.Read(page, pageSize);
+        var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size);
+        return new(data.Items, p, size, data.Total);
     }
 
     /// <summary>
@@ -191,9 +187,9 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<SessionDetailResponse> GetSession(Guid id)
     {
-        var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
+        var s = Ensure.Found(await repository.FindSessionAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
         Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        return new SessionDetailResponse(s, await db.Results.SingleOrDefaultAsync(x => x.SessionId == id), await db.Evaluations.SingleOrDefaultAsync(x => x.SessionId == id));
+        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id));
     }
 
     /// <summary>
@@ -211,7 +207,7 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
     public async Task<TrainingSession> AssignRider(Guid id, RiderRequest r)
     {
-        var s = Ensure.Found(await db.Sessions.FindAsync(id));
+        var s = Ensure.Found(await repository.FindSessionAsync(id));
         return await EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId));
     }
 
@@ -238,14 +234,14 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<OperationResult> SkipSession(Guid id, ReasonRequest r)
     {
-        var s = Ensure.Found(await db.Sessions.FindAsync(id)); var u = await current.Get();
+        var s = Ensure.Found(await repository.FindSessionAsync(id)); var u = await current.Get();
         if (u.Role == Role.WorkRider) { await access.Horse(s.HorseId); Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden"); }
         else await access.Trainer(s.HorseId);
         Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Get(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
         s.Status = SessionStatus.Skipped; s.Notes += Messages.Get(MessageKey.Skipped, r.Reason);
-        await events.TrainingHistory(Ensure.Found(await db.Plans.FindAsync(s.PlanId)), s);
+        await events.TrainingHistory(Ensure.Found(await repository.FindPlanAsync(s.PlanId)), s);
         await events.HorseStaff(s.HorseId, NotificationType.SessionSkipped, MessageKey.ASessionWasSkipped, Role.Trainer);
-        await events.Audit(AuditAction.TrainingSessionSkipped, id); await db.SaveChangesAsync(); return OperationResult.NoContent();
+        await events.Audit(AuditAction.TrainingSessionSkipped, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>
@@ -256,15 +252,15 @@ public sealed class TrainingSessionService(ClubDbContext db, CurrentUser current
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<TrainerEvaluation> EvaluateSession(Guid id, EvaluationRequest r)
     {
-        var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Trainer(s.HorseId);
+        var s = Ensure.Found(await repository.FindSessionAsync(id)); await access.Trainer(s.HorseId);
         Ensure.That(s.Status is SessionStatus.Completed or SessionStatus.IssueReported, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
-        Ensure.That(!await db.Evaluations.AnyAsync(x => x.SessionId == id), Messages.Get(MessageKey.EvaluationAlreadyExists), 409, "duplicate_evaluation");
-        var result = await db.Results.SingleOrDefaultAsync(x => x.SessionId == id);
+        Ensure.That(!await repository.HasEvaluationAsync(id), Messages.Get(MessageKey.EvaluationAlreadyExists), 409, "duplicate_evaluation");
+        var result = await repository.GetResultAsync(id);
         Ensure.That(result is not null, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
         var e = new TrainerEvaluation { SessionId = id, TrainerId = (await current.Get()).Id, Comment = r.Comment, AdjustFutureSessions = r.AdjustFutureSessions };
-        db.Evaluations.Add(e);
-        await events.TrainingHistory(Ensure.Found(await db.Plans.FindAsync(s.PlanId)), s, result, e);
-        await events.Audit(AuditAction.TrainingEvaluated, id); await db.SaveChangesAsync(); return e;
+        repository.AddEvaluation(e);
+        await events.TrainingHistory(Ensure.Found(await repository.FindPlanAsync(s.PlanId)), s, result, e);
+        await events.Audit(AuditAction.TrainingEvaluated, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync(); return e;
     }
 
 }

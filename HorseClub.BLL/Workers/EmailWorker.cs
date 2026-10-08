@@ -1,6 +1,5 @@
 using System.Data;
-using HorseClub.DAL.Data;
-using Microsoft.EntityFrameworkCore;
+using HorseClub.DAL.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
@@ -20,19 +19,17 @@ public sealed class EmailWorker(IServiceScopeFactory scopes, ILogger<EmailWorker
         for (var index = 0; index < options.Value.EmailBatchSize; index++)
         {
             using var scope = scopes.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
-            await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, token);
-            if (!await WorkerDatabaseLock.TryAcquire(db, "HorseClub.Worker.Email", token)) break;
+            var repository = scope.ServiceProvider.GetRequiredService<IWorkerRepository>();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            await using var tx = await unitOfWork.BeginTransactionAsync(IsolationLevel.Serializable, token);
+            if (!await unitOfWork.TryAcquireWorkerLockAsync("HorseClub.Worker.Email", token)) break;
             var now = clock.GetUtcNow();
-            var message = await db.EmailMessages.Where(x => x.SentAt == null && x.DiscardedAt == null
-                && (x.ExpiresAt <= now || db.Challenges.Any(c => c.Id == x.ChallengeId && c.Consumed)
-                    || x.Attempts < options.Value.MaxEmailAttempts && (x.NextAttemptAt == null || x.NextAttemptAt <= now)))
-                .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).FirstOrDefaultAsync(token);
+            var message = await repository.GetNextEmailAsync(now, options.Value.MaxEmailAttempts, token);
             if (message is null) break;
-            if (message.ExpiresAt <= now || await db.Challenges.AnyAsync(c => c.Id == message.ChallengeId && c.Consumed, token))
+            if (message.ExpiresAt <= now || await repository.IsChallengeConsumedAsync(message.ChallengeId, token))
             {
                 message.DiscardedAt = now; message.Body = ""; message.NextAttemptAt = null;
-                await db.SaveChangesAsync(token); await tx.CommitAsync(token);
+                await unitOfWork.SaveChangesAsync(token); await tx.CommitAsync(token);
                 processed++;
                 continue;
             }
@@ -52,7 +49,7 @@ public sealed class EmailWorker(IServiceScopeFactory scopes, ILogger<EmailWorker
                 if (message.Attempts >= options.Value.MaxEmailAttempts)
                     logger.LogError("Email delivery exhausted retries for message {MessageId}", message.Id);
             }
-            await db.SaveChangesAsync(token); await tx.CommitAsync(token);
+            await unitOfWork.SaveChangesAsync(token); await tx.CommitAsync(token);
             processed++;
         }
         return processed;

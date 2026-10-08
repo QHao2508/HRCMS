@@ -5,10 +5,10 @@ Backend quản lý câu lạc bộ/ngựa đua: tài khoản, intake/approval, a
 ## Cấu trúc
 
 ```text
-Horse_BackEnd/Endpoints → HorseClub.BLL/<Module>/*Service → HorseClub.DAL/Data
+Endpoint → I…Service → BLL service → I…Repository + IUnitOfWork → DAL/EF Core
 ```
 
-Giữ Minimal API và ba project API → BLL → DAL. Services theo module, entity/enum/DTO theo file riêng. Đọc [cấu trúc từng folder/file](docs/PROJECT_STRUCTURE_EXPLAINED.md), [kiến trúc](docs/ARCHITECTURE.md) và [thay đổi/hiệu năng](docs/STRUCTURE_AND_PERFORMANCE.md).
+Giữ Minimal API và ba project API → BLL → DAL. Đọc [mục lục tài liệu](docs/README.md), [kiến trúc](docs/ARCHITECTURE.md) và [repository/Unit of Work/SignalR](docs/REPOSITORY_SIGNALR_IMPLEMENTATION.md).
 
 ## Azure SQL và chạy API
 
@@ -31,7 +31,7 @@ Script kết nối chỉ cần chạy khi cấu hình máy/kết nối mới; sc
 
 ## Frontend
 
-React/Vite/JavaScript tại `E:\SWP391\HorseClub-frontend\HRCMS-Frontend`, repository [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Đã có auth, dashboard, registration/review, horse và training. Vite cổng 5173 proxy API tới 5299. Frontend không kết nối SQL trực tiếp. Xem [FRONTEND_READINESS.md](docs/FRONTEND_READINESS.md) và `docs/API_INTEGRATION.md` trong frontend.
+React/Vite/JavaScript tại `E:\SWP391\HorseClub-frontend\HRCMS-Frontend`, repository [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Đã có auth, dashboard, registration/review, horse và training. Vite cổng 5173 proxy API tới 5299. Frontend không kết nối SQL trực tiếp. Xem [FRONTEND_READINESS.md](docs/archive/FRONTEND_READINESS.md) và `docs/API_INTEGRATION.md` trong frontend.
 
 ## Kiểm thử
 
@@ -44,12 +44,12 @@ Tests tạo/drop database tạm `HRCMS_Test_<GUID>` trên SQL local; không dùn
 
 ## Tài liệu
 
-[Backend guide](docs/BACKEND_GUIDE.md), [API contract](docs/API_CONTRACT.md), [quy tắc layer/message](docs/THREE_LAYER_AND_MESSAGES.md), [phân công](docs/BACKEND_TASK_ASSIGNMENT.md), [backlog](docs/BACKLOG.md), [contributing](CONTRIBUTING.md).
+[Backend guide](docs/BACKEND_GUIDE.md), [API contract](docs/API_CONTRACT.md), [quy tắc layer/message](docs/THREE_LAYER_AND_MESSAGES.md), [phân công](docs/archive/BACKEND_TASK_ASSIGNMENT.md), [backlog](docs/archive/BACKLOG.md), [contributing](CONTRIBUTING.md).
 
 ## Đọc và bảo trì code
 
 - [Chức năng từng folder](docs/FOLDERS.md)
-- [Tra cứu từng function](docs/FUNCTION_REFERENCE.md)
-- [Nội dung dọn dẹp](docs/CLEANUP.md)
+- [Bảng báo cáo và vấn đáp](docs/BAO_CAO_CAU_TRUC_VA_LUONG_NGHIEP_VU.md)
+- [Tài liệu lịch sử](docs/archive/README.md)
 
 Chú thích XML/JSDoc giải thích mục đích, đầu vào và điểm cần lưu ý ngay trước function. Giữ migration, package lock và Data Protection keys khi dọn project.

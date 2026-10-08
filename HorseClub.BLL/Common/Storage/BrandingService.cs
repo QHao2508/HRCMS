@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 namespace HorseClub.BLL.Common;
 
 /// <summary>Only the configured branding image is public; no request can choose another private blob.</summary>
-public sealed class BrandingService(AzureBlobStore blobs, IOptions<BrandingOptions> options)
+public sealed class BrandingService(AzureBlobStore blobs, IOptions<BrandingOptions> options) : IBrandingService
 {
     /// <summary>
     /// Chỉ đọc blob logo cố định từ BrandingOptions; người gọi không thể chọn một blob ảnh ngựa khác.

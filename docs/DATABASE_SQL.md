@@ -1,11 +1,13 @@
 # SQL Server database
 
+**Schema hiện hành:** dùng [azure-sql-schema.sql](azure-sql-schema.sql), đủ 7 migration, đã áp dụng và smoke test trên Azure HRCMS ngày 08/10/2026. Hướng dẫn triển khai tại [AZURE_SQL_SETUP.md](AZURE_SQL_SETUP.md). `database.sql` bên dưới là bản 3 migration cũ, giữ để đối chiếu; không dùng để triển khai phiên bản hiện tại.
+
 [database.sql](database.sql) là script schema sinh từ migrations `InitialSqlServer`, `WorkerDeliveryReliability` và `PartialRegistrationDraft`: tạo bảng, khóa chính, khóa ngoại, indexes, các cột email expiry/discard, nullable intake Draft và lịch sử migration. Script dùng `GO`, chạy được bằng SQL Server Management Studio (SSMS) hoặc `sqlcmd`. Xem [BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md) trước khi cập nhật hoặc rollback schema Draft.
 
 ## Chạy bằng SSMS
 
 1. Kết nối SQL Server và tạo một database trống với tên bạn chọn.
-2. Mở `docs/database.sql`, chọn đúng database trong dropdown của cửa sổ query rồi Execute.
+2. Mở `docs/azure-sql-schema.sql`, chọn đúng database trong dropdown của cửa sổ query rồi Execute.
 3. Cấu hình backend `Database:Provider=SqlServer` và `ConnectionStrings:SqlServer` qua User Secrets hoặc biến môi trường. Xem [BACKEND_GUIDE.md](BACKEND_GUIDE.md).
 
 Script không tạo SQL login, mật khẩu, tài khoản ứng dụng hoặc dữ liệu mẫu. Manager đầu tiên được backend tạo từ `Bootstrap:ManagerEmail` và `Bootstrap:ManagerPassword` khi khởi động. Các enum nghiệp vụ lưu dạng `int` với giá trị cố định trong `HorseClub.DAL/Domain`; API sử dụng tên enum.
@@ -16,7 +18,7 @@ Script kiểm `__EFMigrationsHistory` để bỏ qua migration đã áp dụng. 
 
 ```powershell
 dotnet build HorseClub.slnx --configuration Release
-dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --configuration Release --no-build --output docs/database.sql
+dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --configuration Release --no-build --output docs/azure-sql-schema.sql
 ```
 
 File này dành cho SQL Server, chỉ triển khai cho provider SQL Server. Script được sinh thành công. Migrations đã chạy trên database SQL Server Express thử nghiệm, gồm kiểm upgrade có dữ liệu; chưa áp script này vào database cá nhân/production. Xem [WORKER_RELIABILITY.md](WORKER_RELIABILITY.md) cho migration mới và giới hạn queue email cũ.

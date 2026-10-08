@@ -1,14 +1,13 @@
 using HorseClub.BLL.Contracts;
 using HorseClub.BLL.Messaging;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Attachments;
 
-public sealed class AttachmentService(ClubAccess access, ClubDbContext db, UploadStorage storage, CurrentUser current, ClubEvents events, IOptions<StorageOptions> options)
+public sealed class AttachmentService(ClubAccess access, IFileRepository repository, IUnitOfWork unitOfWork, UploadStorage storage, CurrentUser current, ClubEvents events, IOptions<StorageOptions> options) : IAttachmentService
 {
     /// <summary>
     /// Kiểm quyền xem ngựa, chọn ảnh HorsePhoto mới nhất từ hồ sơ đăng ký rồi stream nội dung storage; không công khai blob riêng.
@@ -18,7 +17,7 @@ public sealed class AttachmentService(ClubAccess access, ClubDbContext db, Uploa
     public async Task<OperationResult> GetHorsePhoto(Guid horseId)
     {
         var horse = await access.Horse(horseId);
-        var attachment = Ensure.Found(await db.Attachments.Where(x => x.RegistrationId == horse.RegistrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync());
+        var attachment = Ensure.Found(await repository.GetHorsePhotoAsync(horse.RegistrationId));
         return OperationResult.File(await storage.OpenRead(attachment.StorageName), attachment.ContentType, attachment.FileName);
     }
 
@@ -30,7 +29,7 @@ public sealed class AttachmentService(ClubAccess access, ClubDbContext db, Uploa
     public async Task<List<AttachmentResponse>> ListAttachments(Guid registrationId)
     {
         await access.Registration(registrationId);
-        return await db.Attachments.Where(x => x.RegistrationId == registrationId).OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).Select(x => new AttachmentResponse(x.Id, x.FileName, x.ContentType, x.Length, x.Type, x.CertificateNumber, x.IssueDate, x.ExpiryDate)).ToListAsync();
+        return (await repository.ListAttachmentsAsync(registrationId)).Select(x => new AttachmentResponse(x.Id, x.FileName, x.ContentType, x.Length, x.Type, x.CertificateNumber, x.IssueDate, x.ExpiryDate)).ToList();
     }
 
     /// <summary>
@@ -46,7 +45,7 @@ public sealed class AttachmentService(ClubAccess access, ClubDbContext db, Uploa
         Ensure.That(request.HasFormContentType, Messages.Get(MessageKey.MultipartFormDataRequired));
         var form = await request.ReadFormAsync(); var file = form.Files.GetFile("file");
         Ensure.That(file is not null && file.Length > 0 && file.Length <= options.Value.MaxFileBytes, Messages.Get(MessageKey.UploadOneFileUpToBytes, options.Value.MaxFileBytes));
-        Ensure.That(await db.Attachments.CountAsync(x => x.RegistrationId == registrationId) < options.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
+        Ensure.That(await repository.CountAttachmentsAsync(registrationId) < options.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
         var rawType = form["type"].ToString();
         Ensure.That(Enum.TryParse<AttachmentType>(rawType, false, out var type) && Enum.IsDefined(type) && !int.TryParse(rawType, out _) && type != AttachmentType.IncidentPhoto, Messages.Get(MessageKey.InvalidAttachmentType));
         var bytes = new byte[file!.Length];
@@ -73,7 +72,7 @@ public sealed class AttachmentService(ClubAccess access, ClubDbContext db, Uploa
         Ensure.That(attachment.FileName.Length <= 200 && attachment.CertificateNumber.Length <= 100, Messages.Get(MessageKey.FilenameOrCertificateNumberIsTooLong));
 
         await storage.Write(attachment.StorageName, bytes, request.CancellationToken, contentType!);
-        db.Attachments.Add(attachment); await events.Audit(AuditAction.AttachmentUploaded, attachment.Id); await db.SaveChangesAsync();
+        repository.AddAttachment(attachment); await events.Audit(AuditAction.AttachmentUploaded, attachment.Id); await events.RefreshRegistration(reg); await unitOfWork.SaveChangesAsync();
         return OperationResult.Created($"/api/registrations/{registrationId}/attachments/{attachment.Id}", new AttachmentCreatedResponse(attachment.Id, attachment.FileName, attachment.Type, attachment.Length));
     }
 
@@ -85,7 +84,7 @@ public sealed class AttachmentService(ClubAccess access, ClubDbContext db, Uploa
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<OperationResult> DownloadAttachment(Guid registrationId, Guid id)
     {
-        await access.Registration(registrationId); var attachment = Ensure.Found(await db.Attachments.SingleOrDefaultAsync(x => x.Id == id && x.RegistrationId == registrationId));
+        await access.Registration(registrationId); var attachment = Ensure.Found(await repository.FindAttachmentAsync(registrationId, id));
         // Force download to avoid active content executing in the API origin.
         return OperationResult.File(await storage.OpenRead(attachment.StorageName), attachment.ContentType, attachment.FileName);
     }

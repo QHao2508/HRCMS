@@ -9,3 +9,5 @@ global using HorseClub.BLL.Reporting;
 global using HorseClub.BLL.Attachments;
 global using HorseClub.BLL.Metadata;
 global using Horse_BackEnd.Infrastructure;
+
+global using HorseClub.BLL.Abstractions.Services;

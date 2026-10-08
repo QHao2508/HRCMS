@@ -1,4 +1,4 @@
-﻿IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
 BEGIN
     CREATE TABLE [__EFMigrationsHistory] (
         [MigrationId] nvarchar(150) NOT NULL,
@@ -1439,6 +1439,137 @@ IF NOT EXISTS (
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
     VALUES (N'20261007115208_QueryPerformanceIndexes', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE TABLE [RealtimeOutboxMessages] (
+        [Id] uniqueidentifier NOT NULL,
+        [RecipientId] uniqueidentifier NOT NULL,
+        [NotificationId] uniqueidentifier NOT NULL,
+        [Attempts] int NOT NULL,
+        [NextAttemptAt] bigint NULL,
+        [LockedUntil] bigint NULL,
+        [LeaseOwner] uniqueidentifier NULL,
+        [SentAt] bigint NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_RealtimeOutboxMessages] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages] ([NotificationId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_RealtimeOutboxMessages_SentAt_NextAttemptAt_LockedUntil] ON [RealtimeOutboxMessages] ([SentAt], [NextAttemptAt], [LockedUntil]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008031610_RealtimeNotificationOutbox', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    DROP INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [EventType] nvarchar(4000) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [NotificationVersion] bigint NOT NULL DEFAULT CAST(0 AS bigint);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId_NotificationVersion] ON [RealtimeOutboxMessages] ([NotificationId], [NotificationVersion]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033133_RealtimeNotificationReadSignals', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationVersion]', N'SourceVersion', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationId]', N'SourceId', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[IX_RealtimeOutboxMessages_NotificationId_NotificationVersion]', N'IX_RealtimeOutboxMessages_SourceId_SourceVersion', 'INDEX';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033516_RealtimeResourceSignals', N'10.0.12');
 END;
 
 COMMIT;

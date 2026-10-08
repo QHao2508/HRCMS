@@ -13,9 +13,9 @@ public static class BearerSessionHandler
     /// Chuyển LoginAttempt thành lỗi HTTP có mã để frontend điều hướng, hoặc cấp bearer token chỉ cho tài khoản đã xác thực. Cho phép transaction lưu bộ đếm đăng nhập dù trả 401.
     /// </summary>
     /// <param name="request">Request đã có hợp đồng; thao tác upload dùng abstraction tách khỏi HTTP.</param>
-    /// <param name="service">Giá trị kiểu AuthenticationService dùng trong Login.</param>
+    /// <param name="service">Giá trị kiểu IAuthenticationService dùng trong Login.</param>
     /// <param name="context">Giá trị kiểu HttpContext dùng trong Login.</param>
-    public static async Task<IResult> Login(LoginRequest request, AuthenticationService service, HttpContext context)
+    public static async Task<IResult> Login(LoginRequest request, IAuthenticationService service, HttpContext context)
     {
         var attempt = await service.Login(request);
         context.Items["commit-auth-attempt"] = true;
@@ -30,10 +30,10 @@ public static class BearerSessionHandler
     /// </summary>
     /// <param name="request">Request đã có hợp đồng; thao tác upload dùng abstraction tách khỏi HTTP.</param>
     /// <param name="options">Cấu hình/hợp đồng tùy hàm; các giá trị được truyền rõ ràng từ caller.</param>
-    /// <param name="service">Giá trị kiểu AuthenticationService dùng trong Refresh.</param>
+    /// <param name="service">Giá trị kiểu IAuthenticationService dùng trong Refresh.</param>
     /// <param name="clock">Giá trị kiểu TimeProvider dùng trong Refresh.</param>
     public static async Task<IResult> Refresh(RefreshRequest request, IOptionsMonitor<BearerTokenOptions> options,
-        AuthenticationService service, TimeProvider clock)
+        IAuthenticationService service, TimeProvider clock)
     {
         var ticket = options.Get(IdentityConstants.BearerScheme).RefreshTokenProtector.Unprotect(request.RefreshToken);
         if (ticket is null || ticket.Properties.ExpiresUtc is null || ticket.Properties.ExpiresUtc <= clock.GetUtcNow()

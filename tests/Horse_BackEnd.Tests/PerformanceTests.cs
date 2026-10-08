@@ -92,7 +92,8 @@ public sealed class PerformanceTests(ITestOutputHelper output)
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
         var pager = scope.ServiceProvider.GetRequiredService<PageReader>();
-        var page = await pager.Page(db.Horses.OrderBy(x => x.Id), 1, 10);
+        var repository = scope.ServiceProvider.GetRequiredService<HorseClub.DAL.Abstractions.IHorseRepository>();
+        var page = await pager.Page(1, 10, (p, size) => repository.ListAsync(new(OwnerId: owner.Id), null, null, p, size));
         Assert.Single(page.Items);
         Assert.Empty(db.ChangeTracker.Entries<Horse>());
     }

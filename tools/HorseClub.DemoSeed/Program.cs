@@ -55,7 +55,7 @@ try
     }
     var security = config.GetSection(SecurityOptions.Section).Get<SecurityOptions>() ?? new();
     await using var db = new SqlServerClubDbContext(new DbContextOptionsBuilder<SqlServerClubDbContext>().UseSqlServer(connection.ConnectionString).Options);
-    var count = await new DemoAccountSeeder(db).Seed(accounts, password, security, resetDemoPassword);
+    var count = await new DemoAccountSeeder(new HorseClub.DAL.Repositories.AuthRepository(db), new HorseClub.DAL.Data.EfUnitOfWork(db)).Seed(accounts, password, security, resetDemoPassword);
     if (resetDemoPassword)
         await File.WriteAllTextAsync(credentialPath, JsonSerializer.Serialize(new { database = expectedDatabase, password, accounts }, json));
     Console.WriteLine(resetDemoPassword

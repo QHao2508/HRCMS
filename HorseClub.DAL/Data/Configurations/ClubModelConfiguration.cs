@@ -20,6 +20,8 @@ internal static class ClubModelConfiguration
             entity.Property(nameof(Entity.Version)).IsConcurrencyToken();
         }
         b.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        b.Entity<RealtimeOutboxMessage>().HasIndex(x => new { x.SourceId, x.SourceVersion }).IsUnique();
+        b.Entity<RealtimeOutboxMessage>().HasIndex(x => new { x.SentAt, x.NextAttemptAt, x.LockedUntil });
         b.Entity<User>().HasIndex(x => x.UserName).IsUnique();
         b.Entity<Horse>().HasIndex(x => x.RegistrationId).IsUnique();
         b.Entity<SessionResult>().HasIndex(x => x.SessionId).IsUnique();

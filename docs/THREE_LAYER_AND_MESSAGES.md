@@ -2,7 +2,7 @@
 
 API → BLL → DAL. API giữ Minimal API, HTTP binding/response/middleware; BLL chứa scoped services theo module; DAL giữ entity/enum/EF mapping/migrations. Endpoint không truy vấn database trực tiếp. DependencyInjection trong BLL đăng ký service; Program API ghép runtime.
 
-Không còn Workflow ở giữa endpoint và service. Dependencies được inject qua constructor. Không tạo repository bọc từng DbSet khi chưa cần. BLL vẫn dùng Identity/Data Protection/hosting; các kiểu HttpRequest/HttpContext/IResult không nằm trong signature service. Identity và upload được truyền qua interface/input riêng; API chuyển OperationResult thành HTTP.
+Không còn Workflow ở giữa endpoint và service. Endpoint inject I…Service; BLL inject repository/query interface và IUnitOfWork, không dùng EF Core/DbContext/IQueryable. Repository chia theo nghiệp vụ thay vì tạo generic repository cho từng bảng. BLL vẫn dùng Identity/Data Protection/hosting; các kiểu HttpRequest/HttpContext/IResult không nằm trong signature service. Identity và upload được truyền qua interface/input riêng; API chuyển OperationResult thành HTTP.
 
 Entity/enum/DTO tách thành file riêng. Namespace DAL là HorseClub.DAL.Entities/Enums/Data; DTO giữ HorseClub.BLL.Contracts. Đổi vị trí/namespace không đổi JSON hoặc bảng. SQL Server là database duy nhất.
 
@@ -32,4 +32,4 @@ dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-proje
 dotnet test HorseClub.slnx --configuration Release
 ```
 
-Bộ test kiểm các workflow hiện có, dependencies không ngược layer, đầy đủ khóa catalog và định dạng email/message động. Database đang chạy không cần reset sau refactor này.
+Bộ test kiểm workflow, dependencies, service interfaces, transaction rollback, outbox claim đồng thời và SignalR với token hiện có. Không reset database; cần áp dụng migration bổ sung cho outbox trước khi chạy phiên bản mới, kể cả khi dispatcher đang tắt. Xem REPOSITORY_SIGNALR_IMPLEMENTATION.md.

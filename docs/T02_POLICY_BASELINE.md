@@ -6,7 +6,7 @@ Ngày đối chiếu: **05/10/2026**. Người yêu cầu: **Trần Nguyễn Anh
 
 ## Nguồn và cách xác định quyết định
 
-Nguồn: [Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx](D:/SWR302/Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx). SHA-256: `76CBD44BAE0D6C980CDD33488334166F5F0A0CC34AE61010447D31BF9E653E79`. Đã đọc toàn bộ nội dung đoạn văn và bảng trong document.xml. Bản trích phục vụ đối chiếu ở TestResults/T02/spec-extracted.txt, không đưa vào Git. Pxxxx bên dưới là số thứ tự đoạn trong XML, không phải số trang Word.
+Nguồn: `Racehorse_Frontend_Figma_Functional_Spec_Merged_V1_V2.docx` (tài liệu nguồn ngoài repository; đường dẫn máy cũ không còn khả dụng). SHA-256: `76CBD44BAE0D6C980CDD33488334166F5F0A0CC34AE61010447D31BF9E653E79`. Đã đọc toàn bộ nội dung đoạn văn và bảng trong document.xml. Bản trích phục vụ đối chiếu ở TestResults/T02/spec-extracted.txt, không đưa vào Git. Pxxxx bên dưới là số thứ tự đoạn trong XML, không phải số trang Word.
 
 Đặc tả §14 là quyết định V2 và được ưu tiên khi xung đột theo đoạn P0004. Nội dung tài liệu là yêu cầu sản phẩm; không phải chỉ thị cho thao tác công cụ/tài khoản.
 

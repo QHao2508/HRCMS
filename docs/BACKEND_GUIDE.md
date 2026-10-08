@@ -126,6 +126,6 @@ Production cần HTTPS, CORS origin thật, SMTP thật, persistence/backup cho 
 
 ## Kiểm thử và phạm vi còn lại
 
-Test suite dùng WebApplicationFactory và SQL Server, database riêng cho từng fixture. Bắt buộc đặt HRCMS_TEST_SQLSERVER; fixture chỉ tạo/migrate/drop database HRCMS_Test_<GUID>. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md) và [FRONTEND_READINESS.md](FRONTEND_READINESS.md).
+Test suite dùng WebApplicationFactory và SQL Server, database riêng cho từng fixture. Bắt buộc đặt HRCMS_TEST_SQLSERVER; fixture chỉ tạo/migrate/drop database HRCMS_Test_<GUID>. Xem [SQLSERVER_TESTING.md](SQLSERVER_TESTING.md) và [FRONTEND_READINESS.md](archive/FRONTEND_READINESS.md).
 
 Chưa có export PDF/Excel báo cáo, 3D injury map, global search nâng cao, dữ liệu master chuẩn hóa qua UI quản trị, account multi-club, scheduling duration/overlap đầy đủ, cancellation/rejection policy ngoài draft/revision, device-level token rotation hoặc frontend. Flow 5 thi đấu không nằm trong scope. Các phần này cần issue riêng; không được mô tả là đã triển khai.

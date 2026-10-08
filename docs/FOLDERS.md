@@ -2,8 +2,16 @@
 
 Backend ba layer: API → BLL → DAL → Azure SQL. Blob/SMTP là dịch vụ ngoài, được gọi từ BLL.
 
+Cập nhật 08/10/2026: API dùng service interface; BLL dùng repository/query và Unit of Work. EF Core nằm ở DAL. Xem [kết quả triển khai](REPOSITORY_SIGNALR_IMPLEMENTATION.md).
+
 | Folder | Chức năng |
 |---|---|
+| `HorseClub.BLL/Abstractions/Services` | 15 hợp đồng service mà API inject qua DI. |
+| `HorseClub.BLL/Realtime` | Hợp đồng publisher và payload realtime. |
+| `HorseClub.DAL/Abstractions` | Hợp đồng repository, query và Unit of Work. |
+| `HorseClub.DAL/Repositories` | Triển khai EF Core theo nghiệp vụ. |
+| `HorseClub.DAL/Queries` | Truy vấn đọc/báo cáo có projection và giới hạn. |
+| `Horse_BackEnd/Realtime` | SignalR hub, registry phiên và adapter publisher. |
 | `.config` | Manifest local .NET tool để dotnet tool restore cài đúng phiên bản dotnet-ef. |
 | `.github` | Workflow CI và template issue/PR; dùng bởi GitHub dù không được import trong ứng dụng. |
 | `.github/ISSUE_TEMPLATE` | Mẫu báo lỗi/tính năng giúp ghi rõ trigger, kỳ vọng và bằng chứng. |
@@ -52,7 +60,7 @@ Backend ba layer: API → BLL → DAL → Azure SQL. Blob/SMTP là dịch vụ n
 | `docs/contracts` | OpenAPI, bảng endpoint và kết quả audit hợp đồng; baseline dùng so sánh, current phản ánh API hiện tại. |
 | `docs/demo` | Mô tả tài khoản/dữ liệu demo dùng cho công cụ và hướng dẫn; không phải dữ liệu production. |
 | `docs/http` | Request HTTP mẫu kiểm thử intake/huấn luyện từ IDE; không chứa token/mật khẩu thật. |
-| `docs/reference` | Tra cứu từng function theo module: mục đích, đầu vào, lời gọi chính và lưu ý quyền/transaction/I/O. |
+| `docs/archive` | Kế hoạch và báo cáo lịch sử; `reference/` bên trong là snapshot function trước refactor. |
 | `tests` | Các project kiểm thử; không thuộc runtime ứng dụng. |
 | `tests/Horse_BackEnd.Tests` | WebApplicationFactory và SQL Server tạm; kiểm hợp đồng, quyền, state workflow, workers, storage và hiệu năng. Test Azure thật chỉ chạy khi bật cờ rõ ràng. |
 | `tools` | Script cấu hình/test kết nối/migration và công cụ seed demo. Script đọc credential kín từ User Secrets, không ghi secret vào Git. |

@@ -35,6 +35,7 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<TrainingRevision> TrainingRevisions => Set<TrainingRevision>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<AuditEvent> Audit => Set<AuditEvent>();
+    public DbSet<RealtimeOutboxMessage> RealtimeOutboxMessages => Set<RealtimeOutboxMessage>();
 
     /// <summary>
     /// Áp dụng cấu hình bảng, quan hệ, kiểu dữ liệu, ràng buộc và index cho toàn bộ model SQL Server.
@@ -49,6 +50,18 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Queue one minimal signal per notification in the same transaction as its business changes.
+        var notifications = ChangeTracker.Entries<Notification>().Where(x => x.State is EntityState.Added or EntityState.Modified)
+            .Select(x => new { Notification = x.Entity, IsNew = x.State == EntityState.Added }).ToList();
+        var queued = ChangeTracker.Entries<RealtimeOutboxMessage>().Select(x => (x.Entity.SourceId, x.Entity.SourceVersion)).ToHashSet();
+        foreach (var entry in notifications)
+        {
+            var notification = entry.Notification;
+            var version = entry.IsNew ? notification.Version : notification.Version + 1;
+            if (queued.Add((notification.Id, version)))
+                RealtimeOutboxMessages.Add(new RealtimeOutboxMessage { RecipientId = notification.RecipientId, SourceId = notification.Id,
+                    SourceVersion = version, EventType = entry.IsNew ? "NotificationCreated" : "NotificationsChanged" });
+        }
         foreach (var entry in ChangeTracker.Entries<Entity>())
             if (entry.State == EntityState.Modified) entry.Entity.Version++;
         return base.SaveChangesAsync(cancellationToken);

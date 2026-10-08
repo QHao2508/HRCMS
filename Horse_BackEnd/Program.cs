@@ -4,11 +4,13 @@ using HorseClub.BLL.Contracts;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using HorseClub.DAL.Data;
+using HorseClub.DAL;
 using HorseClub.DAL.Enums;
 using Horse_BackEnd.Endpoints;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Horse_BackEnd.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi(options => options.AddOperationTransformer<ApiContractTransformer>());
@@ -34,9 +36,20 @@ builder.Services.Configure<FormOptions>(o =>
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = storageLimits.MaxFileBytes + 1024 * 1024);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentIdentity, HttpCurrentIdentity>();
+builder.Services.AddClubDataAccess();
 builder.Services.AddClubBusiness();
+builder.Services.AddClubRealtime();
 builder.Services.AddAuthentication(IdentityConstants.BearerScheme).AddBearerToken(IdentityConstants.BearerScheme, o =>
-{ o.BearerTokenExpiration = TimeSpan.FromMinutes(securityLimits.AccessTokenMinutes); o.RefreshTokenExpiration = TimeSpan.FromMinutes(securityLimits.RefreshTokenMinutes); });
+{
+    o.BearerTokenExpiration = TimeSpan.FromMinutes(securityLimits.AccessTokenMinutes); o.RefreshTokenExpiration = TimeSpan.FromMinutes(securityLimits.RefreshTokenMinutes);
+    o.Events.OnMessageReceived = context =>
+    {
+        if (RealtimeRegistration.IsHubPath(context.Request.Path) && !context.Request.Headers.ContainsKey("Authorization")
+            && context.Request.Query.TryGetValue("access_token", out var token) && token.Count == 1)
+            context.Token = token.ToString();
+        return Task.CompletedTask;
+    };
+});
 builder.Services.AddAuthorization();
 builder.AddClubKeyProtection();
 var provider = builder.Configuration.GetValue("Database:Provider", DatabaseProvider.SqlServer);
@@ -67,8 +80,10 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<ErrorMiddleware>();
 app.Use(async (context, next) => { context.Response.Headers.XContentTypeOptions = "nosniff"; await next(); });
 if (!app.Environment.IsDevelopment()) { app.UseHsts(); app.UseHttpsRedirection(); }
+app.Use(RealtimeRegistration.ValidateOrigin);
 app.UseCors(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();
 app.UseMiddleware<TransactionMiddleware>();
+app.MapHub<ClubHub>("/hubs/club", options => options.CloseOnAuthenticationExpiration = true).WithMetadata(new ReadOnlyOperation());
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();

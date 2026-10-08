@@ -1,12 +1,12 @@
 using HorseClub.BLL.Messaging;
 using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Data;
+using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingTemplateService(CurrentUser current, ClubDbContext db, PageReader pager, ClubEvents events)
+public sealed class TrainingTemplateService(CurrentUser current, ITrainingRepository repository, IUnitOfWork unitOfWork, PageReader pager, ClubEvents events) : ITrainingTemplateService
 {
     /// <summary>
     /// Đọc danh sách có lọc/phân trang giáo án trong TrainingTemplateService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -15,7 +15,7 @@ public sealed class TrainingTemplateService(CurrentUser current, ClubDbContext d
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListTemplates.</param>
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API).</remarks>
     public async Task<PageResponse<TrainingTemplate>> ListTemplates(int? page, int? pageSize)
-    { Ensure.Role(await current.Get(), Role.ClubManager, Role.HeadTrainer, Role.Trainer); return await pager.Page(db.Templates.Where(x => !x.Archived).OrderBy(x => x.Name).ThenBy(x => x.Id), page, pageSize); }
+    { Ensure.Role(await current.Get(), Role.ClubManager, Role.HeadTrainer, Role.Trainer); var (p, size) = pager.Read(page, pageSize); var data = await repository.ListTemplatesAsync(p, size); return new(data.Items, p, size, data.Total); }
 
     /// <summary>
     /// Tạo mới giáo án trong TrainingTemplateService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -25,8 +25,8 @@ public sealed class TrainingTemplateService(CurrentUser current, ClubDbContext d
     public async Task<OperationResult> CreateTemplate(TemplateRequest r)
     {
         Ensure.Role(await current.Get(), Role.HeadTrainer);
-        var template = new TrainingTemplate(); Apply(template, r); db.Templates.Add(template);
-        await events.Audit(AuditAction.TrainingTemplateCreated, template.Id); await db.SaveChangesAsync(); return OperationResult.Created($"/api/training/templates/{template.Id}", template);
+        var template = new TrainingTemplate(); Apply(template, r); repository.AddTemplate(template);
+        await events.Audit(AuditAction.TrainingTemplateCreated, template.Id); await events.RefreshRoles(Role.ClubManager, Role.HeadTrainer, Role.Trainer); await unitOfWork.SaveChangesAsync(); return OperationResult.Created($"/api/training/templates/{template.Id}", template);
     }
 
     /// <summary>
@@ -37,9 +37,9 @@ public sealed class TrainingTemplateService(CurrentUser current, ClubDbContext d
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<TrainingTemplate> UpdateTemplate(Guid id, TemplateRequest r)
     {
-        Ensure.Role(await current.Get(), Role.HeadTrainer); var template = Ensure.Found(await db.Templates.FindAsync(id));
+        Ensure.Role(await current.Get(), Role.HeadTrainer); var template = Ensure.Found(await repository.FindTemplateAsync(id));
         Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived)); Apply(template, r);
-        await events.Audit(AuditAction.TrainingTemplateEdited, id); await db.SaveChangesAsync(); return template;
+        await events.Audit(AuditAction.TrainingTemplateEdited, id); await events.RefreshRoles(Role.ClubManager, Role.HeadTrainer, Role.Trainer); await unitOfWork.SaveChangesAsync(); return template;
     }
 
     /// <summary>
@@ -49,8 +49,8 @@ public sealed class TrainingTemplateService(CurrentUser current, ClubDbContext d
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<OperationResult> ArchiveTemplate(Guid id)
     {
-        Ensure.Role(await current.Get(), Role.HeadTrainer); (Ensure.Found(await db.Templates.FindAsync(id))).Archived = true;
-        await events.Audit(AuditAction.TrainingTemplateArchived, id); await db.SaveChangesAsync(); return OperationResult.NoContent();
+        Ensure.Role(await current.Get(), Role.HeadTrainer); (Ensure.Found(await repository.FindTemplateAsync(id))).Archived = true;
+        await events.Audit(AuditAction.TrainingTemplateArchived, id); await events.RefreshRoles(Role.ClubManager, Role.HeadTrainer, Role.Trainer); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>

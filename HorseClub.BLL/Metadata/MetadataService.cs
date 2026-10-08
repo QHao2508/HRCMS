@@ -2,7 +2,7 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Metadata;
 
-public sealed class MetadataService(CurrentUser current)
+public sealed class MetadataService(CurrentUser current) : IMetadataService
 {
     /// <summary>
     /// Trả các tên enum hợp lệ cho client; giá trị API tách khỏi nhãn hiển thị tiếng Việt.
