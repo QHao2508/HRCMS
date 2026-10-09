@@ -56,6 +56,19 @@ public sealed class CurrentUser(ClubDbContext db, IHttpContextAccessor accessor)
 
 public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
 {
+    public async Task<bool> HorseInCurrentScope(Guid id)
+    {
+        var user = await current.Get();
+        var horse = await db.Horses.FindAsync(id);
+        if (horse is null || horse.Archived) return false;
+        if (user.Role == Role.ClubManager) return true;
+        if (user.Role == Role.HorseOwner && horse.OwnerId == user.Id) return true;
+        if (await db.Assignments.AnyAsync(x => x.HorseId == id && x.StaffId == user.Id && x.Active)) return true;
+        return user.Role == Role.WorkRider && await db.Sessions.AnyAsync(x =>
+            x.HorseId == id && x.RiderId == user.Id &&
+            (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned || x.Status == SessionStatus.InProgress));
+    }
+
     public async Task<Horse> Horse(Guid id, bool allowArchived = false)
     {
         var user = await current.Get();
@@ -64,8 +77,9 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
         if (user.Role == Role.ClubManager) return horse;
         if (user.Role == Role.HorseOwner && horse.OwnerId == user.Id) return horse;
         if (await db.Assignments.AnyAsync(x => x.HorseId == id && x.StaffId == user.Id && x.Active)) return horse;
-        // Riders only see horses with sessions specifically assigned to them.
-        if (user.Role == Role.WorkRider && await db.Sessions.AnyAsync(x => x.HorseId == id && x.RiderId == user.Id)) return horse;
+        if (user.Role == Role.WorkRider && await db.Sessions.AnyAsync(x =>
+            x.HorseId == id && x.RiderId == user.Id &&
+            (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned || x.Status == SessionStatus.InProgress))) return horse;
         throw new ApiException(403, "forbidden", Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope));
     }
     public async Task<IQueryable<Horse>> Horses()
@@ -74,7 +88,9 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
         var q = db.Horses.Where(x => !x.Archived);
         if (u.Role == Role.ClubManager) return q;
         if (u.Role == Role.HorseOwner) return q.Where(x => x.OwnerId == u.Id);
-        if (u.Role == Role.WorkRider) return q.Where(x => db.Sessions.Any(s => s.HorseId == x.Id && s.RiderId == u.Id));
+        if (u.Role == Role.WorkRider) return q.Where(x => db.Sessions.Any(s =>
+            s.HorseId == x.Id && s.RiderId == u.Id &&
+            (s.Status == SessionStatus.Planned || s.Status == SessionStatus.Assigned || s.Status == SessionStatus.InProgress)));
         return q.Where(x => db.Assignments.Any(a => a.HorseId == x.Id && a.StaffId == u.Id && a.Active));
     }
     public async Task Trainer(Guid horseId)
@@ -84,6 +100,12 @@ public sealed class ClubAccess(ClubDbContext db, CurrentUser current)
         await Horse(horseId);
         Ensure.That(await db.Assignments.AnyAsync(x => x.HorseId == horseId && x.StaffId == u.Id && x.Role == Role.Trainer && x.Active),
             Messages.Get(MessageKey.OnlyTheCurrentAssignedTrainerMayChangeTraining), 403, "forbidden");
+    }
+    public async Task<bool> CanReadHistoricalPlan(TrainingPlan plan)
+    {
+        var user = await current.Get();
+        return user.Role == Role.Trainer && plan.TrainerId == user.Id &&
+            await db.Assignments.AnyAsync(x => x.HorseId == plan.HorseId && x.StaffId == user.Id && x.Role == Role.Trainer);
     }
     public async Task Vet(Guid horseId)
     {

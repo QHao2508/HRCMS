@@ -69,7 +69,7 @@ public sealed class AdditionalTests
         var stable = await ClubFactory.Post(c, "/api/care/stables", new NameRequest("Stable A")); var stall = await ClubFactory.Post(c, "/api/care/stalls", new StallRequest(stable.GetProperty("id").GetGuid(), "A1")); var id = stall.GetProperty("id").GetGuid();
         await ClubFactory.Post(c, $"/api/care/stalls/{id}/occupancy", new OccupancyRequest(first.Id));
         Assert.Equal(HttpStatusCode.Conflict, (await c.PostAsJsonAsync($"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id))).StatusCode);
-        await ClubFactory.Post(c, $"/api/horses/{first.Id}/archive", new { });
+        await ClubFactory.Post(c, $"/api/horses/{first.Id}/archive", new ReasonRequest("Horse retired"));
         await ClubFactory.Post(c, $"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id));
         Assert.Equal(HttpStatusCode.Conflict, (await c.GetAsync($"/api/horses/{first.Id}")).StatusCode);
     }

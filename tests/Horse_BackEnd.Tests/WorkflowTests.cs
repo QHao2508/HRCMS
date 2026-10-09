@@ -3,7 +3,10 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Horse_BackEnd.Contracts;
+using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -81,6 +84,185 @@ public sealed class WorkflowTests
         var replacement = await f.User(Role.Trainer); await ClubFactory.Post(hc, $"/api/horses/{horseId}/assignments", new AssignmentRequest(replacement.Id, Role.Trainer, today, "Replacement"));
         var detail = await c.GetFromJsonAsync<JsonElement>($"/api/horses/{horseId}"); Assert.Equal(3, detail.GetProperty("assignments").GetArrayLength());
         Assert.Equal(HttpStatusCode.Forbidden, (await (await f.Client(trainer)).GetAsync($"/api/horses/{horseId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task FormerTrainerLosesCurrentWriteScope_AndRiderHistoryDoesNotGrantHorseOrMedicalScope()
+    {
+        await using var f = new ClubFactory();
+        var owner = await f.User(Role.HorseOwner);
+        var formerTrainer = await f.User(Role.Trainer);
+        var currentTrainer = await f.User(Role.Trainer);
+        var headTrainer = await f.User(Role.HeadTrainer);
+        var veterinarian = await f.User(Role.Veterinarian);
+        var rider = await f.User(Role.WorkRider);
+        var horse = await f.Horse(owner, formerTrainer, headTrainer, veterinarian);
+        var formerTrainerClient = await f.Client(formerTrainer);
+        var headTrainerClient = await f.Client(headTrainer);
+        var riderClient = await f.Client(rider);
+        var vetClient = await f.Client(veterinarian);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var template = await ClubFactory.Post(headTrainerClient, "/api/training/templates",
+            new TemplateRequest("History scope", "Goal", "Phase", 500, Intensity.Light, "Sand", 2, ""));
+        var plan = await ClubFactory.Post(formerTrainerClient, "/api/training/plans",
+            new PlanRequest(horse.Id, template.GetProperty("id").GetGuid(), "Goal", "Phase", today, today.AddDays(7), ""));
+        var session = await ClubFactory.Post(formerTrainerClient,
+            $"/api/training/plans/{plan.GetProperty("id").GetGuid()}/sessions",
+            new SessionRequest(DateTimeOffset.UtcNow.AddMinutes(30), TrainingType.Trot, 500, Intensity.Light, "Sand", "Easy work", "", rider.Id));
+        var sessionId = session.GetProperty("id").GetGuid();
+
+        await ClubFactory.Post(headTrainerClient, $"/api/horses/{horse.Id}/assignments",
+            new AssignmentRequest(currentTrainer.Id, Role.Trainer, today, "Replacement"));
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await formerTrainerClient.PutAsJsonAsync($"/api/training/plans/{plan.GetProperty("id").GetGuid()}",
+                new PlanRequest(horse.Id, template.GetProperty("id").GetGuid(), "Changed", "Phase", today, today.AddDays(7), ""),
+                ClubFactory.Json)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await formerTrainerClient.GetAsync($"/api/horses/{horse.Id}")).StatusCode);
+        var formerTrainerPlan = await formerTrainerClient.GetFromJsonAsync<JsonElement>($"/api/training/plans/{plan.GetProperty("id").GetGuid()}");
+        Assert.False(formerTrainerPlan.TryGetProperty("restrictions", out _));
+        Assert.Equal(HttpStatusCode.OK, (await formerTrainerClient.GetAsync($"/api/training/plans/{plan.GetProperty("id").GetGuid()}/history")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await formerTrainerClient.GetAsync($"/api/training/sessions/{sessionId}")).StatusCode);
+
+        var medical = await ClubFactory.Post(vetClient, $"/api/horses/{horse.Id}/medical/records",
+            new MedicalRequest(DateTimeOffset.UtcNow, "Examination", "None", "Normal", "Private diagnosis", HealthStatus.Monitoring, "Private notes"));
+        await ClubFactory.Post(vetClient, $"/api/horses/{horse.Id}/medical/restrictions",
+            new RestrictionRequest(medical.GetProperty("id").GetGuid(), false, false, Intensity.Light, 500, false,
+                DateTimeOffset.UtcNow.AddMinutes(-1), null, "Operational limit"));
+
+        Assert.Equal(HttpStatusCode.OK, (await riderClient.GetAsync($"/api/horses/{horse.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await riderClient.GetAsync($"/api/horses/{horse.Id}/medical/records")).StatusCode);
+        var currentRiderPlan = await riderClient.GetFromJsonAsync<JsonElement>($"/api/training/plans/{plan.GetProperty("id").GetGuid()}");
+        Assert.True(currentRiderPlan.GetProperty("restrictions").GetArrayLength() > 0);
+
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            var persistedSession = await db.Sessions.SingleAsync(x => x.Id == sessionId);
+            persistedSession.Status = SessionStatus.Completed;
+            await db.SaveChangesAsync();
+        }
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await riderClient.GetAsync($"/api/horses/{horse.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await riderClient.GetAsync($"/api/horses/{horse.Id}/medical/summary")).StatusCode);
+        var riderHorses = await riderClient.GetFromJsonAsync<JsonElement>("/api/horses?page=1&pageSize=20");
+        Assert.Equal(0, riderHorses.GetProperty("total").GetInt32());
+
+        var historicalSession = await riderClient.GetFromJsonAsync<JsonElement>($"/api/training/sessions/{sessionId}");
+        Assert.Equal(sessionId, historicalSession.GetProperty("session").GetProperty("id").GetGuid());
+        var historicalPlan = await riderClient.GetFromJsonAsync<JsonElement>($"/api/training/plans/{plan.GetProperty("id").GetGuid()}");
+        Assert.False(historicalPlan.TryGetProperty("restrictions", out _));
+        Assert.Contains(sessionId, historicalPlan.GetProperty("sessions").EnumerateArray().Select(x => x.GetProperty("id").GetGuid()));
+        var historicalSessions = await riderClient.GetFromJsonAsync<JsonElement>($"/api/training/sessions?horseId={horse.Id}");
+        Assert.Equal(1, historicalSessions.GetProperty("total").GetInt32());
+    }
+
+    [Fact]
+    public async Task HorseArchive_ClosesOperationalWorkAndPreservesReason_AndActiveSessionBlocksAtomically()
+    {
+        await using var f = new ClubFactory();
+        var manager = await f.Client();
+        var owner = await f.User(Role.HorseOwner);
+        var trainer = await f.User(Role.Trainer);
+        var headTrainer = await f.User(Role.HeadTrainer);
+        var veterinarian = await f.User(Role.Veterinarian);
+        var groom = await f.User(Role.Groom);
+        var rider = await f.User(Role.WorkRider);
+        var horse = await f.Horse(owner, trainer, headTrainer, veterinarian, groom);
+        var trainerClient = await f.Client(trainer);
+        var headTrainerClient = await f.Client(headTrainer);
+        var riderClient = await f.Client(rider);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var template = await ClubFactory.Post(headTrainerClient, "/api/training/templates",
+            new TemplateRequest("Archive", "Goal", "Phase", 500, Intensity.Light, "Sand", 2, ""));
+        var plan = await ClubFactory.Post(trainerClient, "/api/training/plans",
+            new PlanRequest(horse.Id, template.GetProperty("id").GetGuid(), "Goal", "Phase", today, today.AddDays(7), ""));
+        var planId = plan.GetProperty("id").GetGuid();
+        var planned = await ClubFactory.Post(trainerClient, $"/api/training/plans/{planId}/sessions",
+            new SessionRequest(DateTimeOffset.UtcNow.AddHours(1), TrainingType.Walk, 400, Intensity.Light, "Sand", "Walk", "", null));
+        var assigned = await ClubFactory.Post(trainerClient, $"/api/training/plans/{planId}/sessions",
+            new SessionRequest(DateTimeOffset.UtcNow.AddHours(2), TrainingType.Trot, 500, Intensity.Light, "Sand", "Trot", "", rider.Id));
+        var pendingCareTask = await ClubFactory.Post(manager, "/api/care/tasks",
+            new CareRequest(horse.Id, groom.Id, null, CareType.Feeding, DateTimeOffset.UtcNow.AddHours(3), "Feed", 5));
+
+        var stable = await ClubFactory.Post(manager, "/api/care/stables", new NameRequest("Archive stable"));
+        var stall = await ClubFactory.Post(manager, "/api/care/stalls",
+            new StallRequest(stable.GetProperty("id").GetGuid(), "Archive stall"));
+        await ClubFactory.Post(manager, $"/api/care/stalls/{stall.GetProperty("id").GetGuid()}/occupancy",
+            new OccupancyRequest(horse.Id));
+
+        const string archiveReason = "Retired after owner request";
+        var archiveResponse = await manager.PostAsJsonAsync($"/api/horses/{horse.Id}/archive",
+            new ReasonRequest(archiveReason), ClubFactory.Json);
+        Assert.Equal(HttpStatusCode.NoContent, archiveResponse.StatusCode);
+
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            var archived = await db.Horses.SingleAsync(x => x.Id == horse.Id);
+            Assert.True(archived.Archived);
+            Assert.All(await db.Assignments.Where(x => x.HorseId == horse.Id).ToListAsync(), x => Assert.False(x.Active));
+            Assert.All(await db.Assignments.Where(x => x.HorseId == horse.Id).ToListAsync(), x => Assert.Equal(today, x.EndDate));
+            Assert.Equal(PlanStatus.Archived, (await db.Plans.SingleAsync(x => x.Id == planId)).Status);
+            Assert.Equal(SessionStatus.Skipped, (await db.Sessions.SingleAsync(x => x.Id == planned.GetProperty("id").GetGuid())).Status);
+            Assert.Equal(SessionStatus.Skipped, (await db.Sessions.SingleAsync(x => x.Id == assigned.GetProperty("id").GetGuid())).Status);
+            Assert.Contains(archiveReason, (await db.Sessions.SingleAsync(x => x.Id == assigned.GetProperty("id").GetGuid())).Notes);
+            var cancelledCareTask = await db.CareTasks.SingleAsync(x => x.Id == pendingCareTask.GetProperty("id").GetGuid());
+            Assert.Equal(CareStatus.Skipped, cancelledCareTask.Status);
+            Assert.Contains(archiveReason, cancelledCareTask.Notes);
+            Assert.NotNull((await db.Occupancies.SingleAsync(x => x.HorseId == horse.Id)).EndedAt);
+            Assert.Equal(archiveReason, (await db.Audit.SingleAsync(x => x.ReferenceId == horse.Id && x.Action == AuditAction.HorseArchived)).Detail);
+            Assert.True(await db.TrainingRevisions.AnyAsync(x => x.PlanId == planId));
+            Assert.True(await db.Notifications.AnyAsync(x => x.RecipientId == rider.Id && x.ReferenceId == assigned.GetProperty("id").GetGuid()));
+        }
+
+        var activeHorse = await f.Horse(owner, trainer, headTrainer, veterinarian, groom);
+        var activePlan = await ClubFactory.Post(trainerClient, "/api/training/plans",
+            new PlanRequest(activeHorse.Id, template.GetProperty("id").GetGuid(), "Active", "Phase", today, today.AddDays(7), ""));
+        var activeSession = await ClubFactory.Post(trainerClient,
+            $"/api/training/plans/{activePlan.GetProperty("id").GetGuid()}/sessions",
+            new SessionRequest(DateTimeOffset.UtcNow.AddMinutes(10), TrainingType.Walk, 400, Intensity.Light, "Sand", "Active", "", rider.Id));
+        var activeCareTask = await ClubFactory.Post(manager, "/api/care/tasks",
+            new CareRequest(activeHorse.Id, groom.Id, null, CareType.Feeding, DateTimeOffset.UtcNow.AddHours(1), "Feed", 5));
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            (await db.CareTasks.SingleAsync(x => x.Id == activeCareTask.GetProperty("id").GetGuid())).Status = CareStatus.InProgress;
+            await db.SaveChangesAsync();
+        }
+        await ClubFactory.Post(riderClient, $"/api/training/sessions/{activeSession.GetProperty("id").GetGuid()}/start", new { });
+
+        var blockedArchive = await manager.PostAsJsonAsync($"/api/horses/{activeHorse.Id}/archive",
+            new ReasonRequest("Archive while a session is running"), ClubFactory.Json);
+        Assert.Equal(HttpStatusCode.Conflict, blockedArchive.StatusCode);
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            Assert.False((await db.Horses.SingleAsync(x => x.Id == activeHorse.Id)).Archived);
+            Assert.Contains(await db.Assignments.Where(x => x.HorseId == activeHorse.Id).ToListAsync(), x => x.Active);
+            Assert.Equal(PlanStatus.Active, (await db.Plans.SingleAsync(x => x.Id == activePlan.GetProperty("id").GetGuid())).Status);
+            Assert.Equal(SessionStatus.InProgress, (await db.Sessions.SingleAsync(x => x.Id == activeSession.GetProperty("id").GetGuid())).Status);
+            Assert.Equal(CareStatus.InProgress, (await db.CareTasks.SingleAsync(x => x.Id == activeCareTask.GetProperty("id").GetGuid())).Status);
+        }
+
+        var careOnlyHorse = await f.Horse(owner, trainer, headTrainer, veterinarian, groom);
+        var careOnlyTask = await ClubFactory.Post(manager, "/api/care/tasks",
+            new CareRequest(careOnlyHorse.Id, groom.Id, null, CareType.Feeding, DateTimeOffset.UtcNow.AddHours(1), "Feed", 5));
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            (await db.CareTasks.SingleAsync(x => x.Id == careOnlyTask.GetProperty("id").GetGuid())).Status = CareStatus.InProgress;
+            await db.SaveChangesAsync();
+        }
+        var blockedByCare = await manager.PostAsJsonAsync($"/api/horses/{careOnlyHorse.Id}/archive",
+            new ReasonRequest("Archive while care is running"), ClubFactory.Json);
+        Assert.Equal(HttpStatusCode.Conflict, blockedByCare.StatusCode);
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            Assert.False((await db.Horses.SingleAsync(x => x.Id == careOnlyHorse.Id)).Archived);
+            Assert.Contains(await db.Assignments.Where(x => x.HorseId == careOnlyHorse.Id).ToListAsync(), x => x.Active);
+            Assert.Equal(CareStatus.InProgress, (await db.CareTasks.SingleAsync(x => x.Id == careOnlyTask.GetProperty("id").GetGuid())).Status);
+        }
     }
 
     [Fact]

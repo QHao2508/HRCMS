@@ -27,6 +27,6 @@ public static class HorseEndpoints
         h.MapPost("/{id:guid}/assignments", async (Guid id, AssignmentRequest request, HorseService s) => await HorseWorkflow.PostByIdAssignments(id, request, s));
         h.MapGet("/{id:guid}/measurements", async (Guid id, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await HorseWorkflow.GetByIdMeasurements(id, access, db, page, pageSize, pager));
         h.MapPost("/{id:guid}/measurements", async (Guid id, MeasurementRequest request, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await HorseWorkflow.PostByIdMeasurements(id, request, access, current, db, events, clock, calendar));
-        h.MapPost("/{id:guid}/archive", async (Guid id, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events) => await HorseWorkflow.PostByIdArchive(id, current, access, db, events));
+        h.MapPost("/{id:guid}/archive", async (Guid id, ReasonRequest request, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await HorseWorkflow.PostByIdArchive(id, request, current, access, db, events, clock, calendar));
     }
 }

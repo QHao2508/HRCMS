@@ -76,7 +76,6 @@ public sealed class TrainingService(ClubDbContext db, CurrentUser current, ClubA
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await db.Sessions.FindAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.Assigned, Messages.Get(MessageKey.SessionIsNotAssignedReady), 409, "invalid_state");
         Ensure.That(s.ScheduledAt <= clock.GetUtcNow().AddMinutes(options.Value.StartEarlyMinutes), Messages.Get(MessageKey.SessionIsNotDueToStartYet), 409, "invalid_state");
         var plan = Ensure.Found(await db.Plans.FindAsync(s.PlanId));
@@ -93,7 +92,6 @@ public sealed class TrainingService(ClubDbContext db, CurrentUser current, ClubA
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await db.Sessions.FindAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.InProgress, Messages.Get(MessageKey.StartSessionBeforeSubmittingResults), 409, "invalid_state");
         Ensure.That(!await db.Results.AnyAsync(x => x.SessionId == id), Messages.Get(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
         // Always allow reporting actual activity, even if a medical lock was applied mid-session.

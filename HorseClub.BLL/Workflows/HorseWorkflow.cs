@@ -75,13 +75,55 @@ public static class HorseWorkflow
             db.Measurements.Add(m); await events.Audit(AuditAction.HorseMeasurementAdded, id); await db.SaveChangesAsync(); return m;
         }
 
-    public static async Task<object> PostByIdArchive(Guid id, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events)
+    public static async Task<object> PostByIdArchive(Guid id, ReasonRequest request, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar)
     {
-            Ensure.Role(await current.Get(), Role.ClubManager); var horse = await access.Horse(id);
-            Ensure.That(!await db.Sessions.AnyAsync(x => x.HorseId == id && x.Status == SessionStatus.InProgress), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
+            Ensure.Role(await current.Get(), Role.ClubManager);
+            Ensure.That(!string.IsNullOrWhiteSpace(request.Reason), Messages.Get(MessageKey.Invalid, nameof(request.Reason)));
+            var horse = await access.Horse(id);
+            var activeSession = await db.Sessions.AnyAsync(x => x.HorseId == id && x.Status == SessionStatus.InProgress);
+            var activeCareTask = await db.CareTasks.AnyAsync(x => x.HorseId == id && x.Status == CareStatus.InProgress);
+            Ensure.That(!activeSession && !activeCareTask, Messages.Get(MessageKey.FinishActiveHorseWorkBeforeArchiving), 409, "invalid_state");
+
+            var now = clock.GetUtcNow();
+            var today = calendar.DateAt(now);
+            foreach (var assignment in await db.Assignments.Where(x => x.HorseId == id && x.Active).ToListAsync())
+            {
+                assignment.Active = false;
+                assignment.EndDate = today;
+            }
+
+            var pendingSessions = await db.Sessions.Where(x => x.HorseId == id &&
+                (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned)).ToListAsync();
+            foreach (var session in pendingSessions)
+            {
+                var plan = await db.Plans.FindAsync(session.PlanId);
+                if (plan is not null) await events.TrainingHistory(plan, session);
+                session.Status = SessionStatus.Skipped;
+                session.Notes += Messages.Get(MessageKey.Skipped, request.Reason.Trim());
+                if (session.RiderId.HasValue)
+                    events.Notify(session.RiderId.Value, NotificationType.SessionSkipped, MessageKey.ThePlanWasArchivedAndThisSessionWasCancelled, session.Id);
+            }
+
+            foreach (var task in await db.CareTasks.Where(x => x.HorseId == id && x.Status == CareStatus.Pending).ToListAsync())
+            {
+                task.Status = CareStatus.Skipped;
+                task.Notes += Messages.Get(MessageKey.Skipped, request.Reason.Trim());
+            }
+
+            foreach (var plan in await db.Plans.Where(x => x.HorseId == id &&
+                (x.Status == PlanStatus.Active || x.Status == PlanStatus.Paused)).ToListAsync())
+            {
+                plan.Status = PlanStatus.Archived;
+                await events.TrainingHistory(plan);
+            }
+
+            foreach (var occupancy in await db.Occupancies.Where(x => x.HorseId == id && x.EndedAt == null).ToListAsync())
+                occupancy.EndedAt = now;
+
             horse.Archived = true;
-            foreach (var occupancy in await db.Occupancies.Where(x => x.HorseId == id && x.EndedAt == null).ToListAsync()) occupancy.EndedAt = DateTimeOffset.UtcNow;
-            await events.Audit(AuditAction.HorseArchived, id); await db.SaveChangesAsync(); return Results.NoContent();
+            await events.Audit(AuditAction.HorseArchived, id, request.Reason.Trim());
+            await db.SaveChangesAsync();
+            return Results.NoContent();
         }
 
 }

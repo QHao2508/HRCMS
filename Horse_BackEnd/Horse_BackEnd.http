@@ -2,6 +2,7 @@
 @accessToken = REPLACE_WITH_ACCESS_TOKEN
 @email = REPLACE_WITH_EMAIL
 @password = REPLACE_WITH_PASSWORD
+@horseId = REPLACE_WITH_TEST_HORSE_GUID
 
 # Never commit real passwords or tokens to this file.
 # See docs/BACKEND_GUIDE.md for Manager bootstrap and owner email verification.
@@ -32,6 +33,15 @@ Authorization: Bearer {{accessToken}}
 ### Horses in current user's scope
 GET {{baseUrl}}/api/horses?page=1&pageSize=20
 Authorization: Bearer {{accessToken}}
+
+### Archive a horse (ClubManager only; requires a reason)
+POST {{baseUrl}}/api/horses/{{horseId}}/archive
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "reason": "Synthetic test archive reason"
+}
 
 ### Dashboard
 GET {{baseUrl}}/api/dashboard

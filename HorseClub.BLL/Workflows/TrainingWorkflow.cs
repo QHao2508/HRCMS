@@ -36,21 +36,58 @@ public static class TrainingWorkflow
     public static async Task<object> PostPlans(PlanRequest r, TrainingService service)
     { var p = await service.CreatePlan(r); return Results.Created($"/api/training/plans/{p.Id}", p); }
 
-    public static async Task<object> GetPlans(Guid? horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager)
+    public static async Task<object> GetPlans(Guid? horseId, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
-            var horses = (await access.Horses()).Select(x => x.Id); var q = db.Plans.Where(x => horses.Contains(x.HorseId));
-            if (horseId.HasValue) { await access.Horse(horseId.Value); q = q.Where(x => x.HorseId == horseId); }
+            IQueryable<TrainingPlan> q;
+            var user = await current.Get();
+            if (user.Role == Role.WorkRider)
+                q = db.Plans.Where(x => db.Sessions.Any(s => s.PlanId == x.Id && s.RiderId == user.Id));
+            else
+            {
+                var horses = (await access.Horses()).Select(x => x.Id);
+                q = db.Plans.Where(x => horses.Contains(x.HorseId) ||
+                    (user.Role == Role.Trainer && x.TrainerId == user.Id &&
+                     db.Assignments.Any(a => a.HorseId == x.HorseId && a.StaffId == user.Id && a.Role == Role.Trainer)));
+            }
+            if (horseId.HasValue)
+            {
+                if (user.Role == Role.WorkRider)
+                    Ensure.That(await db.Sessions.AnyAsync(s => s.HorseId == horseId && s.RiderId == user.Id), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+                else
+                    if (user.Role == Role.Trainer)
+                        Ensure.That(await access.HorseInCurrentScope(horseId.Value) ||
+                            await db.Plans.AnyAsync(p => p.HorseId == horseId && p.TrainerId == user.Id &&
+                                db.Assignments.Any(a => a.HorseId == horseId && a.StaffId == user.Id && a.Role == Role.Trainer)),
+                            Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+                    else
+                        await access.Horse(horseId.Value);
+                q = q.Where(x => x.HorseId == horseId);
+            }
             return await pager.Page(q.OrderByDescending(x => x.CreatedAt), page, pageSize);
         }
 
     public static async Task<object> GetPlansById(Guid id, ClubAccess access, ClubDbContext db, CurrentUser current)
     {
-            var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId); var u = await current.Get();
-            var sessions = db.Sessions.Where(x => x.PlanId == id);
-            if (u.Role == Role.WorkRider) sessions = sessions.Where(x => x.RiderId == u.Id);
-            return new { plan = p, sessions = await sessions.OrderBy(x => x.ScheduledAt).Take(100).ToListAsync(),
-                restrictions = await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync() };
+        var p = Ensure.Found(await db.Plans.FindAsync(id)); var u = await current.Get();
+        var historicalScope = false;
+        if (u.Role == Role.WorkRider)
+        {
+            Ensure.That(await db.Sessions.AnyAsync(s => s.PlanId == id && s.RiderId == u.Id), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+            historicalScope = !await access.HorseInCurrentScope(p.HorseId);
         }
+        else if (u.Role == Role.Trainer && !await access.HorseInCurrentScope(p.HorseId))
+        {
+            Ensure.That(await access.CanReadHistoricalPlan(p), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+            historicalScope = true;
+        }
+        else
+            await access.Horse(p.HorseId);
+        var sessions = db.Sessions.Where(x => x.PlanId == id);
+        if (u.Role == Role.WorkRider) sessions = sessions.Where(x => x.RiderId == u.Id);
+        var sessionList = await sessions.OrderBy(x => x.ScheduledAt).Take(100).ToListAsync();
+        if (historicalScope) return new { plan = p, sessions = sessionList };
+        return new { plan = p, sessions = sessionList, restrictions = await db.Restrictions.Where(x => x.HorseId == p.HorseId && !x.Cleared).ToListAsync() };
+    }
 
     public static async Task<object> PutPlansById(Guid id, PlanRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, ClubCalendar calendar)
     {
@@ -87,7 +124,11 @@ public static class TrainingWorkflow
     public static async Task<object> GetPlansByIdHistory(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
             var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.HeadTrainer, Role.Trainer, Role.Veterinarian);
-            var p = Ensure.Found(await db.Plans.FindAsync(id)); await access.Horse(p.HorseId);
+            var p = Ensure.Found(await db.Plans.FindAsync(id));
+            if (u.Role == Role.Trainer && !await access.HorseInCurrentScope(p.HorseId))
+                Ensure.That(await access.CanReadHistoricalPlan(p), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+            else
+                await access.Horse(p.HorseId);
             return await pager.Page(db.TrainingRevisions.Where(x => x.PlanId == id).OrderByDescending(x => x.CreatedAt), page, pageSize);
         }
 
@@ -96,10 +137,30 @@ public static class TrainingWorkflow
 
     public static async Task<object> GetSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager)
     {
-            var u = await current.Get(); var horses = (await access.Horses()).Select(x => x.Id);
-            var q = db.Sessions.Where(x => horses.Contains(x.HorseId));
-            if (u.Role == Role.WorkRider) q = q.Where(x => x.RiderId == u.Id);
-            if (horseId.HasValue) { await access.Horse(horseId.Value); q = q.Where(x => x.HorseId == horseId); }
+            var u = await current.Get();
+            IQueryable<TrainingSession> q;
+            if (u.Role == Role.WorkRider)
+                q = db.Sessions.Where(x => x.RiderId == u.Id);
+            else
+            {
+                var horses = (await access.Horses()).Select(x => x.Id);
+                q = db.Sessions.Where(x => horses.Contains(x.HorseId) ||
+                    (u.Role == Role.Trainer && db.Plans.Any(p => p.Id == x.PlanId && p.TrainerId == u.Id &&
+                     db.Assignments.Any(a => a.HorseId == p.HorseId && a.StaffId == u.Id && a.Role == Role.Trainer))));
+            }
+            if (horseId.HasValue)
+            {
+                if (u.Role == Role.WorkRider)
+                    Ensure.That(await db.Sessions.AnyAsync(x => x.HorseId == horseId && x.RiderId == u.Id), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+                else if (u.Role == Role.Trainer && !await access.HorseInCurrentScope(horseId.Value))
+                    Ensure.That(await db.Sessions.AnyAsync(s => s.HorseId == horseId &&
+                        db.Plans.Any(p => p.Id == s.PlanId && p.TrainerId == u.Id) &&
+                        db.Assignments.Any(a => a.HorseId == horseId && a.StaffId == u.Id && a.Role == Role.Trainer)),
+                        Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+                else
+                    await access.Horse(horseId.Value);
+                q = q.Where(x => x.HorseId == horseId);
+            }
             if (status.HasValue) q = q.Where(x => x.Status == status);
             if (from.HasValue) q = q.Where(x => x.ScheduledAt >= from.Value);
             if (to.HasValue) q = q.Where(x => x.ScheduledAt <= to.Value);
@@ -108,8 +169,15 @@ public static class TrainingWorkflow
 
     public static async Task<object> GetSessionsById(Guid id, ClubAccess access, CurrentUser current, ClubDbContext db)
     {
-            var s = Ensure.Found(await db.Sessions.FindAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
-            Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+            var s = Ensure.Found(await db.Sessions.FindAsync(id)); var u = await current.Get();
+            if (u.Role == Role.WorkRider)
+                Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+            else if (u.Role == Role.Trainer && !await access.HorseInCurrentScope(s.HorseId))
+                Ensure.That(await db.Plans.AnyAsync(p => p.Id == s.PlanId && p.TrainerId == u.Id) &&
+                    await db.Assignments.AnyAsync(a => a.HorseId == s.HorseId && a.StaffId == u.Id && a.Role == Role.Trainer),
+                    Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+            else
+                await access.Horse(s.HorseId);
             return new { session = s, result = await db.Results.SingleOrDefaultAsync(x => x.SessionId == id), evaluation = await db.Evaluations.SingleOrDefaultAsync(x => x.SessionId == id) };
         }
 
@@ -131,7 +199,7 @@ public static class TrainingWorkflow
     public static async Task<object> PostSessionsByIdSkip(Guid id, ReasonRequest r, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events)
     {
             var s = Ensure.Found(await db.Sessions.FindAsync(id)); var u = await current.Get();
-            if (u.Role == Role.WorkRider) { await access.Horse(s.HorseId); Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden"); }
+            if (u.Role == Role.WorkRider) Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
             else await access.Trainer(s.HorseId);
             Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Get(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
             s.Status = SessionStatus.Skipped; s.Notes += Messages.Get(MessageKey.Skipped, r.Reason);

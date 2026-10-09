@@ -19,7 +19,7 @@ public static class TrainingEndpoints
         t.MapPut("/templates/{id:guid}", async (Guid id, TemplateRequest r, CurrentUser current, ClubDbContext db, ClubEvents events) => await TrainingWorkflow.PutTemplatesById(id, r, current, db, events));
         t.MapPost("/templates/{id:guid}/archive", async (Guid id, CurrentUser current, ClubDbContext db, ClubEvents events) => await TrainingWorkflow.PostTemplatesByIdArchive(id, current, db, events));
         t.MapPost("/plans", async (PlanRequest r, TrainingService service) => await TrainingWorkflow.PostPlans(r, service));
-        t.MapGet("/plans", async (Guid? horseId, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await TrainingWorkflow.GetPlans(horseId, access, db, page, pageSize, pager));
+        t.MapGet("/plans", async (Guid? horseId, ClubAccess access, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await TrainingWorkflow.GetPlans(horseId, access, current, db, page, pageSize, pager));
         t.MapGet("/plans/{id:guid}", async (Guid id, ClubAccess access, ClubDbContext db, CurrentUser current) => await TrainingWorkflow.GetPlansById(id, access, db, current));
         t.MapPut("/plans/{id:guid}", async (Guid id, PlanRequest r, ClubAccess access, ClubDbContext db, ClubEvents events, ClubCalendar calendar) => await TrainingWorkflow.PutPlansById(id, r, access, db, events, calendar));
         t.MapPut("/plans/{id:guid}/status", async (Guid id, PlanStatusRequest r, ClubAccess access, ClubDbContext db, ClubEvents events) => await TrainingWorkflow.PutPlansByIdStatus(id, r, access, db, events));

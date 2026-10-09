@@ -150,5 +150,6 @@
   "Skipped": "\nSkipped: {0}",
   "ASessionWasSkipped": "A session was skipped.",
   "OnlyResultsCanBeEvaluated": "Only results can be evaluated.",
-  "EvaluationAlreadyExists": "Evaluation already exists."
+  "EvaluationAlreadyExists": "Evaluation already exists.",
+  "FinishActiveHorseWorkBeforeArchiving": "Finish active horse work before archiving."
 }

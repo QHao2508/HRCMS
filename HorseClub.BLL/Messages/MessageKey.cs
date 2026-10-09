@@ -154,4 +154,5 @@ public enum MessageKey
     ASessionWasSkipped = 150,
     OnlyResultsCanBeEvaluated = 151,
     EvaluationAlreadyExists = 152,
+    FinishActiveHorseWorkBeforeArchiving = 153,
 }

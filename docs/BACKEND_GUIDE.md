@@ -72,7 +72,7 @@ Tất cả đường dẫn dưới `/api`, trừ `/health` và OpenAPI. List h�
 | Staff | GET/POST `/staff`; GET `/staff/directory` (tên/role, không contact); PUT `/staff/{id}/active` |
 | Intake | GET/POST `/registrations`; GET/PUT `/registrations/{id}`; POST `/{id}/submit`, `/{id}/review`, `/{id}/cancel` |
 | Intake documents | GET/POST `/registrations/{id}/attachments`; GET `/registrations/{id}/attachments/{attachmentId}`; POST multipart `file`, `type`, certificateNumber/issueDate/expiryDate tùy chọn |
-| Horse | GET `/horses`, `/horses/{id}`, `/horses/{id}/photo`; POST `/{id}/assignments`, `/{id}/measurements`, `/{id}/archive`; GET `/{id}/measurements` |
+| Horse | GET `/horses`, `/horses/{id}`, `/horses/{id}/photo`; POST `/{id}/assignments`, `/{id}/measurements`, `/{id}/archive` (`ReasonRequest`); GET `/{id}/measurements` |
 | Template | GET/POST `/training/templates`; PUT `/training/templates/{id}`; POST `/{id}/archive` |
 | Plan | GET/POST `/training/plans`; GET/PUT `/training/plans/{id}`; GET `/{id}/history`; PUT `/{id}/status`; POST `/{id}/sessions` |
 | Session | GET `/training/sessions`, `/training/sessions/{id}`; PUT `/{id}`; POST `/{id}/assign`, `/{id}/start`, `/{id}/results`, `/{id}/skip`, `/{id}/evaluation` |
@@ -86,6 +86,8 @@ Tất cả đường dẫn dưới `/api`, trừ `/health` và OpenAPI. List h�
 
 - Account registration tách khỏi intake. Intake bắt đầu Draft; submit yêu cầu HorsePhoto và Certificate. PendingReview → RevisionRequired → resubmit hoặc Approved. Chỉ approval mới tạo Horse Profile; lặp/concurrent approval không tạo ngựa trùng.
 - Owner chỉ đề xuất HeadTrainer/Groom/Veterinarian. Manager xác nhận official staff; assigned HeadTrainer chọn Trainer. Assignment history được giữ, thay assignment cũ bằng bản ghi kết thúc. Chưa hỗ trợ assignment có ngày bắt đầu trong tương lai.
+- Rider chỉ có horse/profile scope khi có session Planned, Assigned hoặc InProgress; session lịch sử vẫn đọc được bởi Rider được giao nhưng không tự cấp quyền horse profile, medical summary hay restrictions. Trainer cũ được đọc plan/session/history mình tạo khi còn assignment, nhưng không được sửa hoặc lấy horse scope hiện hành.
+- Archive horse yêu cầu `ReasonRequest`; Manager không thể archive khi có session hoặc care task InProgress. Archive giữ history, audit lý do, kết thúc assignment/occupancy, archive plan đang Active/Paused và chuyển Planned/Assigned session cùng Pending care task sang Skipped với lý do.
 - Trainer hiện đang được phân công mới được chỉnh training; WorkRider chỉ thao tác session được giao. Plan/session có state transition guards, snapshot history; không tạo Session khi Plan paused/completed/archived.
 - Không có Rider: session là Planned. Có Rider: Assigned. Start → InProgress → Completed/IssueReported hoặc Skipped. Server chống result/evaluation trùng và xung đột Rider/horse đang tập.
 - Guard kiểm tra restriction tại thời điểm dự kiến khi create/edit/assign và tại thời điểm thực tế khi start. Isolated chặn mọi training; Injured chặn Heavy; TrainingLock chặn Heavy, BlockAllTraining chặn mọi cường độ, MaxIntensity/MaxDistance/NoSprint chặn hoạt động không tương thích. Đây là policy ban đầu cần Club nghiệm thu; không coi TrainingLock là cấm mọi hoạt động.
