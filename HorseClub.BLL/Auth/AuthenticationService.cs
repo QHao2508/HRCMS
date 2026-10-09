@@ -66,7 +66,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<User> CreateStaff(StaffRequest r)
     {
-        Ensure.That(r.Role != Role.HorseOwner && r.Role != Role.ClubManager, Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
+        Ensure.That(Enum.IsDefined(r.Role) && r.Role != Role.HorseOwner, Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
         var email = Normalize(r.Email); var name = Normalize(r.UserName);
         Ensure.That(!await repository.HasIdentityConflictAsync(email, name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone, Address = r.Address, Role = r.Role };
@@ -277,6 +277,31 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// </summary>
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
+    public async Task<InvitationVerificationResponse> VerifyInvitation(VerifyRequest r)
+    {
+        var u=await repository.GetUserByEmailAsync(Normalize(r.Email));
+        if(u is not {Active:true,EmailVerified:false} || u.Role==Role.HorseOwner) return new(false);
+        var ok=await Consume(u,ChallengePurpose.Invite,r.Code);
+        if(!ok){await unitOfWork.SaveChangesAsync();return new(false);}
+        u.SecurityStamp=Guid.NewGuid().ToString();
+        var proof=protection.CreateProtector("HorseClub.Invitation.PasswordSetup.v1").ToTimeLimitedDataProtector().Protect(u.Id+"|"+u.SecurityStamp,TimeSpan.FromMinutes(settings.VerificationMinutes));
+        await unitOfWork.SaveChangesAsync();return new(true,proof);
+    }
+    public async Task<PasswordChangedResponse> CompleteInvitation(InvitationPasswordRequest r)
+    {
+        Ensure.That(r.Password==r.ConfirmPassword,Messages.Get(MessageKey.PasswordsDoNotMatch));ValidatePassword(r.Password);
+        string proof;try{proof=protection.CreateProtector("HorseClub.Invitation.PasswordSetup.v1").ToTimeLimitedDataProtector().Unprotect(r.SetupToken);}catch(CryptographicException){return new(false);}
+        var u=await repository.GetUserByEmailAsync(Normalize(r.Email));
+        if(u is not {Active:true,EmailVerified:false} || u.Role==Role.HorseOwner || proof!=u.Id+"|"+u.SecurityStamp)return new(false);
+        SetPassword(u,r.Password);await unitOfWork.SaveChangesAsync();return new(true);
+    }
+    public async Task<OperationResult> ResendInvitation(Guid id)
+    {
+        Ensure.Role(await current.Get(),Role.ClubManager);var u=Ensure.Found(await repository.FindUserAsync(id));
+        Ensure.That(u.Active && !u.EmailVerified && u.Role!=Role.HorseOwner,Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
+        u.SecurityStamp=Guid.NewGuid().ToString();await Challenge(u,ChallengePurpose.Invite);
+        await events.Audit(AuditAction.StaffInvitationResent,id);await unitOfWork.SaveChangesAsync();return OperationResult.NoContent();
+    }
     public async Task<OperationResult> InviteStaff(StaffRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager);
@@ -314,7 +339,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
         ValidatePassword(r.Password);
         var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         var eligible = u is { Active: true } && (purpose == ChallengePurpose.Invite
-            ? !u.EmailVerified && u.Role != Role.HorseOwner && u.Role != Role.ClubManager
+            ? !u.EmailVerified && u.Role != Role.HorseOwner
             : purpose == ChallengePurpose.Reset && u.EmailVerified);
         var ok = eligible && await Consume(u!, purpose, r.Code);
         if (ok) SetPassword(u!, r.Password);

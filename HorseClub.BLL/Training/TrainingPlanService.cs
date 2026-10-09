@@ -37,14 +37,16 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     /// <param name="page">Giá trị kiểu int? dùng trong ListPlans.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListPlans.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
-    public async Task<PageResponse<TrainingPlan>> ListPlans(Guid? horseId, int? page, int? pageSize)
+    public async Task<PageResponse<TrainingPlanListItem>> ListPlans(Guid? horseId, int? page, int? pageSize, string? search = null)
     {
+        Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
         var user = await current.Get();
         var scope = await access.Scope();
         if (horseId.HasValue) await access.Horse(horseId.Value);
         var (p, size) = pager.Read(page, pageSize);
-        var data = await repository.ListPlansAsync(scope, horseId, user.Role == Role.WorkRider ? user.Id : null, p, size);
-        return new(data.Items, p, size, data.Total);
+        var data = await repository.ListPlansAsync(scope, horseId, user.Role == Role.WorkRider ? user.Id : null, p, size, search?.Trim());
+        var names = (await repository.PlanNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
+        return new(data.Items.Select(x=>TrainingPlanListItem.From(x,names[x.Id])).ToList(),p,size,data.Total);
     }
 
     /// <summary>
@@ -61,7 +63,9 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         if (riderId.HasValue) Ensure.That(await repository.HasRiderPlanSessionsAsync(id, riderId.Value), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
         var (page, size) = pager.Read(sessionPage, sessionPageSize);
         var data = await repository.ListPlanSessionsAsync(id, riderId, page, size);
-        return new PlanDetailResponse(p, data.Items, await repository.GetRestrictionsAsync(p.HorseId), page, size, data.Total);
+        var names = (await repository.PlanNamesAsync([id])).Single();
+        return new PlanDetailResponse(p, data.Items, await repository.GetRestrictionsAsync(p.HorseId), page, size, data.Total, names.HorseName, names.TrainerName,
+            await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray()));
     }
 
     /// <summary>

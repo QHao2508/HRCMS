@@ -7,6 +7,8 @@ namespace HorseClub.DAL.Repositories;
 
 public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
 {
+    public Task<List<TrainingNames>> PlanNamesAsync(Guid[] ids) => (from p in db.Plans.AsNoTracking() join h in db.Horses on p.HorseId equals h.Id join u in db.Users on p.TrainerId equals u.Id where ids.Contains(p.Id) select new TrainingNames(p.Id,h.Name,u.FirstName+" "+u.LastName,null)).ToListAsync();
+    public Task<List<TrainingNames>> SessionNamesAsync(Guid[] ids) => (from s in db.Sessions.AsNoTracking() join p in db.Plans on s.PlanId equals p.Id join h in db.Horses on s.HorseId equals h.Id join u in db.Users on p.TrainerId equals u.Id join rider in db.Users on s.RiderId equals rider.Id into riders from rider in riders.DefaultIfEmpty() where ids.Contains(s.Id) select new TrainingNames(s.Id,h.Name,u.FirstName+" "+u.LastName,rider==null?null:rider.FirstName+" "+rider.LastName)).ToListAsync();
     public ValueTask<TrainingTemplate?> FindTemplateAsync(Guid id) => db.Templates.FindAsync(id);
     public ValueTask<TrainingPlan?> FindPlanAsync(Guid id) => db.Plans.FindAsync(id);
     public ValueTask<TrainingSession?> FindSessionAsync(Guid id) => db.Sessions.FindAsync(id);
@@ -21,15 +23,16 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
         => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
     public Task<DataPage<TrainingTemplate>> ListTemplatesAsync(int page, int size)
         => Page(db.Templates.Where(x => !x.Archived).OrderBy(x => x.Name).ThenBy(x => x.Id), page, size);
-    public Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size)
+    public Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size, string? search = null)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
         var query = db.Plans.Where(x => horses.Contains(x.HorseId));
         if (horseId.HasValue) query = query.Where(x => x.HorseId == horseId);
         if (riderId.HasValue) query = query.Where(x => db.Sessions.Any(s => s.PlanId == x.Id && s.RiderId == riderId));
+        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => db.Horses.Any(h=>h.Id==x.HorseId && h.Name.Contains(search)) || db.Users.Any(u=>u.Id==x.TrainerId && (u.FirstName+" "+u.LastName).Contains(search)));
         return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
     }
-    public Task<DataPage<TrainingSession>> ListSessionsAsync(HorseScope scope, Guid? horseId, Guid? riderId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size)
+    public Task<DataPage<TrainingSession>> ListSessionsAsync(HorseScope scope, Guid? horseId, Guid? riderId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size, string? search = null)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
         var query = db.Sessions.Where(x => horses.Contains(x.HorseId));
@@ -38,6 +41,7 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
         if (status.HasValue) query = query.Where(x => x.Status == status);
         if (from.HasValue) query = query.Where(x => x.ScheduledAt >= from);
         if (to.HasValue) query = query.Where(x => x.ScheduledAt <= to);
+        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x=>db.Horses.Any(h=>h.Id==x.HorseId && h.Name.Contains(search)) || db.Users.Any(u=>u.Id==x.RiderId && (u.FirstName+" "+u.LastName).Contains(search)) || db.Plans.Any(p=>p.Id==x.PlanId && db.Users.Any(u=>u.Id==p.TrainerId && (u.FirstName+" "+u.LastName).Contains(search))));
         return Page(query.OrderBy(x => x.ScheduledAt).ThenBy(x => x.Id), page, size);
     }
     public Task<DataPage<TrainingSession>> ListPlanSessionsAsync(Guid planId, Guid? riderId, int page, int size)

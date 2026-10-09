@@ -15,7 +15,7 @@ public static class ReportingEndpoints
         var n = api.MapGroup("/notifications").WithTags("Notifications").RequireAuthorization();
         n.MapGet("", async (bool? unread, int? page, int? pageSize, IReportingService moduleService) => await moduleService.ListNotifications(unread, page, pageSize)).Produces<PageResponse<Notification>>(200);
         n.MapPost("/{id:guid}/read", async (Guid id, IReportingService moduleService) => (await moduleService.MarkNotificationRead(id)).ToHttpResult()).Produces(204);
-        api.MapGet("/audit", async (Guid? referenceId, int? page, int? pageSize, IReportingService moduleService) => await moduleService.ListAudit(referenceId, page, pageSize)).RequireAuthorization().WithTags("Audit").Produces<PageResponse<AuditEvent>>(200);
+        api.MapGet("/audit", async (Guid? referenceId,string? search,DateOnly? from,DateOnly? to,int? page,int? pageSize,IManagementService moduleService) => await moduleService.ListAudit(referenceId,search,from,to,page,pageSize)).RequireAuthorization().WithTags("Audit").Produces<PageResponse<HorseClub.DAL.Abstractions.AuditReadModel>>(200);
         api.MapGet("/reports", async (Guid? horseId, DateTimeOffset? from, DateTimeOffset? to, ReportGrouping? groupBy, IReportingService moduleService) => (await moduleService.BuildReport(horseId, from, to, groupBy)).ToHttpResult()).RequireAuthorization().WithTags("Reports").Produces<ReportResponse>(200);
         api.MapGet("/dashboard", async (IReportingService moduleService) => await moduleService.GetDashboard()).RequireAuthorization().WithTags("Dashboard").Produces<DashboardResponse>(200);
     }

@@ -171,13 +171,15 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <param name="page">Giá trị kiểu int? dùng trong ListSessions.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListSessions.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
-    public async Task<PageResponse<TrainingSession>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize)
+    public async Task<PageResponse<TrainingSessionListItem>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize, string? search = null)
     {
+        Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
         var u = await current.Get(); var scope = await access.Scope();
         if (horseId.HasValue) await access.Horse(horseId.Value);
         var (p, size) = pager.Read(page, pageSize);
-        var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size);
-        return new(data.Items, p, size, data.Total);
+        var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size, search?.Trim());
+        var names=(await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
+        return new(data.Items.Select(x=>TrainingSessionListItem.From(x,names[x.Id])).ToList(),p,size,data.Total);
     }
 
     /// <summary>
@@ -189,7 +191,8 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
         Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id));
+        var names=(await repository.SessionNamesAsync([id])).Single();
+        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id),names.HorseName,names.TrainerName,names.RiderName);
     }
 
     /// <summary>

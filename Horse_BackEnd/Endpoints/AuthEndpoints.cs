@@ -21,12 +21,15 @@ public static class AuthEndpoints
         auth.MapPost("/forgot-password", async (EmailRequest r, IAuthenticationService moduleService) => (await moduleService.ForgotPassword(r)).ToHttpResult()).Produces<MessageResponse>(200);
         MapPassword(auth, "/reset-password", ChallengePurpose.Reset);
         MapPassword(auth, "/accept-invitation", ChallengePurpose.Invite);
+        auth.MapPost("/invitation/verify",async (VerifyRequest r,IAuthenticationService service)=>await service.VerifyInvitation(r)).Produces<InvitationVerificationResponse>(200);
+        auth.MapPost("/invitation/password",async (InvitationPasswordRequest r,IAuthenticationService service)=>await service.CompleteInvitation(r)).Produces<PasswordChangedResponse>(200);
         auth.MapGet("/me", async (IAuthenticationService moduleService) => await moduleService.GetProfile()).RequireAuthorization().Produces<UserResponse>(200);
         auth.MapPost("/logout", async (IAuthenticationService moduleService) => (await moduleService.Logout()).ToHttpResult()).RequireAuthorization().Produces(204);
 
         var staff = api.MapGroup("/staff").WithTags("Staff").RequireAuthorization();
         staff.MapGet("", async (int? page, int? pageSize, Role? role, IAuthenticationService moduleService) => await moduleService.ListStaff(page, pageSize, role)).Produces<PageResponse<StaffResponse>>(200);
         staff.MapGet("/directory", async (Role? role, int? page, int? pageSize, IAuthenticationService moduleService) => await moduleService.ListStaffDirectory(role, page, pageSize)).Produces<PageResponse<StaffDirectoryResponse>>(200);
+        staff.MapPost("/{id:guid}/resend-invitation",async (Guid id,IAuthenticationService service)=>(await service.ResendInvitation(id)).ToHttpResult()).Produces(204);
         staff.MapPost("", async (StaffRequest r, IAuthenticationService moduleService) => (await moduleService.InviteStaff(r)).ToHttpResult()).Produces<UserResponse>(201);
         staff.MapPut("/{id:guid}/active", async (Guid id, ActiveRequest r, IAuthenticationService moduleService) => (await moduleService.SetStaffActive(id, r)).ToHttpResult()).Produces(204);
     }
