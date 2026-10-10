@@ -2319,6 +2319,103 @@
         ]
       }
     },
+    "/api/horses/{id}/assignment-history": {
+      "get": {
+        "tags": [
+          "Horses"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_horses_id_assignment_history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseAssignmentHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/horses/{id}/assignments": {
       "post": {
         "tags": [
@@ -11185,6 +11282,36 @@
           },
           "outcome": {
             "type": "string"
+          },
+          "restrictionIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "injuryIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "treatmentIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "additionalProperties": false
@@ -11277,6 +11404,34 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseAssignmentHistoryResponse": {
+        "required": [
+          "horseId",
+          "horseName",
+          "archived",
+          "assignments"
+        ],
+        "type": "object",
+        "properties": {
+          "horseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAssignment"
+            }
           }
         },
         "additionalProperties": false
@@ -13552,6 +13707,10 @@
             "items": {
               "$ref": "#/components/schemas/TrainingNames"
             }
+          },
+          "horseArchived": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -14679,6 +14838,10 @@
               "null",
               "string"
             ]
+          },
+          "horseArchived": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false

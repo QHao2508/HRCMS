@@ -163,4 +163,8 @@ public enum MessageKey
     PasswordResetEmailBody = 159,
     StaffInvitationEmailSubject = 160,
     StaffInvitationEmailBody = 161,
+    CorrectionMustKeepAssessmentDate = 162,
+    ClearanceRequiresExplicitSelection = 163,
+    InvalidClearanceSelection = 164,
+    FinishActiveCareBeforeArchiving = 165,
 }

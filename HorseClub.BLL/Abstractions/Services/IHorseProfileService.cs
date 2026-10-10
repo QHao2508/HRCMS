@@ -10,6 +10,7 @@ public interface IHorseProfileService
 {
     Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize);
     Task<HorseDetailResponse> GetHorse(Guid id);
+    Task<HorseAssignmentHistoryResponse> GetAssignmentHistory(Guid id);
     Task<PageResponse<Measurement>> ListMeasurements(Guid id, int? page, int? pageSize);
     Task<Measurement> AddMeasurement(Guid id, MeasurementRequest request);
     Task<OperationResult> ArchiveHorse(Guid id);

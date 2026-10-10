@@ -28,4 +28,9 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
     public void AddMeasurement(Measurement measurement) => db.Measurements.Add(measurement);
     public Task<bool> HasActiveSessionAsync(Guid horseId) => db.Sessions.AnyAsync(x => x.HorseId == horseId && x.Status == SessionStatus.InProgress);
     public Task<List<StallOccupancy>> GetOccupanciesAsync(Guid horseId) => db.Occupancies.Where(x => x.HorseId == horseId && x.EndedAt == null).ToListAsync();
+    public Task<bool> HasActiveCareAsync(Guid horseId) => db.CareTasks.AnyAsync(x => x.HorseId == horseId && x.Status == CareStatus.InProgress);
+    public Task<List<TrainingPlan>> GetOpenPlansAsync(Guid horseId) => db.Plans.Where(x => x.HorseId == horseId && (x.Status == PlanStatus.Active || x.Status == PlanStatus.Paused)).ToListAsync();
+    public Task<List<TrainingSession>> GetPendingSessionsAsync(Guid horseId) => db.Sessions.Where(x => x.HorseId == horseId && (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned)).ToListAsync();
+    public Task<List<CareTask>> GetPendingCareAsync(Guid horseId) => db.CareTasks.Where(x => x.HorseId == horseId && x.Status == CareStatus.Pending).ToListAsync();
+    public Task<List<StaffAssignment>> GetActiveAssignmentsAsync(Guid horseId) => db.Assignments.Where(x => x.HorseId == horseId && x.Active).ToListAsync();
 }

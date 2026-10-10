@@ -29,4 +29,5 @@ public interface ITrainingRepository
     Task<SessionResult?> GetResultAsync(Guid sessionId);
     Task<TrainerEvaluation?> GetEvaluationAsync(Guid sessionId);
     Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null);
+    Task<bool> HasUnrecoveredInjuryAsync(Guid horseId, DateOnly at);
 }

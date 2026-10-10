@@ -17,6 +17,8 @@ public interface IMedicalRepository
     Task<MedicalRecord?> GetRecordAsync(Guid horseId, Guid id);
     Task<bool> HasCorrectionAsync(Guid id);
     Task<bool> HasNewerRecordAsync(Guid horseId, DateTimeOffset examinationAt);
+    Task<MedicalRecord?> GetLatestAssessmentAsync(Guid horseId, Guid? supersededId = null);
+    Task<bool> IsLatestAssessmentAsync(MedicalRecord record);
     Task<List<Guid>> GetActiveRidersAsync(Guid horseId);
     Task<bool> HasInjuryAsync(Guid? injuryId, Guid horseId, Guid medicalRecordId);
     Task<List<MedicalRestriction>> GetActiveRestrictionsAsync(Guid horseId);

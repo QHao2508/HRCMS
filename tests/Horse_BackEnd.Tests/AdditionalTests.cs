@@ -70,7 +70,7 @@ public sealed class AdditionalTests
         Assert.Equal(HttpStatusCode.Conflict, (await c.PostAsJsonAsync($"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id))).StatusCode);
         await ClubFactory.Post(c, $"/api/horses/{first.Id}/archive", new { });
         await ClubFactory.Post(c, $"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id));
-        Assert.Equal(HttpStatusCode.Conflict, (await c.GetAsync($"/api/horses/{first.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"/api/horses/{first.Id}")).StatusCode);
     }
 
     [Fact]

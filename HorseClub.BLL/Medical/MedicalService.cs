@@ -3,6 +3,7 @@ using HorseClub.BLL.Contracts;
 using HorseClub.DAL.Abstractions;
 using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
+using System.Text.Json;
 
 namespace HorseClub.BLL.Medical;
 
@@ -39,7 +40,7 @@ public sealed class MedicalService(ClubAccess access, IMedicalRepository reposit
     {
         await access.Vet(horseId); ValidateExamination(r, clock);
         var record = Record(horseId, (await current.Get()).Id, r);
-        repository.AddMedicalRecord(record); (await access.Horse(horseId)).HealthStatus = r.HealthStatus;
+        repository.AddMedicalRecord(record); await ApplyAssessment(record);
         await events.Audit(AuditAction.MedicalExaminationCreated, record.Id);
         await events.HorseStaff(horseId, NotificationType.MedicalHealthChanged, MessageKey.HorseHealthStatusChangedReviewCurrentTrainingLimits, Role.Trainer, Role.HeadTrainer);
         await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return OperationResult.Created($"/api/horses/{horseId}/medical/records", record);
@@ -66,11 +67,11 @@ public sealed class MedicalService(ClubAccess access, IMedicalRepository reposit
     {
         await access.Vet(horseId); ValidateExamination(r, clock);
         var previous = Ensure.Found(await repository.GetRecordAsync(horseId, id));
+        Ensure.That(r.ExaminationAt.ToUniversalTime() == previous.ExaminationAt, Messages.Get(MessageKey.CorrectionMustKeepAssessmentDate));
         Ensure.That(!await repository.HasCorrectionAsync(id), Messages.Get(MessageKey.ACorrectionAlreadyExistsEditTheLatestRevision), 409, "invalid_state");
         var correction = Record(horseId, (await current.Get()).Id, r); correction.SupersedesRecordId = previous.Id;
         repository.AddMedicalRecord(correction);
-        if (!await repository.HasNewerRecordAsync(horseId, previous.ExaminationAt))
-            (await access.Horse(horseId)).HealthStatus = correction.HealthStatus;
+        await ApplyAssessment(correction);
         await events.Audit(AuditAction.MedicalRecordCorrected, correction.Id); await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return correction;
     }
 
@@ -85,7 +86,11 @@ public sealed class MedicalService(ClubAccess access, IMedicalRepository reposit
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.MedicalRecordId);
         Ensure.That(r.InjuryDate != default && r.InjuryDate <= calendar.Today(clock) && r.ReviewDate >= r.InjuryDate, Messages.Get(MessageKey.InvalidInjuryReviewDates));
         var injury = new Injury { HorseId = horseId, MedicalRecordId = r.MedicalRecordId, InjuryDate = r.InjuryDate, Type = r.Type, BodyLocation = r.BodyLocation, Severity = r.Severity, Cause = r.Cause, ReviewDate = r.ReviewDate };
-        repository.AddInjury(injury); (await access.Horse(horseId)).HealthStatus = HealthStatus.Injured;
+        repository.AddInjury(injury);
+        var latest = await repository.GetLatestAssessmentAsync(horseId);
+        var horse = await access.Horse(horseId);
+        if ((latest is null || calendar.DateAt(latest.ExaminationAt) <= r.InjuryDate) && horse.HealthStatus != HealthStatus.Isolated)
+            horse.HealthStatus = HealthStatus.Injured;
         await events.Audit(AuditAction.MedicalInjuryCreated, injury.Id); await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return injury;
     }
 
@@ -187,21 +192,38 @@ public sealed class MedicalService(ClubAccess access, IMedicalRepository reposit
     public async Task<MedicalFollowUp> RecordFollowUp(Guid horseId, FollowUpRequest r)
     {
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.PreviousRecordId);
+        var previous = Ensure.Found(await repository.GetRecordAsync(horseId, r.PreviousRecordId));
         Ensure.Validate(r.Examination); ValidateExamination(r.Examination, clock);
-        Ensure.That(!r.Clearance || r.Examination.HealthStatus == HealthStatus.Fit, Messages.Get(MessageKey.ClearanceRequiresFitHealthStatus));
+        Ensure.That(r.Examination.ExaminationAt >= previous.ExaminationAt, Messages.Get(MessageKey.InvalidDates));
+        var restrictionIds = r.RestrictionIds ?? [];
+        var injuryIds = r.InjuryIds ?? [];
+        var treatmentIds = r.TreatmentIds ?? [];
+        var selectedCount = restrictionIds.Length + injuryIds.Length + treatmentIds.Length;
+        Ensure.That(r.Clearance ? selectedCount > 0 : selectedCount == 0, Messages.Get(MessageKey.ClearanceRequiresExplicitSelection));
+        Ensure.That(restrictionIds.Distinct().Count() == restrictionIds.Length
+            && injuryIds.Distinct().Count() == injuryIds.Length && treatmentIds.Distinct().Count() == treatmentIds.Length,
+            Messages.Get(MessageKey.InvalidClearanceSelection));
+        var restrictions = (await repository.GetActiveRestrictionsAsync(horseId)).Where(x => restrictionIds.Contains(x.Id)).ToList();
+        var injuries = (await repository.GetActiveInjuriesAsync(horseId)).Where(x => injuryIds.Contains(x.Id)).ToList();
+        var treatments = (await repository.GetActiveTreatmentsAsync(horseId)).Where(x => treatmentIds.Contains(x.Id)).ToList();
+        Ensure.That(restrictions.Count == restrictionIds.Length && injuries.Count == injuryIds.Length && treatments.Count == treatmentIds.Length,
+            Messages.Get(MessageKey.InvalidClearanceSelection));
+        Ensure.That(restrictions.All(x => x.ValidFrom <= r.Examination.ExaminationAt)
+            && injuries.All(x => x.InjuryDate <= calendar.DateAt(r.Examination.ExaminationAt))
+            && treatments.All(x => x.StartDate <= calendar.DateAt(r.Examination.ExaminationAt)), Messages.Get(MessageKey.InvalidClearanceSelection));
         var record = Record(horseId, (await current.Get()).Id, r.Examination); repository.AddMedicalRecord(record);
-        (await access.Horse(horseId)).HealthStatus = r.Examination.HealthStatus;
+        await ApplyAssessment(record);
         var follow = new MedicalFollowUp { HorseId = horseId, PreviousRecordId = r.PreviousRecordId, CurrentRecordId = record.Id, Clearance = r.Clearance, Outcome = r.Outcome };
         repository.AddMedicalFollowUp(follow);
         if (r.Clearance)
         {
-            // Clearance is horse-wide: preserve all historical records while closing active restrictions/treatments.
-            foreach (var restriction in await repository.GetActiveRestrictionsAsync(horseId)) restriction.Cleared = true;
-            foreach (var injury in await repository.GetActiveInjuriesAsync(horseId)) injury.Status = InjuryStatus.Recovered;
-            foreach (var treatment in await repository.GetActiveTreatmentsAsync(horseId)) treatment.Completed = true;
+            foreach (var restriction in restrictions) restriction.Cleared = true;
+            foreach (var injury in injuries) injury.Status = InjuryStatus.Recovered;
+            foreach (var treatment in treatments) treatment.Completed = true;
         }
         await events.HorseStaff(horseId, NotificationType.MedicalFollowUp, r.Clearance ? MessageKey.MedicalClearanceIssuedReviewTheTrainingPlanBeforeResuming : MessageKey.MedicalFollowUpCompletedReviewCurrentRestrictions, Role.Trainer, Role.HeadTrainer);
-        await events.Audit(r.Clearance ? AuditAction.MedicalClearanceIssued : AuditAction.MedicalFollowUp, follow.Id);
+        await events.Audit(r.Clearance ? AuditAction.MedicalClearanceIssued : AuditAction.MedicalFollowUp, follow.Id,
+            JsonSerializer.Serialize(new { r.PreviousRecordId, CurrentRecordId = record.Id, RestrictionIds = restrictionIds, InjuryIds = injuryIds, TreatmentIds = treatmentIds }));
         await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return follow;
     }
 
@@ -250,6 +272,11 @@ public sealed class MedicalService(ClubAccess access, IMedicalRepository reposit
     /// <param name="id">ID đối tượng được thao tác; quyền/phạm vi được kiểm trước khi đọc hoặc ghi.</param>
     public static async Task MedicalRecordFor(IMedicalRepository repository, Guid horseId, Guid id)
         => Ensure.That(await repository.HasRecordAsync(horseId, id), Messages.Get(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
+    private async Task ApplyAssessment(MedicalRecord record)
+    {
+        if (await repository.IsLatestAssessmentAsync(record))
+            (await access.Horse(record.HorseId)).HealthStatus = record.HealthStatus;
+    }
     /// <summary>
     /// Kiểm thời gian và các trường khám y tế bắt buộc trước lưu, tránh dữ liệu không hợp lệ liên kết với ngựa.
     /// </summary>

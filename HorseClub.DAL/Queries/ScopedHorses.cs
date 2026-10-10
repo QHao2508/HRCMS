@@ -10,7 +10,7 @@ internal static class ScopedHorses
         var query = db.Horses.Where(x => !x.Archived);
         if (scope.OwnerId.HasValue) query = query.Where(x => x.OwnerId == scope.OwnerId);
         if (scope.StaffId.HasValue) query = query.Where(x => db.Assignments.Any(a => a.HorseId == x.Id && a.StaffId == scope.StaffId && a.Active));
-        if (scope.RiderId.HasValue) query = query.Where(x => db.Sessions.Any(s => s.HorseId == x.Id && s.RiderId == scope.RiderId));
+        if (scope.RiderId.HasValue) query = query.Where(x => db.Sessions.Any(s => s.HorseId == x.Id && s.RiderId == scope.RiderId && (s.Status == SessionStatus.Assigned || s.Status == SessionStatus.InProgress)));
         return query;
     }
 }

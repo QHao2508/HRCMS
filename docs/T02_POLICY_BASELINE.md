@@ -2,6 +2,8 @@
 
 Ngày đối chiếu: **05/10/2026**. Người yêu cầu: **Trần Nguyễn Anh Khoa**. Phạm vi: chốt policy và tiêu chí nghiệm thu để chia task; không triển khai thay đổi API/schema trong lần đối chiếu này.
 
+**Cập nhật triển khai 10/10/2026:** đã sửa selected clearance và assessment/correction temporal của P02/P03, archive vận hành của P06 và tách current Rider scope khỏi training history ở P08; có route lịch sử assignment chỉ trả dữ liệu phù hợp scope. Xem [báo cáo task #5–#10](KHOA_TASK_05_10_COMPLETION.md) để biết bằng chứng và giới hạn nghiệm thu. Các mục Gap bên dưới giữ nguyên làm baseline lịch sử, không phải trạng thái code sau cập nhật. Chưa coi P07 Care privacy, P09 report/KPI, UAT nhóm hoặc các task owner khác đã hoàn thành.
+
 **Cập nhật sau khi thực hiện BE-003 cùng ngày:** partial Draft, validation submit/approval và Manager allowlist/audit của P04 đã được triển khai và kiểm chứng backend; xem [bàn giao BE-003](BE-003_INTAKE_AND_ASSIGNMENT.md). Những gap P04 mô tả dưới đây là baseline trước thay đổi. Không coi các policy medical/archive/report khác đã được triển khai.
 
 ## Nguồn và cách xác định quyết định

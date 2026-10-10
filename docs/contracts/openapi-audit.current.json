@@ -1,12 +1,12 @@
 {
   "Source": "Backend Development OpenAPI; metadata audit, not workflow test",
-  "PathCount": 79,
-  "OperationCount": 104,
-  "SchemaCount": 150,
+  "PathCount": 80,
+  "OperationCount": 105,
+  "SchemaCount": 151,
   "OperationsDeclaringOnly200": 0,
   "OperationsWithEmptyResponseSchema": 0,
   "OperationsWithoutResponseContent": 0,
-  "OperationsWithSecurityRequirement": 90,
+  "OperationsWithSecurityRequirement": 91,
   "SecuritySchemeCount": 1,
   "UploadOperationsWithoutMultipart": []
 }

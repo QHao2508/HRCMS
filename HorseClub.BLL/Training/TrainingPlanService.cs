@@ -42,7 +42,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
         var user = await current.Get();
         var scope = await access.Scope();
-        if (horseId.HasValue) await access.Horse(horseId.Value);
+        if (horseId.HasValue && user.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListPlansAsync(scope, horseId, user.Role == Role.WorkRider ? user.Id : null, p, size, search?.Trim());
         var names = (await repository.PlanNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
@@ -58,14 +58,15 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PlanDetailResponse> GetPlan(Guid id, int? sessionPage, int? sessionPageSize)
     {
-        var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.Horse(p.HorseId); var u = await current.Get();
+        var p = Ensure.Found(await repository.FindPlanAsync(id)); var u = await current.Get();
         var riderId = u.Role == Role.WorkRider ? (Guid?)u.Id : null;
         if (riderId.HasValue) Ensure.That(await repository.HasRiderPlanSessionsAsync(id, riderId.Value), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
+        else await access.TrainingHistoryHorse(p.HorseId, p.TrainerId);
         var (page, size) = pager.Read(sessionPage, sessionPageSize);
         var data = await repository.ListPlanSessionsAsync(id, riderId, page, size);
         var names = (await repository.PlanNamesAsync([id])).Single();
-        return new PlanDetailResponse(p, data.Items, await repository.GetRestrictionsAsync(p.HorseId), page, size, data.Total, names.HorseName, names.TrainerName,
-            await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray()));
+        return new PlanDetailResponse(p, data.Items, await access.IsCurrentHorseReader(p.HorseId) ? await repository.GetRestrictionsAsync(p.HorseId) : [], page, size, data.Total, names.HorseName, names.TrainerName,
+            await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray()), Ensure.Found(await repository.FindHorseAsync(p.HorseId)).Archived);
     }
 
     /// <summary>
@@ -122,7 +123,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     public async Task<PageResponse<TrainingRevision>> ListHistory(Guid id, int? page, int? pageSize)
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.HeadTrainer, Role.Trainer, Role.Veterinarian);
-        var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.Horse(p.HorseId);
+        var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.TrainingHistoryHorse(p.HorseId, p.TrainerId);
         var (number, size) = pager.Read(page, pageSize);
         var data = await repository.ListHistoryAsync(id, number, size);
         return new(data.Items, number, size, data.Total);

@@ -31,11 +31,19 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<HorseDetailResponse> GetHorse(Guid id)
     {
-        var horse = await access.Horse(id);
+        var horse = await access.Horse(id, allowArchived: true);
         var attachment = await repository.GetPhotoAsync(horse.RegistrationId);
         var photo = attachment is null ? null : new HorsePhotoResponse(attachment.Id, attachment.FileName, attachment.StorageName, attachment.ContentType, attachment.Length, $"/api/horses/{id}/photo");
         var registration = await repository.GetRegistrationAsync(horse.RegistrationId);
         return new HorseDetailResponse(horse, await repository.GetLatestMeasurementAsync(id), await repository.GetAssignmentsAsync(id), await repository.GetOccupancyAsync(id), new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo);
+    }
+    public async Task<HorseAssignmentHistoryResponse> GetAssignmentHistory(Guid id)
+    {
+        var horse = await access.AssignmentHistoryHorse(id);
+        var user = await current.Get();
+        var assignments = await repository.GetAssignmentsAsync(id);
+        if (user.Role is not (Role.ClubManager or Role.HorseOwner)) assignments = assignments.Where(x => x.StaffId == user.Id).ToList();
+        return new(horse.Id, horse.Name, horse.Archived, assignments);
     }
 
     /// <summary>
@@ -46,7 +54,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListMeasurements.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<Measurement>> ListMeasurements(Guid id, int? page, int? pageSize)
-    { await access.Horse(id); var (p, size) = pager.Read(page, pageSize); var data = await repository.ListMeasurementsAsync(id, p, size); return new(data.Items, p, size, data.Total); }
+    { await access.Horse(id, allowArchived: true); var (p, size) = pager.Read(page, pageSize); var data = await repository.ListMeasurementsAsync(id, p, size); return new(data.Items, p, size, data.Total); }
 
     /// <summary>
     /// Bổ sung số đo thể chất trong HorseProfileService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -72,9 +80,36 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var horse = await access.Horse(id);
         Ensure.That(!await repository.HasActiveSessionAsync(id), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
+        Ensure.That(!await repository.HasActiveCareAsync(id), Messages.Get(MessageKey.FinishActiveCareBeforeArchiving), 409, "invalid_state");
+        var now = clock.GetUtcNow();
+        var assignments = await repository.GetActiveAssignmentsAsync(id);
+        var plans = await repository.GetOpenPlansAsync(id);
+        // Capture recipients before ending assignments; all changes share the request transaction.
+        await events.RefreshHorse(id);
+        foreach (var session in await repository.GetPendingSessionsAsync(id))
+        {
+            session.Status = SessionStatus.Skipped;
+            session.Notes += Messages.Get(MessageKey.Skipped, "HorseArchived");
+            var plan = plans.SingleOrDefault(x => x.Id == session.PlanId);
+            if (plan is not null) await events.TrainingHistory(plan, session);
+            if (session.RiderId.HasValue) events.Notify(session.RiderId.Value, NotificationType.SessionSkipped, MessageKey.ThePlanWasArchivedAndThisSessionWasCancelled, session.Id);
+        }
+        foreach (var care in await repository.GetPendingCareAsync(id))
+        {
+            care.Status = CareStatus.Skipped;
+            care.Notes += Messages.Get(MessageKey.Skipped, "HorseArchived");
+            events.Notify(care.GroomId, NotificationType.CareIssue, MessageKey.HorseIsArchived, care.Id);
+        }
+        foreach (var plan in plans) { plan.Status = PlanStatus.Archived; await events.TrainingHistory(plan); }
+        foreach (var assignment in assignments)
+        {
+            events.Notify(assignment.StaffId, NotificationType.HorseAssignment, MessageKey.HorseIsArchived, id);
+            assignment.Active = false; assignment.EndDate = calendar.DateAt(now);
+        }
+        events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.HorseIsArchived, id);
         horse.Archived = true;
-        foreach (var occupancy in await repository.GetOccupanciesAsync(id)) occupancy.EndedAt = DateTimeOffset.UtcNow;
-        await events.Audit(AuditAction.HorseArchived, id); await events.RefreshHorse(id); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+        foreach (var occupancy in await repository.GetOccupanciesAsync(id)) occupancy.EndedAt = now;
+        await events.Audit(AuditAction.HorseArchived, id, "HorseArchived"); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
 }

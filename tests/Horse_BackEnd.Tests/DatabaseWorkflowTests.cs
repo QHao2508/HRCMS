@@ -53,6 +53,7 @@ public sealed class DatabaseWorkflowTests
     {
         await using var f = new ClubFactory(); var owner = await f.User(Role.HorseOwner); var head = await f.User(Role.HeadTrainer);
         var trainer = await f.User(Role.Trainer); var replacement = await f.User(Role.Trainer); var horse = await f.Horse(owner, head, trainer);
+        await WorkerTests.Read(f, async db => { var user = (await db.Users.FindAsync(replacement.Id))!; user.FirstName = "Replacement"; user.LastName = "Trainer"; await db.SaveChangesAsync(); });
         using var hc = await f.Client(head); using var oldClient = await f.Client(trainer); using var newClient = await f.Client(replacement);
         var template = await ClubFactory.Post(hc, "/api/training/templates", new TemplateRequest("Base", "Goal", "Phase", 400, Intensity.Light, "Sand", 2, ""));
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -60,6 +61,11 @@ public sealed class DatabaseWorkflowTests
         await ClubFactory.Post(hc, $"/api/horses/{horse.Id}/assignments", new AssignmentRequest(replacement.Id, Role.Trainer, today, "Replacement"));
         Assert.Equal(HttpStatusCode.Forbidden, (await oldClient.PutAsJsonAsync($"/api/training/plans/{planId}/status", new PlanStatusRequest(PlanStatus.Paused), ClubFactory.Json)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await newClient.PutAsJsonAsync($"/api/training/plans/{planId}/status", new PlanStatusRequest(PlanStatus.Paused), ClubFactory.Json)).StatusCode);
+        var detail = await newClient.GetFromJsonAsync<System.Text.Json.JsonElement>($"/api/training/plans/{planId}");
+        Assert.Equal("Replacement Trainer", detail.GetProperty("trainerName").GetString());
+        var searched = await newClient.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/training/plans?search=Replacement");
+        Assert.Equal(1, searched.GetProperty("total").GetInt32());
+        Assert.Equal(HttpStatusCode.OK, (await oldClient.GetAsync($"/api/training/plans/{planId}/history")).StatusCode);
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
         var assignments = await db.Assignments.Where(x => x.HorseId == horse.Id && x.Role == Role.Trainer).ToListAsync();
         Assert.Equal(2, assignments.Count); Assert.Single(assignments, x => x.Active && x.StaffId == replacement.Id);
@@ -86,11 +92,12 @@ public sealed class DatabaseWorkflowTests
     public async Task Clearance_ClosesOpenMedicalStateWithoutResumingPausedPlan()
     {
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f); var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/restrictions", s.Restriction);
-        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/injuries", new InjuryRequest(s.RecordId, today, InjuryType.Muscle, "Leg", InjurySeverity.Mild, "Training", today.AddDays(2)));
-        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/treatments", new TreatmentRequest(s.RecordId, null, today, today.AddDays(5), today.AddDays(2), "Recover", "Rest", "", "Daily"));
+        var restriction = await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/restrictions", s.Restriction);
+        var injury = await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/injuries", new InjuryRequest(s.RecordId, today, InjuryType.Muscle, "Leg", InjurySeverity.Mild, "Training", today.AddDays(2)));
+        var treatment = await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/treatments", new TreatmentRequest(s.RecordId, null, today, today.AddDays(5), today.AddDays(2), "Recover", "Rest", "", "Daily"));
         Assert.Equal(HttpStatusCode.OK, (await s.TrainerClient.PutAsJsonAsync($"/api/training/plans/{s.PlanId}/status", new PlanStatusRequest(PlanStatus.Paused), ClubFactory.Json)).StatusCode);
-        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/follow-ups", new FollowUpRequest(s.RecordId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Fit", HealthStatus.Fit, ""), true, "Recovered"));
+        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/follow-ups", new FollowUpRequest(s.RecordId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Fit", HealthStatus.Fit, ""), true, "Recovered",
+            [restriction.GetProperty("id").GetGuid()], [injury.GetProperty("id").GetGuid()], [treatment.GetProperty("id").GetGuid()]));
         using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
         Assert.Equal(HealthStatus.Fit, (await db.Horses.FindAsync(s.HorseId))!.HealthStatus);
         Assert.All(await db.Restrictions.Where(x => x.HorseId == s.HorseId).ToListAsync(), x => Assert.True(x.Cleared));
