@@ -123,6 +123,41 @@
               }
             }
           },
+          "401": {
+            "description": "Invalid credentials: { error: invalid_credentials }.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "required": [
+                    "error"
+                  ],
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "email": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginErrorResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Invalid body, query, enum, or business validation. See title/detail.",
             "content": {
@@ -155,25 +190,6 @@
           },
           "429": {
             "description": "Rate limit reached. Empty response body; retry later."
-          },
-          "401": {
-            "description": "Invalid credentials: { error: invalid_credentials }.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "required": [
-                    "error"
-                  ],
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "additionalProperties": false
-                }
-              }
-            }
           }
         }
       }
@@ -507,6 +523,132 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordChangedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit reached. Empty response body; retry later."
+          }
+        }
+      }
+    },
+    "/api/auth/invitation/verify": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "post_api_auth_invitation_verify",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationVerificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit reached. Empty response body; retry later."
+          }
+        }
+      }
+    },
+    "/api/auth/invitation/password": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "post_api_auth_invitation_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationPasswordRequest"
               }
             }
           },
@@ -993,6 +1135,96 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/staff/{id}/resend-invitation": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "post_api_staff_id_resend_invitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Invalid body, query, enum, or business validation. See title/detail.",
@@ -2087,6 +2319,103 @@
         ]
       }
     },
+    "/api/horses/{id}/assignment-history": {
+      "get": {
+        "tags": [
+          "Horses"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_horses_id_assignment_history",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HorseAssignmentHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/horses/{id}/assignments": {
       "post": {
         "tags": [
@@ -3024,6 +3353,13 @@
             }
           },
           {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -3054,7 +3390,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageResponseOfTrainingPlan"
+                  "$ref": "#/components/schemas/PageResponseOfTrainingPlanListItem"
                 }
               }
             }
@@ -3728,6 +4064,13 @@
             }
           },
           {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -3758,7 +4101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageResponseOfTrainingSession"
+                  "$ref": "#/components/schemas/PageResponseOfTrainingSessionListItem"
                 }
               }
             }
@@ -8540,6 +8883,29 @@
             }
           },
           {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -8570,7 +8936,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageResponseOfAuditEvent"
+                  "$ref": "#/components/schemas/PageResponseOfAuditReadModel"
                 }
               }
             }
@@ -8948,6 +9314,57 @@
             "Bearer": [ ]
           }
         ]
+      }
+    },
+    "/api/branding/logo": {
+      "get": {
+        "tags": [
+          "Branding"
+        ],
+        "operationId": "get_api_branding_logo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/registrations/{registrationId}/attachments": {
@@ -9514,6 +9931,337 @@
             "Bearer": [ ]
           }
         ]
+      }
+    },
+    "/api/website": {
+      "get": {
+        "tags": [
+          "Website"
+        ],
+        "operationId": "get_api_website",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Website"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "put_api_website",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebsiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/website/assets/{kind}": {
+      "post": {
+        "tags": [
+          "Website"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "post_api_website_assets_kind",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WebsiteAssetKind"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "file",
+                  "version"
+                ],
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "description": "One PNG/JPEG image; registration attachments also allow PDF except HorsePhoto. File extension must match content.",
+                    "format": "binary"
+                  },
+                  "version": {
+                    "type": "integer",
+                    "description": "Current website version returned by GET /api/website.",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebsiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit reached. Empty response body; retry later."
+          },
+          "413": {
+            "description": "Request exceeds the configured server/form size limit; response body can be empty."
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Website"
+        ],
+        "operationId": "get_api_website_assets_kind",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WebsiteAssetKind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/care/incidents/{incidentId}/photos": {
@@ -10107,15 +10855,38 @@
           "InventoryReplenishmentRequested",
           "InventoryReplenishmentReviewed",
           "AttachmentUploaded",
-          "MedicalRecordCorrected"
+          "MedicalRecordCorrected",
+          "StaffInvitationResent",
+          "WebsiteContentUpdated",
+          "WebsiteAssetUpdated"
         ]
       },
-      "AuditEvent": {
+      "AuditReadModel": {
+        "required": [
+          "id",
+          "createdAt",
+          "actorId",
+          "actorName",
+          "action",
+          "referenceId",
+          "detail"
+        ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "actorId": {
             "type": "string",
             "format": "uuid"
+          },
+          "actorName": {
+            "type": "string"
           },
           "action": {
             "$ref": "#/components/schemas/AuditAction"
@@ -10126,22 +10897,6 @@
           },
           "detail": {
             "type": "string"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
           }
         },
         "additionalProperties": false
@@ -10527,6 +11282,36 @@
           },
           "outcome": {
             "type": "string"
+          },
+          "restrictionIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "injuryIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "treatmentIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "additionalProperties": false
@@ -10623,6 +11408,34 @@
         },
         "additionalProperties": false
       },
+      "HorseAssignmentHistoryResponse": {
+        "required": [
+          "horseId",
+          "horseName",
+          "archived",
+          "assignments"
+        ],
+        "type": "object",
+        "properties": {
+          "horseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "assignments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffAssignment"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "HorseDetailResponse": {
         "required": [
           "horse",
@@ -10664,6 +11477,16 @@
           },
           "preferences": {
             "$ref": "#/components/schemas/HorsePreferencesResponse"
+          },
+          "photo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HorsePhotoResponse"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -10675,6 +11498,44 @@
           "Gelding",
           null
         ]
+      },
+      "HorsePhotoResponse": {
+        "required": [
+          "attachmentId",
+          "fileName",
+          "storageName",
+          "contentType",
+          "length",
+          "contentUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "attachmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "storageName": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "length": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "contentUrl": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "HorsePreferencesResponse": {
         "required": [
@@ -11242,6 +12103,68 @@
         },
         "additionalProperties": false
       },
+      "InvitationPasswordRequest": {
+        "required": [
+          "email",
+          "setupToken",
+          "password",
+          "confirmPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "setupToken": {
+            "maxLength": 4096,
+            "minLength": 0,
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "confirmPassword": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvitationVerificationResponse": {
+        "required": [
+          "verified"
+        ],
+        "type": "object",
+        "properties": {
+          "verified": {
+            "type": "boolean"
+          },
+          "setupToken": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoginErrorResponse": {
+        "required": [
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -11694,7 +12617,7 @@
         },
         "additionalProperties": false
       },
-      "PageResponseOfAuditEvent": {
+      "PageResponseOfAuditReadModel": {
         "required": [
           "items",
           "page",
@@ -11706,7 +12629,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AuditEvent"
+              "$ref": "#/components/schemas/AuditReadModel"
             }
           },
           "page": {
@@ -12492,7 +13415,7 @@
         },
         "additionalProperties": false
       },
-      "PageResponseOfTrainingPlan": {
+      "PageResponseOfTrainingPlanListItem": {
         "required": [
           "items",
           "page",
@@ -12504,7 +13427,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TrainingPlan"
+              "$ref": "#/components/schemas/TrainingPlanListItem"
             }
           },
           "page": {
@@ -12576,7 +13499,7 @@
         },
         "additionalProperties": false
       },
-      "PageResponseOfTrainingSession": {
+      "PageResponseOfTrainingSessionListItem": {
         "required": [
           "items",
           "page",
@@ -12588,7 +13511,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TrainingSession"
+              "$ref": "#/components/schemas/TrainingSessionListItem"
             }
           },
           "page": {
@@ -12763,6 +13686,31 @@
               "string"
             ],
             "format": "int32"
+          },
+          "horseName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trainerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sessionNames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TrainingNames"
+            }
+          },
+          "horseArchived": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -13872,6 +14820,28 @@
                 "$ref": "#/components/schemas/TrainerEvaluation"
               }
             ]
+          },
+          "horseName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trainerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "riderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "horseArchived": {
+            "type": "boolean",
+            "default": false
           }
         },
         "additionalProperties": false
@@ -14446,6 +15416,33 @@
         },
         "additionalProperties": false
       },
+      "TrainingNames": {
+        "required": [
+          "id",
+          "horseName",
+          "trainerName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "trainerName": {
+            "type": "string"
+          },
+          "riderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "TrainingPlan": {
         "type": "object",
         "properties": {
@@ -14496,6 +15493,82 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrainingPlanListItem": {
+        "required": [
+          "id",
+          "horseId",
+          "trainerId",
+          "templateId",
+          "goal",
+          "phase",
+          "startDate",
+          "endDate",
+          "notes",
+          "status",
+          "createdAt",
+          "version",
+          "horseName",
+          "trainerName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trainerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "templateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "goal": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PlanStatus"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "trainerName": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -14610,6 +15683,112 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrainingSessionListItem": {
+        "required": [
+          "id",
+          "horseId",
+          "planId",
+          "riderId",
+          "scheduledAt",
+          "trainingType",
+          "distanceMetres",
+          "intensity",
+          "surface",
+          "target",
+          "notes",
+          "status",
+          "startedAt",
+          "createdAt",
+          "version",
+          "horseName",
+          "trainerName",
+          "riderName"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "riderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "trainingType": {
+            "$ref": "#/components/schemas/TrainingType"
+          },
+          "distanceMetres": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "intensity": {
+            "$ref": "#/components/schemas/Intensity"
+          },
+          "surface": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SessionStatus"
+          },
+          "startedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "trainerName": {
+            "type": "string"
+          },
+          "riderName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false
@@ -14875,6 +16054,130 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebsiteAssetKind": {
+        "enum": [
+          "Logo",
+          "Hero",
+          "Background"
+        ]
+      },
+      "WebsiteFeature": {
+        "required": [
+          "title",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebsiteRequest": {
+        "required": [
+          "version",
+          "heroTitle",
+          "heroDescription",
+          "featuresTitle",
+          "featuresDescription",
+          "features"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "heroTitle": {
+            "type": "string"
+          },
+          "heroDescription": {
+            "type": "string"
+          },
+          "featuresTitle": {
+            "type": "string"
+          },
+          "featuresDescription": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebsiteFeature"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "WebsiteResponse": {
+        "required": [
+          "version",
+          "heroTitle",
+          "heroDescription",
+          "featuresTitle",
+          "featuresDescription",
+          "features",
+          "logoVersion",
+          "heroImageVersion",
+          "backgroundImageVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "heroTitle": {
+            "type": "string"
+          },
+          "heroDescription": {
+            "type": "string"
+          },
+          "featuresTitle": {
+            "type": "string"
+          },
+          "featuresDescription": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebsiteFeature"
+            }
+          },
+          "logoVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "heroImageVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backgroundImageVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
       }
     },
     "securitySchemes": {
@@ -14929,7 +16232,13 @@
       "name": "Metadata"
     },
     {
+      "name": "Branding"
+    },
+    {
       "name": "Notifications"
+    },
+    {
+      "name": "Website"
     },
     {
       "name": "Incident photos"

@@ -159,5 +159,9 @@
   "EvaluationAlreadyExists": "Evaluation already exists.",
   "RegistrationMissingFields": "Complete the registration fields before submission or approval: {0}.",
   "ManagerMayOnlyEditAdministrativeRegistrationFields": "Manager may only edit horse name, registration number and boarding dates during review. Request revision for other intake fields.",
-  "HorseMeasurementsOutsideConfiguredLimits": "Horse height or weight is outside the configured limits."
+  "HorseMeasurementsOutsideConfiguredLimits": "Horse height or weight is outside the configured limits.",
+  "CorrectionMustKeepAssessmentDate": "A correction must keep the original examination date. Record a separate examination to assess another date.",
+  "ClearanceRequiresExplicitSelection": "Select the restrictions, injuries or treatments to close when issuing clearance. A follow-up without clearance must not select items to close.",
+  "InvalidClearanceSelection": "Clearance items must be unique, open, effective by the follow-up date and belong to this horse.",
+  "FinishActiveCareBeforeArchiving": "Finish active care tasks before archiving."
 }

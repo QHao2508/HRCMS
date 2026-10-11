@@ -68,6 +68,8 @@ internal static class ClubModelConfiguration
         b.Entity<User>().Property(x => x.Email).HasMaxLength(254);
         b.Entity<User>().Property(x => x.UserName).HasMaxLength(80);
         b.Entity<TrainingRevision>().Property(x => x.Snapshot).HasMaxLength(20000);
+        b.Entity<WebsiteSettings>().Property(x=>x.Id).ValueGeneratedNever();
+        b.Entity<WebsiteSettings>().Property(x=>x.ContentJson).HasMaxLength(10000);
         ReadPerformanceConfiguration.Configure(b);
     }
 }

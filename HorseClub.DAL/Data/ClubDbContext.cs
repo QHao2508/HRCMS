@@ -34,6 +34,7 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<IncidentPhoto> IncidentPhotos => Set<IncidentPhoto>();
     public DbSet<TrainingRevision> TrainingRevisions => Set<TrainingRevision>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<WebsiteSettings> WebsiteSettings => Set<WebsiteSettings>();
     public DbSet<AuditEvent> Audit => Set<AuditEvent>();
     public DbSet<RealtimeOutboxMessage> RealtimeOutboxMessages => Set<RealtimeOutboxMessage>();
 

@@ -108,10 +108,10 @@ public sealed class WorkflowTests
         var plan = await ClubFactory.Post(tc, "/api/training/plans", new PlanRequest(horse.Id, template.GetProperty("id").GetGuid(), "Goal", "Phase", today, today.AddDays(7), ""));
         var sid = (await ClubFactory.Post(tc, $"/api/training/plans/{plan.GetProperty("id").GetGuid()}/sessions", new SessionRequest(DateTimeOffset.UtcNow.AddMinutes(10), TrainingType.Sprint, 1000, Intensity.Heavy, "Sand", "Target", "", rider.Id))).GetProperty("id").GetGuid();
         var medical = await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/records", new MedicalRequest(DateTimeOffset.UtcNow.AddMinutes(-1), "Check", "Symptoms", "Findings", "Private diagnosis", HealthStatus.Monitoring, "Private notes")); var medicalId = medical.GetProperty("id").GetGuid();
-        await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/restrictions", new RestrictionRequest(medicalId, true, false, Intensity.Light, 500, true, DateTimeOffset.UtcNow.AddMinutes(-1), null, "Light training only"));
+        var restriction = await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/restrictions", new RestrictionRequest(medicalId, true, false, Intensity.Light, 500, true, DateTimeOffset.UtcNow.AddMinutes(-1), null, "Light training only"));
         Assert.Equal(HttpStatusCode.Conflict, (await rc.PostAsJsonAsync($"/api/training/sessions/{sid}/start", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await tc.GetAsync($"/api/horses/{horse.Id}/medical/records")).StatusCode);
-        var followup = new FollowUpRequest(medicalId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Cleared", HealthStatus.Fit, ""), true, "Recovered");
+        var followup = new FollowUpRequest(medicalId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Cleared", HealthStatus.Fit, ""), true, "Recovered", RestrictionIds: [restriction.GetProperty("id").GetGuid()]);
         Assert.Equal(HttpStatusCode.Forbidden, (await tc.PostAsJsonAsync($"/api/horses/{horse.Id}/medical/follow-ups", followup, ClubFactory.Json)).StatusCode);
         await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/follow-ups", followup);
         await ClubFactory.Post(rc, $"/api/training/sessions/{sid}/start", new { });

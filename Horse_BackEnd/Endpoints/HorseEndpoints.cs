@@ -24,6 +24,7 @@ public static class HorseEndpoints
         var h = api.MapGroup("/horses").WithTags("Horses").RequireAuthorization();
         h.MapGet("", async (string? search, HealthStatus? healthStatus, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListHorses(search, healthStatus, page, pageSize)).Produces<PageResponse<Horse>>(200);
         h.MapGet("/{id:guid}", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetHorse(id)).Produces<HorseDetailResponse>(200);
+        h.MapGet("/{id:guid}/assignment-history", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetAssignmentHistory(id)).Produces<HorseAssignmentHistoryResponse>(200);
         h.MapPost("/{id:guid}/assignments", async (Guid id, AssignmentRequest request, IHorseAssignmentService moduleService) => await moduleService.AssignStaff(id, request)).Produces<StaffAssignment>(200);
         h.MapGet("/{id:guid}/measurements", async (Guid id, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListMeasurements(id, page, pageSize)).Produces<PageResponse<Measurement>>(200);
         h.MapPost("/{id:guid}/measurements", async (Guid id, MeasurementRequest request, IHorseProfileService moduleService) => await moduleService.AddMeasurement(id, request)).Produces<Measurement>(200);

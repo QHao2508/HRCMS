@@ -10,7 +10,7 @@ public interface ITrainingPlanService
 {
     Task<TrainingPlan> CreatePlan(PlanRequest r);
     Task<OperationResult> Create(PlanRequest r);
-    Task<PageResponse<TrainingPlan>> ListPlans(Guid? horseId, int? page, int? pageSize);
+    Task<PageResponse<TrainingPlanListItem>> ListPlans(Guid? horseId, int? page, int? pageSize, string? search = null);
     Task<PlanDetailResponse> GetPlan(Guid id, int? sessionPage, int? sessionPageSize);
     Task<TrainingPlan> UpdatePlan(Guid id, PlanRequest r);
     Task<TrainingPlan> SetPlanStatus(Guid id, PlanStatusRequest r);

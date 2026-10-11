@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddScoped<PageReader>();
         services.AddScoped<UploadStorage>();
         services.AddSingleton<AzureBlobStore>();
+        services.AddScoped<IManagementService,ManagementService>();
         services.AddScoped<BrandingService>();
         services.AddScoped<IBrandingService>(sp => sp.GetRequiredService<BrandingService>());
         services.AddScoped<ClubCalendar>();

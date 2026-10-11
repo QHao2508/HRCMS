@@ -15,7 +15,7 @@ public interface ITrainingSessionService
     Task Start(Guid id);
     Task<SessionResult> SubmitResult(Guid id, ResultRequest r);
     Task<OperationResult> Create(Guid id, SessionRequest r);
-    Task<PageResponse<TrainingSession>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize);
+    Task<PageResponse<TrainingSessionListItem>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize, string? search = null);
     Task<SessionDetailResponse> GetSession(Guid id);
     Task<TrainingSession> Update(Guid id, SessionRequest r);
     Task<TrainingSession> AssignRider(Guid id, RiderRequest r);

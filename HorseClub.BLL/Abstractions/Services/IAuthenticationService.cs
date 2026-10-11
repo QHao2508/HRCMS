@@ -13,6 +13,9 @@ namespace HorseClub.BLL.Abstractions.Services;
 /// <summary>Application operations implemented by AuthenticationService.</summary>
 public interface IAuthenticationService
 {
+    Task<InvitationVerificationResponse> VerifyInvitation(VerifyRequest r);
+    Task<PasswordChangedResponse> CompleteInvitation(InvitationPasswordRequest r);
+    Task<OperationResult> ResendInvitation(Guid id);
     Task<User?> ValidateSession(Guid id, string? stamp);
     Task<User> Register(RegisterRequest r);
     Task<User> CreateStaff(StaffRequest r);

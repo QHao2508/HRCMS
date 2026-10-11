@@ -60,12 +60,12 @@ public sealed class ApiContractTests
                     foreach (var media in content.EnumerateObject())
                         Assert.NotEmpty(media.Value.GetProperty("schema").EnumerateObject());
                 }
-                var anonymous = path.Name is "/health" or "/api/branding/logo" || path.Name.StartsWith("/api/auth/") && path.Name is not "/api/auth/me" and not "/api/auth/logout";
+                var anonymous = path.Name is "/health" or "/api/branding/logo" || operation.Name == "get" && path.Name is "/api/website" or "/api/website/assets/{kind}" || path.Name.StartsWith("/api/auth/") && path.Name is not "/api/auth/me" and not "/api/auth/logout";
                 var secured = operation.Value.TryGetProperty("security", out var security) && security.GetArrayLength() > 0;
                 Assert.Equal(!anonymous, secured);
                 if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
             }
-        Assert.Equal(97, operationCount);
+        Assert.Equal(105, operationCount);
         Assert.Equal("bearer", root.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer").GetProperty("scheme").GetString());
         foreach (var path in new[] { "/api/registrations/{registrationId}/attachments", "/api/care/incidents/{incidentId}/photos" })
         {

@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<HorseClub.DAL.Abstractions.IAuthRepository, HorseClub.DAL.Repositories.AuthRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.IReportingQueries, HorseClub.DAL.Queries.ReportingQueries>();
         services.AddScoped<HorseClub.DAL.Abstractions.IWorkerRepository, HorseClub.DAL.Repositories.WorkerRepository>();
+        services.AddScoped<IManagementRepository,ManagementRepository>();
         services.AddScoped<IRealtimeOutboxRepository, RealtimeOutboxRepository>();
         return services;
     }

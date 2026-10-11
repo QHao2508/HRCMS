@@ -15,5 +15,5 @@ public enum AuditAction
     CareTaskRecorded = 32, IncidentCreated = 33, IncidentResolved = 34, StableCreated = 35,
     StallCreated = 36, StallOccupied = 37, StallVacated = 38, StallCleaned = 39,
     InventoryCreated = 40, InventoryStockMoved = 41, InventoryArchived = 42,
-    InventoryReplenishmentRequested = 43, InventoryReplenishmentReviewed = 44, AttachmentUploaded = 45, MedicalRecordCorrected = 46
+    InventoryReplenishmentRequested = 43, InventoryReplenishmentReviewed = 44, AttachmentUploaded = 45, MedicalRecordCorrected = 46, StaffInvitationResent = 47, WebsiteContentUpdated = 48, WebsiteAssetUpdated = 49
 }

@@ -69,7 +69,7 @@ public sealed class ApiContractTransformer : IOpenApiOperationTransformer
         if (path == "/api/auth/refresh")
             operation.Responses["401"] = new OpenApiResponse { Description = "Invalid/expired refresh token or revoked account. Empty body." };
 
-        var upload = HttpMethods.IsPost(context.Description.HttpMethod!) && (path == "/api/registrations/{registrationId}/attachments" || path == "/api/care/incidents/{incidentId}/photos");
+        var upload = HttpMethods.IsPost(context.Description.HttpMethod!) && (path == "/api/registrations/{registrationId}/attachments" || path == "/api/care/incidents/{incidentId}/photos" || path == "/api/website/assets/{kind}");
         if (upload)
         {
             var properties = new Dictionary<string, IOpenApiSchema>
@@ -77,6 +77,11 @@ public sealed class ApiContractTransformer : IOpenApiOperationTransformer
                 ["file"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "binary", Description = "One PNG/JPEG image; registration attachments also allow PDF except HorsePhoto. File extension must match content." }
             };
             var required = new HashSet<string> { "file" };
+            if (path.StartsWith("/api/website/"))
+            {
+                properties["version"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64", Description = "Current website version returned by GET /api/website." };
+                required.Add("version");
+            }
             if (path.Contains("registrations"))
             {
                 properties["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Description = "AttachmentType name (case-sensitive): " + string.Join(", ", Enum.GetNames<AttachmentType>().Where(x => x != nameof(AttachmentType.IncidentPhoto))) };

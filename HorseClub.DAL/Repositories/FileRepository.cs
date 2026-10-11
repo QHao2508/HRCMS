@@ -17,5 +17,6 @@ public sealed class FileRepository(ClubDbContext db) : IFileRepository
     public Task<IncidentPhoto?> FindPhotoAsync(Guid incidentId, Guid id) => db.IncidentPhotos.SingleOrDefaultAsync(x => x.Id == id && x.IncidentId == incidentId);
     public void AddPhoto(IncidentPhoto photo) => db.IncidentPhotos.Add(photo);
     public async Task<bool> IsStorageReferencedAsync(string storageName)
-        => await db.Attachments.AnyAsync(x => x.StorageName == storageName) || await db.IncidentPhotos.AnyAsync(x => x.StorageName == storageName);
+        => await db.Attachments.AnyAsync(x => x.StorageName == storageName) || await db.IncidentPhotos.AnyAsync(x => x.StorageName == storageName)
+            || await db.WebsiteSettings.AnyAsync(x => x.LogoName == storageName || x.HeroName == storageName || x.BackgroundName == storageName);
 }

@@ -21,7 +21,8 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     {
         var horse = Ensure.Found(await repository.FindHorseAsync(horseId));
         Ensure.That(!horse.Archived, Messages.Get(MessageKey.HorseIsArchived), 409, "horse_archived");
-        if (horse.HealthStatus == HealthStatus.Isolated || horse.HealthStatus == HealthStatus.Injured && intensity == Intensity.Heavy)
+        if (horse.HealthStatus == HealthStatus.Isolated || intensity == Intensity.Heavy && (horse.HealthStatus == HealthStatus.Injured
+            || await repository.HasUnrecoveredInjuryAsync(horseId, calendar.DateAt(at))))
             throw new ApiException(409, "medical_block", Messages.Get(MessageKey.CurrentHealthStatusPreventsThisTraining), horseId);
         var restrictions = await repository.GetRestrictionsAsync(horseId, at);
         foreach (var r in restrictions)
@@ -97,8 +98,8 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await repository.FindSessionAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.Assigned, Messages.Get(MessageKey.SessionIsNotAssignedReady), 409, "invalid_state");
+        await access.Horse(s.HorseId);
         Ensure.That(s.ScheduledAt <= clock.GetUtcNow().AddMinutes(options.Value.StartEarlyMinutes), Messages.Get(MessageKey.SessionIsNotDueToStartYet), 409, "invalid_state");
         var plan = Ensure.Found(await repository.FindPlanAsync(s.PlanId));
         Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
@@ -121,8 +122,8 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await repository.FindSessionAsync(id));
         Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        await access.Horse(s.HorseId);
         Ensure.That(s.Status == SessionStatus.InProgress, Messages.Get(MessageKey.StartSessionBeforeSubmittingResults), 409, "invalid_state");
+        await access.Horse(s.HorseId);
         Ensure.That(!await repository.HasResultAsync(id), Messages.Get(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
         // Always allow reporting actual activity, even if a medical lock was applied mid-session.
         // A newly conflicting restriction is recorded as an issue rather than discarding observations.
@@ -171,13 +172,15 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <param name="page">Giá trị kiểu int? dùng trong ListSessions.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListSessions.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
-    public async Task<PageResponse<TrainingSession>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize)
+    public async Task<PageResponse<TrainingSessionListItem>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize, string? search = null)
     {
+        Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
         var u = await current.Get(); var scope = await access.Scope();
-        if (horseId.HasValue) await access.Horse(horseId.Value);
+        if (horseId.HasValue && u.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
         var (p, size) = pager.Read(page, pageSize);
-        var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size);
-        return new(data.Items, p, size, data.Total);
+        var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size, search?.Trim());
+        var names=(await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
+        return new(data.Items.Select(x=>TrainingSessionListItem.From(x,names[x.Id])).ToList(),p,size,data.Total);
     }
 
     /// <summary>
@@ -187,9 +190,11 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<SessionDetailResponse> GetSession(Guid id)
     {
-        var s = Ensure.Found(await repository.FindSessionAsync(id)); await access.Horse(s.HorseId); var u = await current.Get();
+        var s = Ensure.Found(await repository.FindSessionAsync(id)); var u = await current.Get();
         Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id));
+        if (u.Role != Role.WorkRider) await access.TrainingHistoryHorse(s.HorseId, Ensure.Found(await repository.FindPlanAsync(s.PlanId)).TrainerId);
+        var names=(await repository.SessionNamesAsync([id])).Single();
+        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id),names.HorseName,names.TrainerName,names.RiderName, Ensure.Found(await repository.FindHorseAsync(s.HorseId)).Archived);
     }
 
     /// <summary>
@@ -235,9 +240,10 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<OperationResult> SkipSession(Guid id, ReasonRequest r)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id)); var u = await current.Get();
-        if (u.Role == Role.WorkRider) { await access.Horse(s.HorseId); Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden"); }
+        if (u.Role == Role.WorkRider) Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         else await access.Trainer(s.HorseId);
         Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Get(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
+        if (u.Role == Role.WorkRider) await access.Horse(s.HorseId);
         s.Status = SessionStatus.Skipped; s.Notes += Messages.Get(MessageKey.Skipped, r.Reason);
         await events.TrainingHistory(Ensure.Found(await repository.FindPlanAsync(s.PlanId)), s);
         await events.HorseStaff(s.HorseId, NotificationType.SessionSkipped, MessageKey.ASessionWasSkipped, Role.Trainer);

@@ -2,6 +2,8 @@ namespace HorseClub.DAL.Abstractions;
 
 public interface ITrainingRepository
 {
+    Task<List<TrainingNames>> PlanNamesAsync(Guid[] ids);
+    Task<List<TrainingNames>> SessionNamesAsync(Guid[] ids);
     ValueTask<TrainingTemplate?> FindTemplateAsync(Guid id);
     ValueTask<TrainingPlan?> FindPlanAsync(Guid id);
     ValueTask<TrainingSession?> FindSessionAsync(Guid id);
@@ -13,8 +15,8 @@ public interface ITrainingRepository
     void AddEvaluation(TrainerEvaluation evaluation);
     void AddIncident(Incident incident);
     Task<DataPage<TrainingTemplate>> ListTemplatesAsync(int page, int size);
-    Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size);
-    Task<DataPage<TrainingSession>> ListSessionsAsync(HorseScope scope, Guid? horseId, Guid? riderId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size);
+    Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size, string? search = null);
+    Task<DataPage<TrainingSession>> ListSessionsAsync(HorseScope scope, Guid? horseId, Guid? riderId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size, string? search = null);
     Task<DataPage<TrainingSession>> ListPlanSessionsAsync(Guid planId, Guid? riderId, int page, int size);
     Task<DataPage<TrainingRevision>> ListHistoryAsync(Guid planId, int page, int size);
     Task<List<TrainingSession>> GetPlanSessionsAsync(Guid planId, bool pendingOnly = false);
@@ -27,4 +29,5 @@ public interface ITrainingRepository
     Task<SessionResult?> GetResultAsync(Guid sessionId);
     Task<TrainerEvaluation?> GetEvaluationAsync(Guid sessionId);
     Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null);
+    Task<bool> HasUnrecoveredInjuryAsync(Guid horseId, DateOnly at);
 }

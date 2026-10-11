@@ -1,5 +1,9 @@
 # Bước 4 — Hợp đồng API backend
 
+**Cập nhật 10/10/2026:** hoàn thiện backend task Khoa #5–#10: archive và historical scope, selected medical clearance, timeline assessment/correction và kiểm chứng preventive care theo ngày Việt Nam. Training names/search theo current Trainer, detail có horseArchived. Snapshot current: 80 paths, 105 operations, 151 schemas, 91 secured operations. Xem [báo cáo và contract task #5–#10](KHOA_TASK_05_10_COMPLETION.md), gồm thay đổi bắt buộc chọn ID khi clearance.
+
+**Cập nhật 09/10/2026:** triển khai quản trị nhân sự/OTP hai bước, audit có tên và bộ lọc, cấu hình website và tìm kiếm training theo tên. Snapshot current có 79 paths, 104 operations, 150 schemas, 90 operations yêu cầu Bearer; không còn schema response rỗng và cả ba upload có multipart. Xem [hợp đồng và hướng dẫn cập nhật](MANAGER_AND_TRAINING_UPDATE.md). Các số liệu bên dưới là lịch sử các giai đoạn trước.
+
 **BE-004 — 05/10/2026:** Plan detail nhận sessionPage/sessionPageSize và trả metadata sessionTotal, không còn cap âm thầm 100; Rider chỉ đọc Plan có session giao mình. History thêm start/result/skip/evaluation; outcome snapshot có shape session/result/evaluation. Xem [contract BE-004](BE-004_TRAINING.md). OpenAPI/inventory current đã xuất lại, số operations giữ nguyên.
 
 **Cập nhật T02 — 05/10/2026:** xem [policy theo Word V1/V2 và gap code](T02_POLICY_BASELINE.md). API/OpenAPI dưới đây vẫn mô tả behavior hiện tại, không khẳng định các policy mới hoặc lựa chọn đang chờ đã được triển khai.

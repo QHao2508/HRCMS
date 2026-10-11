@@ -19,6 +19,7 @@ builder.Services.AddOptions<StorageOptions>().BindConfiguration(StorageOptions.S
     .Validate(x => x.IsValid(), "Storage requires Local or AzureBlob with a valid private container and HTTPS service connection.").ValidateOnStart();
 builder.Services.AddOptions<BusinessOptions>().BindConfiguration(BusinessOptions.Section).ValidateDataAnnotations().Validate(x => x.DefaultPageSize <= x.MaxPageSize && x.DefaultReportDays <= x.MaxReportDays && x.MinHorseHeightCm <= x.MaxHorseHeightCm && x.MinHorseWeightKg <= x.MaxHorseWeightKg && ClubCalendar.IsValidZone(x.TimeZoneId)).ValidateOnStart();
 builder.Services.AddOptions<WorkerOptions>().BindConfiguration(WorkerOptions.Section).ValidateDataAnnotations().ValidateOnStart();
+builder.Services.Configure<WebsiteOptions>(builder.Configuration.GetSection("Website"));
 builder.Services.AddOptions<BrandingOptions>().BindConfiguration(BrandingOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.Section).ValidateDataAnnotations()
     .Validate(x => Enum.IsDefined(x.Provider))
@@ -98,6 +99,7 @@ var api = app.MapGroup("/api").AddEndpointFilter<ValidationFilter>();
 api.MapAuth(); api.MapHorses(); api.MapTraining(); api.MapMedical(); api.MapCare(); api.MapInventory(); api.MapAttachments(); api.MapReporting();
 api.MapMetadata();
 api.MapBranding();
+api.MapWebsite();
 api.MapIncidentPhotos();
 app.Run();
 public partial class Program { }
