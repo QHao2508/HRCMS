@@ -6,7 +6,7 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Inventory;
 
-public sealed class InventoryService(CurrentUser current, IInventoryRepository repository, IUnitOfWork unitOfWork, PageReader pager, ClubEvents events) : IInventoryService
+public sealed class InventoryService(CurrentUser current, IInventoryRepository repository, IUnitOfWork unitOfWork, PageReader pager, ClubEvents events, TimeProvider clock) : IInventoryService
 {
     /// <summary>
     /// Đọc danh sách có lọc/phân trang vật tư trong InventoryService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -71,7 +71,8 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     public async Task<OperationResult> ArchiveItem(Guid id)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var item = Ensure.Found(await repository.FindItemAsync(id));
-        Ensure.That(item.Stock == 0, Messages.Get(MessageKey.ConsumeAdjustRemainingStockBeforeArchiving)); item.Archived = true;
+        Ensure.That(item.Stock == 0, Messages.Get(MessageKey.ConsumeAdjustRemainingStockBeforeArchiving));
+        Ensure.That(!await repository.HasOpenReplenishmentsAsync(id), Messages.Get(MessageKey.ItemHasOpenReplenishments), 409, "open_replenishment"); item.Archived = true;
         await events.Audit(AuditAction.InventoryArchived, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
@@ -81,12 +82,13 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     /// <param name="page">Giá trị kiểu int? dùng trong ListReplenishments.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListReplenishments.</param>
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API).</remarks>
-    public async Task<PageResponse<ReplenishmentRequest>> ListReplenishments(int? page, int? pageSize)
+    public async Task<PageResponse<ReplenishmentSummaryResponse>> ListReplenishments(int? page, int? pageSize)
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListReplenishmentsAsync(u.Role == Role.Groom ? u.Id : null, p, size);
-        return new(data.Items, p, size, data.Total);
+        var names = await repository.ItemNamesAsync(data.Items.Select(x=>x.ItemId).Distinct().ToArray());
+        return new(data.Items.Select(x=>ReplenishmentSummaryResponse.From(x,names.GetValueOrDefault(x.ItemId))).ToList(),p,size,data.Total);
     }
 
     /// <summary>
@@ -112,10 +114,30 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var request = Ensure.Found(await repository.FindReplenishmentAsync(id));
         Ensure.That(request.Status == ReplenishmentStatus.Pending, Messages.Get(MessageKey.RequestIsAlreadyReviewed), 409, "invalid_state");
-        request.Status = r.Approve ? ReplenishmentStatus.Approved : ReplenishmentStatus.Rejected; request.Notes = r.Notes;
+        request.Status = r.Approve ? ReplenishmentStatus.Approved : ReplenishmentStatus.Rejected; request.ReviewNotes = r.Notes; request.ReviewedBy = (await current.Get()).Id; request.ReviewedAt = clock.GetUtcNow();
         // Approval authorizes procurement; stock only increases after an actual receipt/movement.
         events.Notify(request.RequestedBy, NotificationType.InventoryReplenishmentReviewed, MessageKey.YourReplenishmentRequestWasReviewed, id);
         await events.Audit(AuditAction.InventoryReplenishmentReviewed, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return request;
+    }
+
+    public async Task<ReplenishmentReceiptResponse> ReceiveReplenishment(Guid id, ReplenishmentReceiptRequest r)
+    {
+        var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
+        var request = Ensure.Found(await repository.FindReplenishmentAsync(id));
+        Ensure.That(request.Status is ReplenishmentStatus.Approved or ReplenishmentStatus.PartiallyReceived, Messages.Get(MessageKey.ReplenishmentNotApproved), 409, "invalid_state");
+        Ensure.That(r.Quantity > 0 && r.Quantity <= request.Quantity - request.ReceivedQuantity && decimal.Round(r.Quantity,3) == r.Quantity, Messages.Get(MessageKey.InvalidReceiptQuantity));
+        Ensure.That(!string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.InvalidRequestBody));
+        var item = Ensure.Found(await repository.FindItemAsync(request.ItemId)); Ensure.That(!item.Archived, Messages.Get(MessageKey.ItemIsArchived));
+        item.Stock += r.Quantity;
+        var movement = new StockMovement { ItemId = item.Id, ActorId = u.Id, Quantity = r.Quantity, Reason = r.Reason.Trim(), ReplenishmentRequestId = id };
+        repository.AddMovement(movement);
+        request.ReceivedQuantity += r.Quantity; request.ReceivedBy = u.Id; request.ReceivedAt = clock.GetUtcNow();
+        request.Status = request.ReceivedQuantity == request.Quantity ? ReplenishmentStatus.Received : ReplenishmentStatus.PartiallyReceived;
+        await events.Audit(AuditAction.InventoryStockMoved,item.Id);
+        await events.Audit(AuditAction.InventoryReplenishmentReceived,id,System.Text.Json.JsonSerializer.Serialize(new { MovementId = movement.Id, r.Quantity }));
+        events.Notify(request.RequestedBy,NotificationType.InventoryReplenishmentReviewed,MessageKey.YourReplenishmentRequestWasReviewed,id);
+        await events.RefreshRoles(Role.ClubManager,Role.Groom); await unitOfWork.SaveChangesAsync();
+        return new(request,new StockMovementResponse(item,movement));
     }
 
 }

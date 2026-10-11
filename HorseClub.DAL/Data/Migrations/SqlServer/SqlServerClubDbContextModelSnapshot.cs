@@ -275,8 +275,21 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int?>("ArchiveCategory")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ArchiveReason")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<bool>("Archived")
                         .HasColumnType("bit");
+
+                    b.Property<long?>("ArchivedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ArchivedBy")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateOnly?>("BoardingEnd")
                         .HasColumnType("date");
@@ -456,8 +469,18 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                     b.Property<Guid>("ReporterId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<bool>("Resolved")
                         .HasColumnType("bit");
+
+                    b.Property<long?>("ResolvedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ResolvedBy")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("RoutedTo")
                         .HasColumnType("int");
@@ -966,7 +989,27 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<long?>("ReceivedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ReceivedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("ReceivedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ReviewNotes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<long?>("ReviewedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ReviewedBy")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Status")
@@ -1187,11 +1230,16 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<Guid?>("ReplenishmentRequestId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<long>("Version")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ReplenishmentRequestId");
 
                     b.HasIndex("ItemId", "CreatedAt");
 
@@ -1339,6 +1387,9 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
+                    b.Property<int?>("DurationMinutes")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("HorseId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1357,6 +1408,9 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<long>("ScheduledAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ScheduledEndAt")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("StartedAt")
@@ -1833,6 +1887,11 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("HorseClub.DAL.Entities.ReplenishmentRequest", null)
+                        .WithMany()
+                        .HasForeignKey("ReplenishmentRequestId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("HorseClub.DAL.Entities.TrainerEvaluation", b =>

@@ -14,4 +14,6 @@ public sealed class TrainingSession : Entity
     public string Notes { get; set; } = "";
     public SessionStatus Status { get; set; } = SessionStatus.Planned;
     public DateTimeOffset? StartedAt { get; set; }
+    public int? DurationMinutes { get; set; }
+    public DateTimeOffset? ScheduledEndAt { get; set; }
 }

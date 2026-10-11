@@ -24,6 +24,8 @@ public sealed class InventoryRepository(ClubDbContext db) : IInventoryRepository
         => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
     public ValueTask<InventoryItem?> FindItemAsync(Guid id) => db.Inventory.FindAsync(id);
     public ValueTask<ReplenishmentRequest?> FindReplenishmentAsync(Guid id) => db.Replenishments.FindAsync(id);
+    public Task<bool> HasOpenReplenishmentsAsync(Guid itemId) => db.Replenishments.AnyAsync(r => r.ItemId == itemId && (r.Status == ReplenishmentStatus.Pending || r.Status == ReplenishmentStatus.Approved || r.Status == ReplenishmentStatus.PartiallyReceived));
+    public Task<Dictionary<Guid,string>> ItemNamesAsync(Guid[] ids) => db.Inventory.Where(x=>ids.Contains(x.Id)).ToDictionaryAsync(x=>x.Id,x=>x.Name);
     public void AddItem(InventoryItem item) => db.Inventory.Add(item);
     public void AddMovement(StockMovement movement) => db.StockMovements.Add(movement);
     public void AddReplenishment(ReplenishmentRequest request) => db.Replenishments.Add(request);

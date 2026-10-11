@@ -31,6 +31,7 @@ public static class AuthEndpoints
         staff.MapGet("/directory", async (Role? role, int? page, int? pageSize, IAuthenticationService moduleService) => await moduleService.ListStaffDirectory(role, page, pageSize)).Produces<PageResponse<StaffDirectoryResponse>>(200);
         staff.MapPost("/{id:guid}/resend-invitation",async (Guid id,IAuthenticationService service)=>(await service.ResendInvitation(id)).ToHttpResult()).Produces(204);
         staff.MapPost("", async (StaffRequest r, IAuthenticationService moduleService) => (await moduleService.InviteStaff(r)).ToHttpResult()).Produces<UserResponse>(201);
+        staff.MapGet("/{id:guid}/workload", async (Guid id, IAuthenticationService service) => await service.GetStaffWorkload(id)).Produces<HorseClub.DAL.Abstractions.StaffWorkloadReadModel>(200);
         staff.MapPut("/{id:guid}/active", async (Guid id, ActiveRequest r, IAuthenticationService moduleService) => (await moduleService.SetStaffActive(id, r)).ToHttpResult()).Produces(204);
     }
     /// <summary>

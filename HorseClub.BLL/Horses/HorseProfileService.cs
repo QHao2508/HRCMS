@@ -76,11 +76,12 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     /// </summary>
     /// <param name="id">ID đối tượng được thao tác; quyền/phạm vi được kiểm trước khi đọc hoặc ghi.</param>
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
-    public async Task<OperationResult> ArchiveHorse(Guid id)
+    public async Task<OperationResult> ArchiveHorse(Guid id, HorseArchiveRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var horse = await access.Horse(id);
         Ensure.That(!await repository.HasActiveSessionAsync(id), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
         Ensure.That(!await repository.HasActiveCareAsync(id), Messages.Get(MessageKey.FinishActiveCareBeforeArchiving), 409, "invalid_state");
+        Ensure.That(Enum.IsDefined(r.Category) && !string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.ArchiveReasonRequired));
         var now = clock.GetUtcNow();
         var assignments = await repository.GetActiveAssignmentsAsync(id);
         var plans = await repository.GetOpenPlansAsync(id);
@@ -107,9 +108,9 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
             assignment.Active = false; assignment.EndDate = calendar.DateAt(now);
         }
         events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.HorseIsArchived, id);
-        horse.Archived = true;
+        horse.Archived = true; horse.ArchiveCategory = r?.Category; horse.ArchiveReason = r?.Reason.Trim(); horse.ArchivedBy = (await current.Get()).Id; horse.ArchivedAt = now;
         foreach (var occupancy in await repository.GetOccupanciesAsync(id)) occupancy.EndedAt = now;
-        await events.Audit(AuditAction.HorseArchived, id, "HorseArchived"); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+        await events.Audit(AuditAction.HorseArchived, id, System.Text.Json.JsonSerializer.Serialize(new { Category = r?.Category.ToString(), Reason = r?.Reason.Trim() })); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
 }

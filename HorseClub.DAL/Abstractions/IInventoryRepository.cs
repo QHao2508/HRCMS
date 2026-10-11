@@ -10,6 +10,8 @@ public interface IInventoryRepository
     Task<DataPage<ReplenishmentRequest>> ListReplenishmentsAsync(Guid? requesterId, int page, int size);
     ValueTask<InventoryItem?> FindItemAsync(Guid id);
     ValueTask<ReplenishmentRequest?> FindReplenishmentAsync(Guid id);
+    Task<bool> HasOpenReplenishmentsAsync(Guid itemId);
+    Task<Dictionary<Guid,string>> ItemNamesAsync(Guid[] ids);
     void AddItem(InventoryItem item);
     void AddMovement(StockMovement movement);
     void AddReplenishment(ReplenishmentRequest request);

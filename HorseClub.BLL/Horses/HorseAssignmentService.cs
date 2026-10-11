@@ -28,6 +28,24 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         foreach (var old in await repository.GetActiveAsync(horseId, r.Role))
         {
             Ensure.That(r.StartDate >= old.StartDate, Messages.Get(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
+            if (r.Role == Role.Groom && old.StaffId != r.StaffId)
+            {
+                var inProgress = await repository.GetInProgressCareAsync(horseId, old.StaffId);
+                Ensure.That(inProgress.Count == 0 || r.TakeOverInProgress && !string.IsNullOrWhiteSpace(r.TakeOverReason) && r.TakeOverReason.Trim().Length <= 2000, Messages.Get(MessageKey.FinishCareBeforeReassignment), 409, "care_in_progress");
+                foreach (var task in inProgress)
+                {
+                    task.GroomId = r.StaffId;
+                    await events.Audit(AuditAction.CareTaskReassigned, task.Id, System.Text.Json.JsonSerializer.Serialize(new { From = old.StaffId, To = r.StaffId, Reason = r.TakeOverReason?.Trim(), State = "InProgress" }));
+                    events.Notify(r.StaffId,NotificationType.CareAssigned,MessageKey.ACareTaskWasAssignedToYou,task.Id);
+                }
+                foreach (var task in await repository.GetPendingCareAsync(horseId, old.StaffId))
+                {
+                    task.GroomId = r.StaffId;
+                    await events.Audit(AuditAction.CareTaskReassigned, task.Id, System.Text.Json.JsonSerializer.Serialize(new { From = old.StaffId, To = r.StaffId }));
+                    events.Notify(r.StaffId, NotificationType.CareAssigned, MessageKey.ACareTaskWasAssignedToYou, task.Id);
+                }
+            }
+            events.Notify(old.StaffId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
             old.Active = false; old.EndDate = r.StartDate;
         }
         var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, Notes = r.Notes };

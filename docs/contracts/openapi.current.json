@@ -1294,6 +1294,103 @@
         ]
       }
     },
+    "/api/staff/{id}/workload": {
+      "get": {
+        "tags": [
+          "Staff"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_staff_id_workload",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffWorkloadReadModel"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/staff/{id}/active": {
       "put": {
         "tags": [
@@ -2767,6 +2864,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HorseArchiveRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "204": {
             "description": "No Content"
@@ -7141,6 +7248,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidentResolutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "204": {
             "description": "No Content"
@@ -8488,7 +8605,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageResponseOfReplenishmentRequest"
+                  "$ref": "#/components/schemas/PageResponseOfReplenishmentSummaryResponse"
                 }
               }
             }
@@ -8583,6 +8700,113 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReplenishmentRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/inventory/replenishments/{id}/receive": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "post_api_inventory_replenishments_id_receive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplenishmentReceiptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplenishmentReceiptResponse"
                 }
               }
             }
@@ -10640,6 +10864,17 @@
         "properties": {
           "active": {
             "type": "boolean"
+          },
+          "emergency": {
+            "type": "boolean",
+            "default": false
+          },
+          "reason": {
+            "maxLength": 2000,
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false
@@ -10708,6 +10943,17 @@
           "notes": {
             "maxLength": 2000,
             "type": "string"
+          },
+          "takeOverInProgress": {
+            "type": "boolean",
+            "default": false
+          },
+          "takeOverReason": {
+            "maxLength": 2000,
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "additionalProperties": false
@@ -10858,7 +11104,9 @@
           "MedicalRecordCorrected",
           "StaffInvitationResent",
           "WebsiteContentUpdated",
-          "WebsiteAssetUpdated"
+          "WebsiteAssetUpdated",
+          "InventoryReplenishmentReceived",
+          "CareTaskReassigned"
         ]
       },
       "AuditReadModel": {
@@ -11389,6 +11637,36 @@
           "archived": {
             "type": "boolean"
           },
+          "archiveCategory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/HorseArchiveCategory"
+              }
+            ]
+          },
+          "archiveReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "archivedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "archivedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -11404,6 +11682,33 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HorseArchiveCategory": {
+        "enum": [
+          "LeftClub",
+          "Transferred",
+          "Sold",
+          "Deceased",
+          "Other",
+          null
+        ]
+      },
+      "HorseArchiveRequest": {
+        "required": [
+          "category",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/HorseArchiveCategory"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -11767,6 +12072,26 @@
           "resolved": {
             "type": "boolean"
           },
+          "resolution": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resolvedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -11872,6 +12197,19 @@
           },
           "routedTo": {
             "$ref": "#/components/schemas/Role"
+          }
+        },
+        "additionalProperties": false
+      },
+      "IncidentResolutionRequest": {
+        "required": [
+          "resolution"
+        ],
+        "type": "object",
+        "properties": {
+          "resolution": {
+            "maxLength": 2000,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -13163,7 +13501,7 @@
         },
         "additionalProperties": false
       },
-      "PageResponseOfReplenishmentRequest": {
+      "PageResponseOfReplenishmentSummaryResponse": {
         "required": [
           "items",
           "page",
@@ -13175,7 +13513,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ReplenishmentRequest"
+              "$ref": "#/components/schemas/ReplenishmentSummaryResponse"
             }
           },
           "page": {
@@ -14140,6 +14478,46 @@
           "Cancelled"
         ]
       },
+      "ReplenishmentReceiptRequest": {
+        "required": [
+          "quantity",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "maximum": 1000000,
+            "minimum": 0.001,
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReplenishmentReceiptResponse": {
+        "required": [
+          "request",
+          "stock"
+        ],
+        "type": "object",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/ReplenishmentRequest"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/StockMovementResponse"
+          }
+        },
+        "additionalProperties": false
+      },
       "ReplenishmentRequest": {
         "type": "object",
         "properties": {
@@ -14164,6 +14542,48 @@
           },
           "notes": {
             "type": "string"
+          },
+          "receivedQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "reviewNotes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reviewedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "reviewedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "receivedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "receivedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "id": {
             "type": "string",
@@ -14232,8 +14652,95 @@
         "enum": [
           "Pending",
           "Approved",
-          "Rejected"
+          "Rejected",
+          "PartiallyReceived",
+          "Received"
         ]
+      },
+      "ReplenishmentSummaryResponse": {
+        "required": [
+          "id",
+          "itemId",
+          "itemName",
+          "requestedBy",
+          "quantity",
+          "status",
+          "notes",
+          "reviewNotes",
+          "receivedQuantity",
+          "receivedAt",
+          "createdAt",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestedBy": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReplenishmentStatus"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "reviewNotes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedQuantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "receivedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
       },
       "ReportCareResponse": {
         "required": [
@@ -14894,6 +15401,17 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "durationMinutes": {
+            "maximum": 480,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -15155,6 +15673,81 @@
         },
         "additionalProperties": false
       },
+      "StaffWorkItem": {
+        "required": [
+          "kind",
+          "horseId",
+          "referenceId",
+          "horseName",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "horseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "referenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "horseName": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffWorkloadReadModel": {
+        "required": [
+          "assignments",
+          "sessions",
+          "careTasks",
+          "preview"
+        ],
+        "type": "object",
+        "properties": {
+          "assignments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sessions": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "careTasks": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "preview": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffWorkItem"
+            }
+          },
+          "hasOpenWork": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
       "Stall": {
         "type": "object",
         "properties": {
@@ -15300,6 +15893,13 @@
           },
           "reason": {
             "type": "string"
+          },
+          "replenishmentRequestId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "id": {
             "type": "string",
@@ -15679,6 +16279,22 @@
             ],
             "format": "date-time"
           },
+          "durationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledEndAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -15717,7 +16333,9 @@
           "version",
           "horseName",
           "trainerName",
-          "riderName"
+          "riderName",
+          "durationMinutes",
+          "scheduledEndAt"
         ],
         "type": "object",
         "properties": {
@@ -15800,6 +16418,22 @@
               "null",
               "string"
             ]
+          },
+          "durationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledEndAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "additionalProperties": false

@@ -13,7 +13,7 @@ public interface ICareService
     Task<CareTask> RecordTask(Guid id, CareCompletionRequest r);
     Task<PageResponse<Incident>> ListIncidents(Guid? horseId, int? page, int? pageSize);
     Task<Incident> ReportIncident(IncidentRequest r);
-    Task<OperationResult> ResolveIncident(Guid id);
+    Task<OperationResult> ResolveIncident(Guid id, IncidentResolutionRequest? r = null);
     Task<PageResponse<Stable>> ListStables(int? page, int? pageSize);
     Task<Stable> CreateStable(NameRequest r);
     Task<PageResponse<StallSummaryResponse>> ListStalls(Guid? stableId, int? page, int? pageSize);

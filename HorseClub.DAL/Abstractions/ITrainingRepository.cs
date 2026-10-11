@@ -23,11 +23,12 @@ public interface ITrainingRepository
     Task<bool> HasPlanSessionsAsync(Guid planId, params SessionStatus[] statuses);
     Task<bool> HasRiderPlanSessionsAsync(Guid planId, Guid riderId);
     Task<bool> HasRiderConflictAsync(Guid exceptSessionId, Guid? riderId, DateTimeOffset scheduledAt);
+    Task<bool> HasScheduleConflictAsync(Guid exceptSessionId, Guid horseId, Guid? riderId, DateTimeOffset start, DateTimeOffset? end);
     Task<bool> HasActiveSessionAsync(Guid riderId, Guid horseId);
     Task<bool> HasResultAsync(Guid sessionId);
     Task<bool> HasEvaluationAsync(Guid sessionId);
     Task<SessionResult?> GetResultAsync(Guid sessionId);
     Task<TrainerEvaluation?> GetEvaluationAsync(Guid sessionId);
-    Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null);
+    Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null, DateTimeOffset? until = null);
     Task<bool> HasUnrecoveredInjuryAsync(Guid horseId, DateOnly at);
 }

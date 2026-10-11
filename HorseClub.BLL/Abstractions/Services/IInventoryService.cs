@@ -13,7 +13,8 @@ public interface IInventoryService
     Task<PageResponse<StockMovement>> ListMovements(Guid id, int? page, int? pageSize);
     Task<StockMovementResponse> RecordMovement(Guid id, MovementRequest r);
     Task<OperationResult> ArchiveItem(Guid id);
-    Task<PageResponse<ReplenishmentRequest>> ListReplenishments(int? page, int? pageSize);
+    Task<PageResponse<ReplenishmentSummaryResponse>> ListReplenishments(int? page, int? pageSize);
     Task<ReplenishmentRequest> RequestReplenishment(ReplenishmentRequestDto r);
+    Task<ReplenishmentReceiptResponse> ReceiveReplenishment(Guid id, ReplenishmentReceiptRequest r);
     Task<ReplenishmentRequest> ReviewReplenishment(Guid id, ReplenishmentReviewRequest r);
 }

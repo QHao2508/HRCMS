@@ -49,6 +49,9 @@ internal static class ClubModelConfiguration
         b.Entity<Stall>().HasOne<Stable>().WithMany().HasForeignKey(x => x.StableId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<StallOccupancy>().HasOne<Stall>().WithMany().HasForeignKey(x => x.StallId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<StockMovement>().HasOne<InventoryItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<StockMovement>().HasOne<ReplenishmentRequest>().WithMany().HasForeignKey(x => x.ReplenishmentRequestId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Incident>().Property(x => x.Resolution).HasMaxLength(2000);
+        b.Entity<Horse>().Property(x => x.ArchiveReason).HasMaxLength(2000);
         b.Entity<ReplenishmentRequest>().HasOne<InventoryItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
         foreach (var t in b.Model.GetEntityTypes().ToArray())
         {

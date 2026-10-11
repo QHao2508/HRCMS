@@ -33,6 +33,7 @@ public interface IAuthenticationService
     Task<PageResponse<StaffResponse>> ListStaff(int? page, int? pageSize, Role? role);
     Task<PageResponse<StaffDirectoryResponse>> ListStaffDirectory(Role? role, int? page, int? pageSize);
     Task<OperationResult> InviteStaff(StaffRequest r);
+    Task<HorseClub.DAL.Abstractions.StaffWorkloadReadModel> GetStaffWorkload(Guid id);
     Task<OperationResult> SetStaffActive(Guid id, ActiveRequest r);
     Task<OperationResult> ChangePassword(ResetRequest r, ChallengePurpose purpose);
 }

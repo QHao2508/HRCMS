@@ -65,7 +65,9 @@ public sealed class ApiContractTests
                 Assert.Equal(!anonymous, secured);
                 if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
             }
-        Assert.Equal(105, operationCount);
+        Assert.Equal(107, operationCount);
+        Assert.True(paths.TryGetProperty("/api/staff/{id}/workload", out _));
+        Assert.True(paths.TryGetProperty("/api/inventory/replenishments/{id}/receive", out _));
         Assert.Equal("bearer", root.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer").GetProperty("scheme").GetString());
         foreach (var path in new[] { "/api/registrations/{registrationId}/attachments", "/api/care/incidents/{incidentId}/photos" })
         {

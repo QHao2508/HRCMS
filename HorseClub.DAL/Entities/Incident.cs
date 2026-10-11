@@ -11,4 +11,7 @@ public sealed class Incident : Entity
     public IncidentSeverity Severity { get; set; }
     public Role RoutedTo { get; set; }
     public bool Resolved { get; set; }
+    public string? Resolution { get; set; }
+    public Guid? ResolvedBy { get; set; }
+    public DateTimeOffset? ResolvedAt { get; set; }
 }

@@ -5,6 +5,9 @@ public interface IAuthRepository
     Task<User?> GetDemoAccountAsync(string email, string userName);
     Task<User?> GetSessionUserAsync(Guid id);
     Task<bool> HasIdentityConflictAsync(string email, string name);
+    Task<bool> EmailExistsAsync(string email);
+    Task<bool> UsernameExistsAsync(string name);
+    Task<StaffWorkloadReadModel> GetWorkloadAsync(Guid staffId);
     Task<bool> HasRecentChallengeAsync(Guid userId, ChallengePurpose purpose, DateTimeOffset after);
     Task<List<EmailChallenge>> GetPendingChallengesAsync(Guid userId, ChallengePurpose purpose);
     Task<EmailChallenge?> GetLatestChallengeAsync(Guid userId, ChallengePurpose purpose);

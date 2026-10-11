@@ -15,4 +15,8 @@ public sealed class Horse : Entity
     public DateOnly? BoardingEnd { get; set; }
     public HealthStatus HealthStatus { get; set; } = HealthStatus.Monitoring;
     public bool Archived { get; set; }
+    public HorseArchiveCategory? ArchiveCategory { get; set; }
+    public string? ArchiveReason { get; set; }
+    public Guid? ArchivedBy { get; set; }
+    public DateTimeOffset? ArchivedAt { get; set; }
 }

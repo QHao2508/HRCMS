@@ -109,11 +109,14 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     /// </summary>
     /// <param name="id">ID đối tượng được thao tác; quyền/phạm vi được kiểm trước khi đọc hoặc ghi.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
-    public async Task<OperationResult> ResolveIncident(Guid id)
+    public async Task<OperationResult> ResolveIncident(Guid id, IncidentResolutionRequest? r = null)
     {
         var u = await current.Get(); var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId);
         Ensure.That(u.Role == incident.RoutedTo, Messages.Get(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
-        incident.Resolved = true; await events.Audit(AuditAction.IncidentResolved, id); await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+        Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
+        Ensure.That(r is not null && !string.IsNullOrWhiteSpace(r.Resolution) && r.Resolution.Trim().Length <= 2000, Messages.Get(MessageKey.ResolutionRequired));
+        incident.Resolved = true; incident.Resolution = r!.Resolution.Trim(); incident.ResolvedBy = u.Id; incident.ResolvedAt = clock.GetUtcNow();
+        await events.Audit(AuditAction.IncidentResolved, id); await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>

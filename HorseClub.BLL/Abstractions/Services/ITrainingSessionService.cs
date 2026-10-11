@@ -9,7 +9,7 @@ namespace HorseClub.BLL.Abstractions.Services;
 /// <summary>Application operations implemented by TrainingSessionService.</summary>
 public interface ITrainingSessionService
 {
-    Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at);
+    Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at, DateTimeOffset? until = null);
     Task<TrainingSession> CreateSession(Guid planId, SessionRequest r);
     Task<TrainingSession> EditSession(Guid id, SessionRequest r);
     Task Start(Guid id);

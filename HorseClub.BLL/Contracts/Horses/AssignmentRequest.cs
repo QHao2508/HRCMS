@@ -4,4 +4,4 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Contracts;
 
-public sealed record AssignmentRequest(Guid StaffId, [property: JsonRequired] Role Role, DateOnly StartDate, [property: MaxLength(2000)] string Notes);
+public sealed record AssignmentRequest(Guid StaffId, [property: JsonRequired] Role Role, DateOnly StartDate, [property: MaxLength(2000)] string Notes, bool TakeOverInProgress = false, [property: MaxLength(2000)] string? TakeOverReason = null);

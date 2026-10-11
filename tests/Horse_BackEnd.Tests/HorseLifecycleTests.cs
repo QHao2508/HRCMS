@@ -41,7 +41,7 @@ public sealed class HorseLifecycleTests
             db.Restrictions.Add(new MedicalRestriction { HorseId = s.HorseId, MedicalRecordId = s.RecordId, TrainingLock = true, ValidFrom = DateTimeOffset.UtcNow });
             await db.SaveChangesAsync();
         });
-        await ClubFactory.Post(manager, $"/api/horses/{s.HorseId}/archive", new { });
+        await ClubFactory.Post(manager, $"/api/horses/{s.HorseId}/archive", new { category = "LeftClub", reason = "Test archive" });
         await WorkerTests.Read(f, async db =>
         {
             Assert.True((await db.Horses.FindAsync(s.HorseId))!.Archived);
@@ -68,7 +68,7 @@ public sealed class HorseLifecycleTests
     {
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f); using var manager = await f.Client();
         await WorkerTests.Read(f, async db => await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER RejectHorseArchive ON Horses AFTER UPDATE AS IF EXISTS (SELECT 1 FROM inserted WHERE Archived = 1) THROW 51000, 'Injected archive failure', 1;"));
-        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync($"/api/horses/{s.HorseId}/archive", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync($"/api/horses/{s.HorseId}/archive", new { category = "LeftClub", reason = "Test archive" })).StatusCode);
         await WorkerTests.Read(f, async db =>
         {
             Assert.False((await db.Horses.FindAsync(s.HorseId))!.Archived);
@@ -87,7 +87,7 @@ public sealed class HorseLifecycleTests
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f); using var manager = await f.Client();
         if (training) await ClubFactory.Post(s.RiderClient, $"/api/training/sessions/{s.SessionId}/start", new { });
         else await WorkerTests.Read(f, async db => { db.CareTasks.Add(new CareTask { HorseId = s.HorseId, GroomId = (await f.User(Role.Groom)).Id, Status = CareStatus.InProgress }); await db.SaveChangesAsync(); });
-        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync($"/api/horses/{s.HorseId}/archive", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync($"/api/horses/{s.HorseId}/archive", new { category = "LeftClub", reason = "Test archive" })).StatusCode);
         await WorkerTests.Read(f, async db =>
         {
             Assert.False((await db.Horses.FindAsync(s.HorseId))!.Archived);

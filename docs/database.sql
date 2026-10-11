@@ -1444,3 +1444,324 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE TABLE [RealtimeOutboxMessages] (
+        [Id] uniqueidentifier NOT NULL,
+        [RecipientId] uniqueidentifier NOT NULL,
+        [NotificationId] uniqueidentifier NOT NULL,
+        [Attempts] int NOT NULL,
+        [NextAttemptAt] bigint NULL,
+        [LockedUntil] bigint NULL,
+        [LeaseOwner] uniqueidentifier NULL,
+        [SentAt] bigint NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_RealtimeOutboxMessages] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages] ([NotificationId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_RealtimeOutboxMessages_SentAt_NextAttemptAt_LockedUntil] ON [RealtimeOutboxMessages] ([SentAt], [NextAttemptAt], [LockedUntil]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008031610_RealtimeNotificationOutbox', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    DROP INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [EventType] nvarchar(4000) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [NotificationVersion] bigint NOT NULL DEFAULT CAST(0 AS bigint);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId_NotificationVersion] ON [RealtimeOutboxMessages] ([NotificationId], [NotificationVersion]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033133_RealtimeNotificationReadSignals', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationVersion]', N'SourceVersion', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationId]', N'SourceId', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[IX_RealtimeOutboxMessages_NotificationId_NotificationVersion]', N'IX_RealtimeOutboxMessages_SourceId_SourceVersion', 'INDEX';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033516_RealtimeResourceSignals', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    CREATE TABLE [WebsiteSettings] (
+        [Id] uniqueidentifier NOT NULL,
+        [ContentJson] nvarchar(max) NOT NULL,
+        [LogoName] nvarchar(4000) NULL,
+        [LogoType] nvarchar(4000) NULL,
+        [HeroName] nvarchar(4000) NULL,
+        [HeroType] nvarchar(4000) NULL,
+        [BackgroundName] nvarchar(4000) NULL,
+        [BackgroundType] nvarchar(4000) NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_WebsiteSettings] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261009025334_WebsiteManagement', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD [ReplenishmentRequestId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [DurationMinutes] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [ScheduledEndAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedQuantity] decimal(18,3) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewNotes] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [Resolution] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveCategory] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveReason] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    CREATE INDEX [IX_StockMovements_ReplenishmentRequestId] ON [StockMovements] ([ReplenishmentRequestId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD CONSTRAINT [FK_StockMovements_Replenishments_ReplenishmentRequestId] FOREIGN KEY ([ReplenishmentRequestId]) REFERENCES [Replenishments] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261011120226_BusinessRuleLifecycle', N'10.0.12');
+END;
+
+COMMIT;
+GO
+

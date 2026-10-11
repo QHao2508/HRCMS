@@ -17,14 +17,14 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <param name="intensity">Giá trị kiểu Intensity dùng trong Guard.</param>
     /// <param name="type">Giá trị kiểu TrainingType dùng trong Guard.</param>
     /// <param name="at">Thời điểm nghiệp vụ được kiểm, tính theo UTC rồi quy đổi múi giờ khi cần.</param>
-    public async Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at)
+    public async Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at, DateTimeOffset? until = null)
     {
         var horse = Ensure.Found(await repository.FindHorseAsync(horseId));
         Ensure.That(!horse.Archived, Messages.Get(MessageKey.HorseIsArchived), 409, "horse_archived");
         if (horse.HealthStatus == HealthStatus.Isolated || intensity == Intensity.Heavy && (horse.HealthStatus == HealthStatus.Injured
             || await repository.HasUnrecoveredInjuryAsync(horseId, calendar.DateAt(at))))
             throw new ApiException(409, "medical_block", Messages.Get(MessageKey.CurrentHealthStatusPreventsThisTraining), horseId);
-        var restrictions = await repository.GetRestrictionsAsync(horseId, at);
+        var restrictions = await repository.GetRestrictionsAsync(horseId, at, until);
         foreach (var r in restrictions)
             if (r.BlockAllTraining || r.TrainingLock && intensity == Intensity.Heavy || r.MaxIntensity.HasValue && intensity > r.MaxIntensity
                 || r.MaxDistanceMetres.HasValue && distance > r.MaxDistanceMetres || r.NoSprint && type == TrainingType.Sprint)
@@ -78,12 +78,17 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var date = calendar.DateAt(r.ScheduledAt);
         Ensure.That(r.ScheduledAt != default && date >= p.StartDate && date <= p.EndDate, Messages.Get(MessageKey.SessionMustFallWithinPlanDatesInTheClub));
         Ensure.That(r.ScheduledAt >= clock.GetUtcNow().AddMinutes(-options.Value.ScheduleGraceMinutes), Messages.Get(MessageKey.ScheduleSessionsInTheFuture));
-        await Guard(s.HorseId, r.DistanceMetres, r.Intensity, r.TrainingType, r.ScheduledAt);
+        Ensure.That(!r.DurationMinutes.HasValue || r.DurationMinutes is >= 1 and <= 480, Messages.Get(MessageKey.InvalidSessionDuration));
+        var end = r.DurationMinutes.HasValue ? (DateTimeOffset?)r.ScheduledAt.AddMinutes(r.DurationMinutes.Value) : null;
+        Ensure.That(!end.HasValue || calendar.DateAt(end.Value.AddTicks(-1)) <= p.EndDate, Messages.Get(MessageKey.InvalidSessionDuration));
+        await Guard(s.HorseId, r.DistanceMetres, r.Intensity, r.TrainingType, r.ScheduledAt, end);
+        Ensure.That(!await repository.HasScheduleConflictAsync(s.Id,s.HorseId,r.RiderId,r.ScheduledAt,end), Messages.Get(MessageKey.SessionScheduleOverlap),409,"schedule_overlap");
         if (r.RiderId.HasValue)
         {
             await access.Staff(r.RiderId.Value, Role.WorkRider);
             Ensure.That(!await repository.HasRiderConflictAsync(s.Id, r.RiderId, r.ScheduledAt), Messages.Get(MessageKey.RiderAlreadyHasASessionAtThisTime), 409, "rider_conflict");
         }
+        s.DurationMinutes = r.DurationMinutes; s.ScheduledEndAt = end?.ToUniversalTime();
         s.ScheduledAt = r.ScheduledAt.ToUniversalTime(); s.TrainingType = r.TrainingType; s.DistanceMetres = r.DistanceMetres;
         s.Intensity = r.Intensity; s.Surface = r.Surface; s.Target = r.Target; s.Notes = r.Notes; s.RiderId = r.RiderId;
         s.Status = r.RiderId.HasValue ? SessionStatus.Assigned : SessionStatus.Planned;
@@ -106,7 +111,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var today = calendar.Today(clock);
         Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Get(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
         Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
-        await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow());
+        await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null);
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
         await events.TrainingHistory(plan, s);
         await events.Audit(AuditAction.TrainingSessionStarted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync();
@@ -213,7 +218,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<TrainingSession> AssignRider(Guid id, RiderRequest r)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id));
-        return await EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId));
+        return await EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId, s.DurationMinutes));
     }
 
     /// <summary>

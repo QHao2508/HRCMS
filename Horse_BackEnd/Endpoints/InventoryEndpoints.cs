@@ -17,8 +17,9 @@ public static class InventoryEndpoints
         inventory.MapGet("/{id:guid}/movements", async (Guid id, int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListMovements(id, page, pageSize)).Produces<PageResponse<StockMovement>>(200);
         inventory.MapPost("/{id:guid}/movements", async (Guid id, MovementRequest r, IInventoryService moduleService) => await moduleService.RecordMovement(id, r)).Produces<StockMovementResponse>(200);
         inventory.MapPost("/{id:guid}/archive", async (Guid id, IInventoryService moduleService) => (await moduleService.ArchiveItem(id)).ToHttpResult()).Produces(204);
-        inventory.MapGet("/replenishments", async (int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListReplenishments(page, pageSize)).Produces<PageResponse<ReplenishmentRequest>>(200);
+        inventory.MapGet("/replenishments", async (int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListReplenishments(page, pageSize)).Produces<PageResponse<ReplenishmentSummaryResponse>>(200);
         inventory.MapPost("/replenishments", async (ReplenishmentRequestDto r, IInventoryService moduleService) => await moduleService.RequestReplenishment(r)).Produces<ReplenishmentRequest>(200);
+        inventory.MapPost("/replenishments/{id:guid}/receive", async (Guid id, ReplenishmentReceiptRequest r, IInventoryService service) => await service.ReceiveReplenishment(id,r)).Produces<ReplenishmentReceiptResponse>(200);
         inventory.MapPost("/replenishments/{id:guid}/review", async (Guid id, ReplenishmentReviewRequest r, IInventoryService moduleService) => await moduleService.ReviewReplenishment(id, r)).Produces<ReplenishmentRequest>(200);
     }
 }

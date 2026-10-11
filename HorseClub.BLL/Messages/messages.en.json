@@ -163,5 +163,20 @@
   "CorrectionMustKeepAssessmentDate": "A correction must keep the original examination date. Record a separate examination to assess another date.",
   "ClearanceRequiresExplicitSelection": "Select the restrictions, injuries or treatments to close when issuing clearance. A follow-up without clearance must not select items to close.",
   "InvalidClearanceSelection": "Clearance items must be unique, open, effective by the follow-up date and belong to this horse.",
-  "FinishActiveCareBeforeArchiving": "Finish active care tasks before archiving."
+  "FinishActiveCareBeforeArchiving": "Finish active care tasks before archiving.",
+  "InvalidUsername": "Username must contain 3 to 80 letters, digits, dots, underscores or hyphens, without spaces or @.",
+  "EmailAlreadyRegistered": "Email is already registered.",
+  "UsernameAlreadyRegistered": "Username is already registered.",
+  "StaffHasOpenWork": "Transfer open assignments and tasks before disabling this staff account, or use emergency disable with a reason.",
+  "EmergencyDisableReasonRequired": "An emergency disable reason is required.",
+  "StaffDisabledWithOpenWork": "A staff account was disabled with open work requiring reassignment.",
+  "IncidentAlreadyResolved": "Incident is already resolved.",
+  "ResolutionRequired": "An operational resolution summary is required.",
+  "SessionScheduleOverlap": "The horse or rider has an overlapping training session.",
+  "InvalidSessionDuration": "Training duration must be between 1 and 480 minutes and end within the plan dates.",
+  "ReplenishmentNotApproved": "Only an approved replenishment can be received.",
+  "InvalidReceiptQuantity": "Receipt quantity must be positive and cannot exceed the remaining approved quantity.",
+  "ItemHasOpenReplenishments": "Finish or reject open replenishments before archiving this item.",
+  "ArchiveReasonRequired": "An archive category and operational reason are required.",
+  "FinishCareBeforeReassignment": "Finish in-progress care before replacing the groom."
 }

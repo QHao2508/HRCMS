@@ -84,6 +84,13 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
     public Task<bool> HasRiderPlanSessionsAsync(Guid planId, Guid riderId) => db.Sessions.AnyAsync(x => x.PlanId == planId && x.RiderId == riderId);
     public Task<bool> HasRiderConflictAsync(Guid exceptSessionId, Guid? riderId, DateTimeOffset scheduledAt)
         => db.Sessions.AnyAsync(x => x.Id != exceptSessionId && x.RiderId == riderId && x.ScheduledAt == scheduledAt && (x.Status == SessionStatus.Assigned || x.Status == SessionStatus.InProgress));
+    public Task<bool> HasScheduleConflictAsync(Guid exceptSessionId, Guid horseId, Guid? riderId, DateTimeOffset start, DateTimeOffset? end)
+    {
+        var query = db.Sessions.Where(x => x.Id != exceptSessionId && (x.HorseId == horseId || riderId != null && x.RiderId == riderId)
+            && (x.Status == SessionStatus.InProgress || (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned) && db.Plans.Any(p=>p.Id == x.PlanId && p.Status == PlanStatus.Active)));
+        if (end.HasValue) return query.AnyAsync(x => x.ScheduledAt < end && (x.ScheduledEndAt != null ? x.ScheduledEndAt > start : x.ScheduledAt >= start));
+        return query.AnyAsync(x => x.ScheduledEndAt != null ? x.ScheduledAt <= start && x.ScheduledEndAt > start : x.ScheduledAt == start);
+    }
     public Task<bool> HasActiveSessionAsync(Guid riderId, Guid horseId)
         => db.Sessions.AnyAsync(x => x.Status == SessionStatus.InProgress && (x.RiderId == riderId || x.HorseId == horseId));
     public Task<bool> HasResultAsync(Guid sessionId) => db.Results.AnyAsync(x => x.SessionId == sessionId);
@@ -91,10 +98,12 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
     public Task<bool> HasUnrecoveredInjuryAsync(Guid horseId, DateOnly at) => db.Injuries.AnyAsync(x => x.HorseId == horseId && x.Status != InjuryStatus.Recovered && x.InjuryDate <= at);
     public Task<SessionResult?> GetResultAsync(Guid sessionId) => db.Results.SingleOrDefaultAsync(x => x.SessionId == sessionId);
     public Task<TrainerEvaluation?> GetEvaluationAsync(Guid sessionId) => db.Evaluations.SingleOrDefaultAsync(x => x.SessionId == sessionId);
-    public Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null)
+    public Task<List<MedicalRestriction>> GetRestrictionsAsync(Guid horseId, DateTimeOffset? effectiveAt = null, DateTimeOffset? until = null)
     {
         var query = db.Restrictions.Where(x => x.HorseId == horseId && !x.Cleared);
-        if (effectiveAt.HasValue) query = query.Where(x => x.ValidFrom <= effectiveAt && (x.ValidUntil == null || x.ValidUntil >= effectiveAt));
+        if (effectiveAt.HasValue) query = until.HasValue
+            ? query.Where(x => x.ValidFrom < until && (x.ValidUntil == null || x.ValidUntil >= effectiveAt))
+            : query.Where(x => x.ValidFrom <= effectiveAt && (x.ValidUntil == null || x.ValidUntil >= effectiveAt));
         return query.ToListAsync();
     }
 }
