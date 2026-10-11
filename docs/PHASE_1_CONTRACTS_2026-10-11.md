@@ -654,4 +654,3 @@ StaffCreated, StaffActiveChanged, RegistrationDraftCreated, RegistrationEdited, 
 ### SessionStatus
 
 Planned, Assigned, InProgress, Completed, Skipped, IssueReported
-
