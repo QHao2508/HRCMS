@@ -49,6 +49,27 @@ public sealed class ClubAccess(CurrentUser current, IHorseRepository horses, IAc
         Ensure.That(await assignments.IsAssignedAsync(horseId, u.Id, Role.Trainer),
             Messages.Get(MessageKey.OnlyTheCurrentAssignedTrainerMayChangeTraining), 403, "forbidden");
     }
+    public async Task<Horse> TrainingHistoryHorse(Guid horseId, Guid creatorId)
+    {
+        var user = await current.Get();
+        var horse = Ensure.Found(await horses.FindAsync(horseId));
+        if (user.Role == Role.ClubManager || user.Role == Role.HorseOwner && horse.OwnerId == user.Id
+            || user.Role == Role.Trainer && creatorId == user.Id) return horse;
+        return await Horse(horseId);
+    }
+    public async Task<bool> IsCurrentHorseReader(Guid horseId)
+    {
+        try { await Horse(horseId); return true; }
+        catch (ApiException e) when (e.Status == 403 || e.Code == "horse_archived") { return false; }
+    }
+    public async Task<Horse> AssignmentHistoryHorse(Guid horseId)
+    {
+        var user = await current.Get();
+        var horse = Ensure.Found(await horses.FindAsync(horseId));
+        Ensure.That(user.Role == Role.ClubManager || user.Role == Role.HorseOwner && horse.OwnerId == user.Id
+            || await records.HasHistoricalAssignmentAsync(horseId, user.Id), Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope), 403, "forbidden");
+        return horse;
+    }
     /// <summary>
     /// Xác nhận quyền bác sĩ thú y và phạm vi ngựa trước thao tác y tế.
     /// </summary>

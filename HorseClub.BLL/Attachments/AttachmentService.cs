@@ -16,7 +16,7 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<OperationResult> GetHorsePhoto(Guid horseId)
     {
-        var horse = await access.Horse(horseId);
+        var horse = await access.Horse(horseId, allowArchived: true);
         var attachment = Ensure.Found(await repository.GetHorsePhotoAsync(horse.RegistrationId));
         return OperationResult.File(await storage.OpenRead(attachment.StorageName), attachment.ContentType, attachment.FileName);
     }
