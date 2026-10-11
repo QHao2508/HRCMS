@@ -20,4 +20,5 @@ public interface ICareRepository
     Task<DataPage<CareTask>> ListTasksAsync(HorseScope scope, Guid? horseId, Guid? groomId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size);
     Task<DataPage<Incident>> ListIncidentsAsync(HorseScope scope, Guid? horseId, Guid? reporterId, Role? routedRole, int page, int size);
     Task<DataPage<Stall>> ListStallsAsync(Guid? stableId, int page, int size);
+    Task<Dictionary<Guid, Guid?>> ListStallOccupanciesAsync(IEnumerable<Guid> stallIds, HorseScope scope);
 }

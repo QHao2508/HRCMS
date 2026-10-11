@@ -48,4 +48,11 @@ public sealed class CareRepository(ClubDbContext db) : ICareRepository
         if (stableId.HasValue) query = query.Where(x => x.StableId == stableId);
         return await Page(query.OrderBy(x => x.Name), page, size);
     }
+    public Task<Dictionary<Guid, Guid?>> ListStallOccupanciesAsync(IEnumerable<Guid> stallIds, HorseScope scope)
+    {
+        var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
+        return db.Occupancies.AsNoTracking().Where(x => stallIds.Contains(x.StallId) && x.EndedAt == null)
+            .Select(x => new { x.StallId, HorseId = horses.Contains(x.HorseId) ? (Guid?)x.HorseId : null })
+            .ToDictionaryAsync(x => x.StallId, x => x.HorseId);
+    }
 }

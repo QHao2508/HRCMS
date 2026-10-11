@@ -15247,7 +15247,9 @@
           "id",
           "stableId",
           "name",
-          "cleaningStatus"
+          "cleaningStatus",
+          "occupied",
+          "horseId"
         ],
         "type": "object",
         "properties": {
@@ -15264,6 +15266,16 @@
           },
           "cleaningStatus": {
             "$ref": "#/components/schemas/CleaningStatus"
+          },
+          "occupied": {
+            "type": "boolean"
+          },
+          "horseId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         },
         "additionalProperties": false

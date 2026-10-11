@@ -6,4 +6,6 @@ public sealed record StallSummaryResponse(
     Guid Id,
     Guid StableId,
     string Name,
-    CleaningStatus CleaningStatus);
+    CleaningStatus CleaningStatus,
+    bool Occupied = false,
+    Guid? HorseId = null);

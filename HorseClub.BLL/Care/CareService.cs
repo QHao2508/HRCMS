@@ -23,9 +23,9 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
         var u = await current.Get(); var scope = await access.Scope();
         Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.Groom, Role.Veterinarian);
         if (horseId.HasValue) await access.Horse(horseId.Value);
-        var clinical = u.Role is Role.Groom or Role.Veterinarian or Role.ClubManager;
+        var clinical = u.Role is Role.Groom or Role.Veterinarian;
         var data = await pager.Page(page, pageSize, (p, size) => repository.ListTasksAsync(scope, horseId, u.Role == Role.Groom ? u.Id : null, status, from, to, p, size));
-        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type != CareType.Treatment ? x.Instructions : null, clinical || x.Type != CareType.Treatment ? x.Notes : null));
+        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Instructions : null, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Notes : null));
     }
 
     /// <summary>
@@ -146,7 +146,9 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<PageResponse<StallSummaryResponse>> ListStalls(Guid? stableId, int? page, int? pageSize)
     {
         Ensure.Role(await current.Get(), Role.ClubManager, Role.Groom);
-        return PageReader.Map(await pager.Page(page, pageSize, (p, size) => repository.ListStallsAsync(stableId, p, size)), x => new StallSummaryResponse(x.Id, x.StableId, x.Name, x.CleaningStatus));
+        var data = await pager.Page(page, pageSize, (p, size) => repository.ListStallsAsync(stableId, p, size));
+        var occupancy = await repository.ListStallOccupanciesAsync(data.Items.Select(x => x.Id), await access.Scope());
+        return PageReader.Map(data, x => new StallSummaryResponse(x.Id, x.StableId, x.Name, x.CleaningStatus, occupancy.ContainsKey(x.Id), occupancy.GetValueOrDefault(x.Id)));
     }
 
     /// <summary>
