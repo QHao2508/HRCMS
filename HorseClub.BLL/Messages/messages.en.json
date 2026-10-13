@@ -186,5 +186,9 @@
   "StaffProfileBookingsConflict": "The updated profile would invalidate existing training bookings.",
   "TrainerSessionInProgress": "Finish in-progress training before replacing the trainer.",
   "SchedulingDurationRequired": "A session duration is required to check working hours.",
-  "TrainerUnassigned": "Assign an active trainer to the horse before scheduling."
+  "TrainerUnassigned": "Assign an active trainer to the horse before scheduling.",
+  "TreatmentTaskCompletedReviewPlan": "A groom completed a treatment care task. Review the treatment plan status.",
+  "MedicalCaseAlreadyResolved": "This medical case is already resolved.",
+  "MedicalCaseMustUseLatestVersion": "Select the current version of the medical case.",
+  "ManagerTrainerAssignmentReasonRequired": "Enter a reason when the club manager assigns a trainer in place of the head trainer."
 }

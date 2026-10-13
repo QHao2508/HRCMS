@@ -27,11 +27,13 @@ public sealed class ClubAccess(CurrentUser current, IHorseRepository horses, IAc
     public async Task<Horse> Horse(Guid id, bool allowArchived = false)
     {
         var user = await current.Get();
-        var horse = Ensure.Found(await horses.FindAsync(id));
+        // Một lượt SQL: lấy ngựa kèm cờ "đang được phân công" thay vì FindAsync rồi IsAssignedAsync.
+        var (found, assigned) = user.Role is Role.ClubManager or Role.HorseOwner ? (await horses.FindAsync(id), false) : await horses.FindWithAssignmentAsync(id, user.Id);
+        var horse = Ensure.Found(found);
         if (horse.Archived && !allowArchived) throw new ApiException(409, "horse_archived", Messages.Get(MessageKey.HorseIsArchived));
         if (user.Role == Role.ClubManager) return horse;
         if (user.Role == Role.HorseOwner && horse.OwnerId == user.Id) return horse;
-        if (await assignments.IsAssignedAsync(id, user.Id)) return horse;
+        if (assigned) return horse;
         // Riders only see horses with sessions specifically assigned to them.
         if (user.Role == Role.WorkRider && await records.HasRiderSessionAsync(id, user.Id)) return horse;
         throw new ApiException(403, "forbidden", Messages.Get(MessageKey.HorseIsOutsideYourAssignedScope));
@@ -108,7 +110,8 @@ public sealed class ClubAccess(CurrentUser current, IHorseRepository horses, IAc
     /// <param name="horseId">ID ngựa cần kiểm sở hữu/phân công và phạm vi nghiệp vụ.</param>
     public async Task MedicalDetails(Guid horseId)
     {
-        // Manager gets aggregate/operational summaries, not clinical notes.
-        await Vet(horseId);
+        // Hồ sơ khám đầy đủ: Vet (ghi) và Manager (chỉ đọc) theo RolePolicy.
+        Ensure.Role(await current.Get(), RolePolicy.MedicalRecordReaders);
+        await Horse(horseId);
     }
 }

@@ -1904,3 +1904,64 @@ END;
 
 COMMIT;
 GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    DROP INDEX [IX_MedicalRecords_HorseId] ON [MedicalRecords];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [MedicalRecords] ADD [CaseRootId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [MedicalRecords] ADD [InitialSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [FollowUps] ADD [CurrentSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [FollowUps] ADD [PreviousSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    CREATE INDEX [IX_MedicalRecords_HorseId_CaseRootId] ON [MedicalRecords] ([HorseId], [CaseRootId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013105448_MedicalCaseHistory', N'10.0.12');
+END;
+
+COMMIT;
+GO

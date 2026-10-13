@@ -18,6 +18,7 @@ public static class CareEndpoints
         c.MapPost("/tasks/{id:guid}/record", async (Guid id, CareCompletionRequest r, ICareService moduleService) => await moduleService.RecordTask(id, r)).Produces<CareTask>(200);
         c.MapGet("/incidents", async (Guid? horseId, int? page, int? pageSize, ICareService moduleService) => await moduleService.ListIncidents(horseId, page, pageSize)).Produces<PageResponse<Incident>>(200);
         c.MapPost("/incidents", async (IncidentRequest r, ICareService moduleService) => await moduleService.ReportIncident(r)).Produces<Incident>(200);
+        c.MapPost("/incidents/{id:guid}/route", async (Guid id, IncidentRouteRequest r, ICareService moduleService) => await moduleService.RerouteIncident(id, r)).Produces<Incident>(200);
         c.MapPost("/incidents/{id:guid}/resolve", async (Guid id, IncidentResolutionRequest r, ICareService moduleService) => (await moduleService.ResolveIncident(id, r)).ToHttpResult()).Produces(204);
         c.MapGet("/stables", async (int? page, int? pageSize, ICareService moduleService) => await moduleService.ListStables(page, pageSize)).Produces<PageResponse<Stable>>(200);
         c.MapPost("/stables", async (NameRequest r, ICareService moduleService) => await moduleService.CreateStable(r)).Produces<Stable>(200);
@@ -27,5 +28,6 @@ public static class CareEndpoints
         c.MapPost("/stalls/{id:guid}/occupancy", async (Guid id, OccupancyRequest r, ICareService moduleService) => await moduleService.OccupyStall(id, r)).Produces<StallOccupancy>(200);
         c.MapPost("/stalls/{id:guid}/vacate", async (Guid id, ICareService moduleService) => (await moduleService.VacateStall(id)).ToHttpResult()).Produces(204);
         c.MapPost("/stalls/{id:guid}/cleaned", async (Guid id, ICareService moduleService) => (await moduleService.MarkStallClean(id)).ToHttpResult()).Produces(204);
+        c.MapPut("/stalls/{id:guid}/cleaning", async (Guid id, StallCleaningRequest r, ICareService moduleService) => (await moduleService.SetStallCleaning(id, r)).ToHttpResult()).Produces(204);
     }
 }

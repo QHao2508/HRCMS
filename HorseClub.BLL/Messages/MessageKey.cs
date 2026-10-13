@@ -190,4 +190,8 @@ public enum MessageKey
     TrainerSessionInProgress = 186,
     SchedulingDurationRequired = 187,
     TrainerUnassigned = 188,
+    TreatmentTaskCompletedReviewPlan = 189,
+    MedicalCaseAlreadyResolved = 190,
+    MedicalCaseMustUseLatestVersion = 191,
+    ManagerTrainerAssignmentReasonRequired = 192,
 }

@@ -76,16 +76,18 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
         var sessions = rows.Sessions; var tasks = rows.Tasks;
         Ensure.That(sessions.Count <= options.Value.MaxReportRecords && tasks.Count <= options.Value.MaxReportRecords, Messages.Get(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
         var sessionIds = sessions.Select(x => x.Id).ToArray();
-        var results = await queries.ResultsAsync(sessionIds);
+        // Không có buổi tập thì không cần hỏi kết quả (bớt một lượt SQL).
+        var results = sessionIds.Length == 0 ? new List<SessionResult>() : await queries.ResultsAsync(sessionIds);
         var completed = sessions.Count(x => x.Status is SessionStatus.Completed or SessionStatus.IssueReported);
         var medicalVisible = u.Role is Role.Veterinarian or Role.ClubManager or Role.HorseOwner;
-        var medicalCount = medicalVisible ? await queries.MedicalCountAsync(scope, horseId, start, end) : 0;
         List<MedicalRecord>? clinical = null;
         if (u.Role == Role.Veterinarian)
         {
             clinical = await queries.ClinicalAsync(scope, horseId, start, end, options.Value.MaxReportRecords);
             Ensure.That(clinical.Count <= options.Value.MaxReportRecords, Messages.Get(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
         }
+        // Vet đã có danh sách hồ sơ (cùng điều kiện lọc) nên đếm trực tiếp, không cần thêm câu COUNT.
+        var medicalCount = clinical is not null ? clinical.Count : medicalVisible ? await queries.MedicalCountAsync(scope, horseId, start, end) : 0;
         var resultMap = results.ToDictionary(x => x.SessionId);
         var series = sessions.GroupBy(x => Bucket(calendar.Local(x.ScheduledAt), grouping, calendar.Local(start))).OrderBy(x => x.Key).Select(g => new ReportSeriesResponse(g.Key, g.Count(), g.Count(x => x.Status is SessionStatus.Completed or SessionStatus.IssueReported), g.Sum(x => x.DistanceMetres), g.Sum(x => resultMap.TryGetValue(x.Id, out var r) ? r.DistanceMetres : 0)));
         return OperationResult.Ok(new ReportResponse(start, end, grouping, sessions.Count == 0 && tasks.Count == 0 && (!medicalVisible || medicalCount == 0), new ReportKpiResponse(sessions.Count, completed, sessions.Count == 0 ? 0 : decimal.Round(100m * completed / sessions.Count, 2), results.Sum(x => x.DistanceMetres), results.Sum(x => x.TimeSeconds), tasks.Count, tasks.Count(x => x.Status == CareStatus.Completed), medicalVisible ? (int?)medicalCount : null), series, sessions.Select(x => new ReportTrainingResponse(x.Id, x.HorseId, x.ScheduledAt, x.Status, x.DistanceMetres, x.Target, resultMap.GetValueOrDefault(x.Id))), tasks.Select(x => new ReportCareResponse(x.Id, x.HorseId, x.Type, x.Status, x.ScheduledAt, x.ApprovedPortionKg, x.ActualPortionKg)), clinical));

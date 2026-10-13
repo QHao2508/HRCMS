@@ -11,6 +11,8 @@ public sealed class FileRepository(ClubDbContext db) : IFileRepository
     public Task<int> CountAttachmentsAsync(Guid registrationId) => db.Attachments.CountAsync(x => x.RegistrationId == registrationId);
     public Task<Attachment?> FindAttachmentAsync(Guid registrationId, Guid id) => db.Attachments.SingleOrDefaultAsync(x => x.Id == id && x.RegistrationId == registrationId);
     public void AddAttachment(Attachment attachment) => db.Attachments.Add(attachment);
+    public Task<List<Attachment>> ListHorsePhotosForReplaceAsync(Guid registrationId) => db.Attachments.Where(x => x.RegistrationId == registrationId && x.Type == AttachmentType.HorsePhoto).ToListAsync();
+    public void RemoveAttachment(Attachment attachment) => db.Attachments.Remove(attachment);
     public ValueTask<Incident?> FindIncidentAsync(Guid id) => db.Incidents.FindAsync(id);
     public Task<List<IncidentPhoto>> ListPhotosAsync(Guid incidentId) => db.IncidentPhotos.AsNoTracking().Where(x => x.IncidentId == incidentId).ToListAsync();
     public Task<int> CountPhotosAsync(Guid incidentId) => db.IncidentPhotos.CountAsync(x => x.IncidentId == incidentId);

@@ -13,6 +13,9 @@ public static class MedicalEndpoints
     {
         var m = api.MapGroup("/horses/{horseId:guid}/medical").WithTags("Medical").RequireAuthorization();
         m.MapGet("/summary", async (Guid horseId, IMedicalService moduleService) => await moduleService.GetSummary(horseId)).Produces<MedicalSummaryResponse>(200);
+        m.MapGet("/overview", async (Guid horseId, IMedicalService moduleService) => await moduleService.GetOverview(horseId)).Produces<MedicalOverviewResponse>(200);
+        m.MapGet("/records/{id:guid}/history", async (Guid horseId, Guid id, IMedicalService moduleService) => await moduleService.GetCaseHistory(horseId, id)).Produces<MedicalCaseHistoryResponse>(200);
+        m.MapPost("/records/{id:guid}/merge", async (Guid horseId, Guid id, MergeMedicalCaseRequest r, IMedicalService moduleService) => await moduleService.MergeCases(horseId, id, r)).Produces<MedicalRecord>(200);
         m.MapGet("/records", async (Guid horseId, int? page, int? pageSize, IMedicalService moduleService) => await moduleService.ListExaminations(horseId, page, pageSize)).Produces<PageResponse<MedicalRecord>>(200);
         m.MapPost("/records", async (Guid horseId, MedicalRequest r, IMedicalService moduleService) => (await moduleService.CreateExamination(horseId, r)).ToHttpResult()).Produces<MedicalRecord>(201);
         m.MapGet("/injuries", async (Guid horseId, int? page, int? pageSize, IMedicalService moduleService) => await moduleService.ListInjuries(horseId, page, pageSize)).Produces<PageResponse<Injury>>(200);
@@ -22,6 +25,7 @@ public static class MedicalEndpoints
         m.MapPost("/restrictions", async (Guid horseId, RestrictionRequest r, IMedicalService moduleService) => await moduleService.CreateRestriction(horseId, r)).Produces<MedicalRestriction>(200);
         m.MapGet("/treatments", async (Guid horseId, int? page, int? pageSize, IMedicalService moduleService) => await moduleService.ListTreatments(horseId, page, pageSize)).Produces<PageResponse<TreatmentPlan>>(200);
         m.MapPost("/treatments", async (Guid horseId, TreatmentRequest r, IMedicalService moduleService) => await moduleService.CreateTreatment(horseId, r)).Produces<TreatmentPlan>(200);
+        m.MapPut("/treatments/{id:guid}/status", async (Guid horseId, Guid id, TreatmentStatusRequest r, IMedicalService moduleService) => await moduleService.UpdateTreatmentStatus(horseId, id, r)).Produces<TreatmentPlan>(200);
         m.MapGet("/follow-ups", async (Guid horseId, int? page, int? pageSize, IMedicalService moduleService) => await moduleService.ListFollowUps(horseId, page, pageSize)).Produces<PageResponse<MedicalFollowUp>>(200);
         m.MapPost("/follow-ups", async (Guid horseId, FollowUpRequest r, IMedicalService moduleService) => await moduleService.RecordFollowUp(horseId, r)).Produces<MedicalFollowUp>(200);
         m.MapGet("/preventive-care", async (Guid horseId, int? page, int? pageSize, IMedicalService moduleService) => await moduleService.ListPreventiveCare(horseId, page, pageSize)).Produces<PageResponse<PreventiveCareSummaryResponse>>(200);

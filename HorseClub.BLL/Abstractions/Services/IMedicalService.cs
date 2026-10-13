@@ -9,6 +9,9 @@ namespace HorseClub.BLL.Abstractions.Services;
 public interface IMedicalService
 {
     Task<MedicalSummaryResponse> GetSummary(Guid horseId);
+    Task<MedicalOverviewResponse> GetOverview(Guid horseId);
+    Task<MedicalCaseHistoryResponse> GetCaseHistory(Guid horseId, Guid id);
+    Task<MedicalRecord> MergeCases(Guid horseId, Guid id, MergeMedicalCaseRequest request);
     Task<PageResponse<MedicalRecord>> ListExaminations(Guid horseId, int? page, int? pageSize);
     Task<OperationResult> CreateExamination(Guid horseId, MedicalRequest r);
     Task<PageResponse<Injury>> ListInjuries(Guid horseId, int? page, int? pageSize);
@@ -20,6 +23,7 @@ public interface IMedicalService
     Task<TreatmentPlan> CreateTreatment(Guid horseId, TreatmentRequest r);
     Task<PageResponse<MedicalFollowUp>> ListFollowUps(Guid horseId, int? page, int? pageSize);
     Task<MedicalFollowUp> RecordFollowUp(Guid horseId, FollowUpRequest r);
+    Task<TreatmentPlan> UpdateTreatmentStatus(Guid horseId, Guid id, TreatmentStatusRequest r);
     Task<PageResponse<PreventiveCareSummaryResponse>> ListPreventiveCare(Guid horseId, int? page, int? pageSize);
     Task<PreventiveCare> SchedulePreventiveCare(Guid horseId, PreventiveRequest r);
     Task<OperationResult> CompletePreventiveCare(Guid horseId, Guid id, PreventiveCompletionRequest r);

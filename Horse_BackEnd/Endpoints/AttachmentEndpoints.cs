@@ -11,7 +11,14 @@ public static class AttachmentEndpoints
     public static void MapAttachments(this RouteGroupBuilder api)
     {
         // Public profile images are still protected by the horse scope; staff cannot access intake medical files.
-        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, IAttachmentService moduleService) => (await moduleService.GetHorsePhoto(horseId)).ToHttpResult()).RequireAuthorization().WithTags("Attachments").Produces<byte[]>(200, contentType: "application/octet-stream");
+        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, HttpContext http, IAttachmentService moduleService) =>
+        {
+            var result = await moduleService.GetHorsePhoto(horseId, http.Request.Headers.IfNoneMatch.ToString());
+            // private + no-cache: trình duyệt giữ ảnh nhưng luôn hỏi lại bằng ETag, nên đổi ảnh vẫn thấy ngay.
+            http.Response.Headers.CacheControl = "private, no-cache";
+            if ((result.Download?.ETag ?? result.Value as string) is { } eTag) http.Response.Headers.ETag = eTag;
+            return result.StatusCode == 304 ? Results.StatusCode(304) : result.ToHttpResult();
+        }).RequireAuthorization().WithTags("Attachments").Produces<byte[]>(200, contentType: "application/octet-stream");
         var a = api.MapGroup("/registrations/{registrationId:guid}/attachments").WithTags("Attachments").RequireAuthorization();
         a.MapGet("", async (Guid registrationId, IAttachmentService moduleService) => await moduleService.ListAttachments(registrationId)).Produces<List<AttachmentResponse>>(200);
         a.MapPost("", async (Guid registrationId, HttpRequest request, IAttachmentService moduleService) => (await moduleService.UploadAttachment(registrationId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<AttachmentCreatedResponse>(201);

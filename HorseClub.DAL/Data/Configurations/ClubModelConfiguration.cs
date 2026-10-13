@@ -83,6 +83,10 @@ internal static class ClubModelConfiguration
         b.Entity<TrainingRevision>().Property(x => x.Snapshot).HasMaxLength(20000);
         b.Entity<WebsiteSettings>().Property(x=>x.Id).ValueGeneratedNever();
         b.Entity<WebsiteSettings>().Property(x=>x.ContentJson).HasMaxLength(10000);
+        b.Entity<MedicalRecord>().HasIndex(x => new { x.HorseId, x.CaseRootId });
+        b.Entity<MedicalRecord>().Property(x => x.InitialSnapshotJson).HasMaxLength(200000);
+        b.Entity<MedicalFollowUp>().Property(x => x.PreviousSnapshotJson).HasMaxLength(200000);
+        b.Entity<MedicalFollowUp>().Property(x => x.CurrentSnapshotJson).HasMaxLength(200000);
         ReadPerformanceConfiguration.Configure(b);
     }
 }

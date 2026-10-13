@@ -32,10 +32,10 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     public async Task<HorseDetailResponse> GetHorse(Guid id)
     {
         var horse = await access.Horse(id, allowArchived: true);
-        var attachment = await repository.GetPhotoAsync(horse.RegistrationId);
+        var detail = await repository.GetDetailAsync(id, horse.RegistrationId);
+        var attachment = detail.Photo; var registration = detail.Registration;
         var photo = attachment is null ? null : new HorsePhotoResponse(attachment.Id, attachment.FileName, attachment.StorageName, attachment.ContentType, attachment.Length, $"/api/horses/{id}/photo");
-        var registration = await repository.GetRegistrationAsync(horse.RegistrationId);
-        return new HorseDetailResponse(horse, await repository.GetLatestMeasurementAsync(id), await repository.GetAssignmentsAsync(id), await repository.GetOccupancyAsync(id), new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo);
+        return new HorseDetailResponse(horse, detail.LatestMeasurement, detail.Assignments, detail.Occupancy, new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo, detail.StaffNames);
     }
     public async Task<HorseAssignmentHistoryResponse> GetAssignmentHistory(Guid id)
     {
@@ -64,7 +64,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<Measurement> AddMeasurement(Guid id, MeasurementRequest request)
     {
-        var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Veterinarian, Role.Groom);
+        var u = await current.Get(); Ensure.Role(u, RolePolicy.MeasurementWriters);
         var horse = await access.Horse(id);
         Ensure.That(request.Date >= horse.DateOfBirth && request.Date <= calendar.Today(clock), Messages.Get(MessageKey.InvalidMeasurementDate));
         var m = new Measurement { HorseId = id, Date = request.Date, HeightCm = request.HeightCm, WeightKg = request.WeightKg };

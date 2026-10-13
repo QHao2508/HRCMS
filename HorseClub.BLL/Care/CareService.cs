@@ -21,11 +21,11 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<PageResponse<CareTaskSummaryResponse>> ListTasks(Guid? horseId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize)
     {
         var u = await current.Get(); var scope = await access.Scope();
-        Ensure.Role(u, Role.ClubManager, Role.HorseOwner, Role.Groom, Role.Veterinarian);
+        Ensure.Role(u, RolePolicy.CareReaders);
         if (horseId.HasValue) await access.Horse(horseId.Value);
         var clinical = u.Role is Role.Groom or Role.Veterinarian;
         var data = await pager.Page(page, pageSize, (p, size) => repository.ListTasksAsync(scope, horseId, u.Role == Role.Groom ? u.Id : null, status, from, to, p, size));
-        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Instructions : null, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Notes : null));
+        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Instructions : null, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Notes : null, x.TreatmentPlanId));
     }
 
     /// <summary>
@@ -70,6 +70,9 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
             repository.AddIncident(new Incident { HorseId = t.HorseId, ReporterId = u.Id, OccurredAt = clock.GetUtcNow(), Type = IncidentType.CareObservation, Description = r.Notes, Severity = IncidentSeverity.NeedsReview, RoutedTo = Role.Veterinarian });
             await events.HorseStaff(t.HorseId, NotificationType.CareIssue, MessageKey.ACareTaskRequiresReview, Role.Veterinarian, Role.Trainer);
         }
+        // Groom hoàn thành công việc điều trị do vet giao: báo vet phụ trách để cập nhật trạng thái phác đồ.
+        if (t.Type == CareType.Treatment && r.Status == CareStatus.Completed)
+            await events.HorseStaff(t.HorseId, NotificationType.TreatmentTaskCompleted, MessageKey.TreatmentTaskCompletedReviewPlan, Role.Veterinarian);
         await events.Audit(AuditAction.CareTaskRecorded, id); await events.RefreshHorse(t.HorseId); await unitOfWork.SaveChangesAsync(); return t;
     }
 
@@ -82,9 +85,9 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<Incident>> ListIncidents(Guid? horseId, int? page, int? pageSize)
     {
-        var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Veterinarian, Role.Trainer, Role.Groom, Role.WorkRider);
+        var u = await current.Get(); Ensure.Role(u, RolePolicy.IncidentReaders);
         var scope = await access.Scope();
-        var reporter = u.Role == Role.ClubManager ? (Guid?)null : u.Id;
+        var reporter = RolePolicy.SeesAllIncidentsInScope(u.Role) ? (Guid?)null : u.Id;
         var routedRole = u.Role is Role.Trainer or Role.Veterinarian ? (Role?)u.Role : null;
         return await pager.Page(page, pageSize, (p, size) => repository.ListIncidentsAsync(scope, horseId, reporter, routedRole, p, size));
     }
@@ -96,7 +99,7 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<Incident> ReportIncident(IncidentRequest r)
     {
-        var u = await current.Get(); Ensure.Role(u, Role.Groom, Role.WorkRider, Role.Trainer, Role.Veterinarian);
+        var u = await current.Get(); Ensure.Role(u, RolePolicy.IncidentReporters);
         await access.Horse(r.HorseId); Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Get(MessageKey.RouteIncidentToTrainerOrVeterinarian));
         Ensure.That(r.OccurredAt != default && r.OccurredAt <= DateTimeOffset.UtcNow, Messages.Get(MessageKey.IncidentTimeCannotBeInTheFuture));
         var incident = new Incident { HorseId = r.HorseId, ReporterId = u.Id, OccurredAt = r.OccurredAt, Type = r.Type, Description = r.Description, Severity = r.Severity, RoutedTo = r.RoutedTo };
@@ -112,11 +115,29 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<OperationResult> ResolveIncident(Guid id, IncidentResolutionRequest? r = null)
     {
         var u = await current.Get(); var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId);
-        Ensure.That(u.Role == incident.RoutedTo, Messages.Get(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
+        Ensure.That(RolePolicy.CanResolveIncident(u.Role, incident.RoutedTo), Messages.Get(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
         Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
         Ensure.That(r is not null && !string.IsNullOrWhiteSpace(r.Resolution) && r.Resolution.Trim().Length <= 2000, Messages.Get(MessageKey.ResolutionRequired));
         incident.Resolved = true; incident.Resolution = r!.Resolution.Trim(); incident.ResolvedBy = u.Id; incident.ResolvedAt = clock.GetUtcNow();
         await events.Audit(AuditAction.IncidentResolved, id); await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+    }
+
+    /// <summary>
+    /// Manager chuyển tiếp sự cố chưa xử lý sang Vet hoặc Trainer khác (ví dụ người được chuyển tới đang vắng).
+    /// </summary>
+    /// <param name="id">ID sự cố.</param>
+    /// <param name="r">Vai trò nhận mới.</param>
+    public async Task<Incident> RerouteIncident(Guid id, IncidentRouteRequest r)
+    {
+        var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
+        var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId);
+        Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Get(MessageKey.RouteIncidentToTrainerOrVeterinarian));
+        Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
+        if (incident.RoutedTo == r.RoutedTo) return incident;
+        var from = incident.RoutedTo; incident.RoutedTo = r.RoutedTo;
+        await events.HorseStaff(incident.HorseId, NotificationType.IncidentReported, MessageKey.ANewIncidentRequiresReview, r.RoutedTo);
+        await events.Audit(AuditAction.IncidentRerouted, id, System.Text.Json.JsonSerializer.Serialize(new { From = from.ToString(), To = r.RoutedTo.ToString() }));
+        await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync(); return incident;
     }
 
     /// <summary>
@@ -224,6 +245,26 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
             await access.Horse(occupancy.HorseId);
         }
         stall.CleaningStatus = CleaningStatus.Clean; await events.Audit(AuditAction.StallCleaned, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+    }
+
+    /// <summary>
+    /// Manager hoặc Groom phụ trách ngựa trong ô chuồng chọn trạng thái vệ sinh (Đã vệ sinh / Cần vệ sinh) thay vì nhập tay.
+    /// </summary>
+    /// <param name="id">ID ô chuồng.</param>
+    /// <param name="request">Trạng thái vệ sinh mới.</param>
+    public async Task<OperationResult> SetStallCleaning(Guid id, StallCleaningRequest request)
+    {
+        Ensure.That(Enum.IsDefined(request.Status), Messages.Get(MessageKey.InvalidRequestBody));
+        var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom); var stall = Ensure.Found(await repository.FindStallAsync(id));
+        if (u.Role == Role.Groom)
+        {
+            var occupancy = Ensure.Found(await repository.GetLatestStallOccupancyAsync(id));
+            await access.Horse(occupancy.HorseId);
+        }
+        if (stall.CleaningStatus == request.Status) return OperationResult.NoContent();
+        stall.CleaningStatus = request.Status;
+        await events.Audit(AuditAction.StallCleaned, id, System.Text.Json.JsonSerializer.Serialize(new { Status = request.Status.ToString() }));
+        await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
 }

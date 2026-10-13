@@ -15,6 +15,22 @@ namespace Horse_BackEnd.Tests;
 public sealed class IntakeTests
 {
     [Fact]
+    public async Task AssignmentSavesOptionalEndDateAndRejectsEndBeforeStart()
+    {
+        await using var f = new ClubFactory();
+        var owner = await f.User(Role.HorseOwner); var vet = await f.User(Role.Veterinarian);
+        var horse = await f.Horse(owner); using var manager = await f.Client();
+        var today = Today(f); var path = $"/api/horses/{horse.Id}/assignments";
+        var request = new AssignmentRequest(vet.Id, Role.Veterinarian, today, "Fixed term", EndDate: today.AddDays(7));
+        Assert.Equal(HttpStatusCode.BadRequest, (await manager.PostAsJsonAsync(path, request with { EndDate = today.AddDays(-1) }, ClubFactory.Json)).StatusCode);
+        await WorkerTests.Read(f, async db => Assert.Empty(await db.Assignments.Where(a => a.HorseId == horse.Id).ToListAsync()));
+        await ClubFactory.Post(manager, path, request);
+        await WorkerTests.Read(f, async db => Assert.Equal(today.AddDays(7), (await db.Assignments.SingleAsync(a => a.HorseId == horse.Id && a.Active)).EndDate));
+        await ClubFactory.Post(manager, path, request with { EndDate = null });
+        await WorkerTests.Read(f, async db => Assert.Null((await db.Assignments.SingleAsync(a => a.HorseId == horse.Id && a.Active)).EndDate));
+    }
+
+    [Fact]
     public async Task PartialDraftRequiresCompleteIntakeAndBothFilesThenRevisionApprovalAndAssignment()
     {
         await using var f = new ClubFactory(); var owner = await f.User(Role.HorseOwner); var head = await f.User(Role.HeadTrainer);

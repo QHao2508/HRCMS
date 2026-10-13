@@ -14,11 +14,14 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
     /// </summary>
     /// <param name="horseId">ID ngựa cần kiểm sở hữu/phân công và phạm vi nghiệp vụ.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
-    public async Task<OperationResult> GetHorsePhoto(Guid horseId)
+    public async Task<OperationResult> GetHorsePhoto(Guid horseId, string? ifNoneMatch = null)
     {
         var horse = await access.Horse(horseId, allowArchived: true);
         var attachment = Ensure.Found(await repository.GetHorsePhotoAsync(horse.RegistrationId));
-        return OperationResult.File(await storage.OpenRead(attachment.StorageName), attachment.ContentType, attachment.FileName);
+        // Ảnh mới luôn có ID mới, nên ID làm ETag: trình duyệt đã có ảnh thì trả 304, bỏ qua lượt tải từ Azure Blob.
+        var eTag = $"\"{attachment.Id:N}\"";
+        if (!string.IsNullOrEmpty(ifNoneMatch) && ifNoneMatch.Split(',').Any(x => x.Trim() == eTag)) return OperationResult.NotModified(eTag);
+        return OperationResult.File(await storage.OpenRead(attachment.StorageName), attachment.ContentType, attachment.FileName, eTag);
     }
 
     /// <summary>
@@ -45,9 +48,11 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
         Ensure.That(request.HasFormContentType, Messages.Get(MessageKey.MultipartFormDataRequired));
         var form = await request.ReadFormAsync(); var file = form.Files.GetFile("file");
         Ensure.That(file is not null && file.Length > 0 && file.Length <= options.Value.MaxFileBytes, Messages.Get(MessageKey.UploadOneFileUpToBytes, options.Value.MaxFileBytes));
-        Ensure.That(await repository.CountAttachmentsAsync(registrationId) < options.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
         var rawType = form["type"].ToString();
         Ensure.That(Enum.TryParse<AttachmentType>(rawType, false, out var type) && Enum.IsDefined(type) && !int.TryParse(rawType, out _) && type != AttachmentType.IncidentPhoto, Messages.Get(MessageKey.InvalidAttachmentType));
+        // Ảnh nhận diện ngựa chỉ giữ một bản: ảnh mới thay ảnh cũ, ảnh cũ bị xóa khỏi DB và storage sau khi commit.
+        List<Attachment> replacedPhotos = type == AttachmentType.HorsePhoto ? await repository.ListHorsePhotosForReplaceAsync(registrationId) : new List<Attachment>();
+        Ensure.That(await repository.CountAttachmentsAsync(registrationId) - replacedPhotos.Count < options.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
         var bytes = new byte[file!.Length];
         await using (var stream = file.OpenReadStream()) await stream.ReadExactlyAsync(bytes);
         var contentType = Detect(bytes);
@@ -72,6 +77,7 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
         Ensure.That(attachment.FileName.Length <= 200 && attachment.CertificateNumber.Length <= 100, Messages.Get(MessageKey.FilenameOrCertificateNumberIsTooLong));
 
         await storage.Write(attachment.StorageName, bytes, request.CancellationToken, contentType!);
+        foreach (var old in replacedPhotos) { repository.RemoveAttachment(old); storage.DeleteAfterCommit(old.StorageName); }
         repository.AddAttachment(attachment); await events.Audit(AuditAction.AttachmentUploaded, attachment.Id); await events.RefreshRegistration(reg); await unitOfWork.SaveChangesAsync();
         return OperationResult.Created($"/api/registrations/{registrationId}/attachments/{attachment.Id}", new AttachmentCreatedResponse(attachment.Id, attachment.FileName, attachment.Type, attachment.Length));
     }

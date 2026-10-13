@@ -24,5 +24,7 @@ public sealed record OperationResult(int StatusCode, object? Value = null, strin
     /// <param name="content">Giá trị kiểu Stream dùng trong File.</param>
     /// <param name="contentType">MIME đã xác định từ nội dung file; dùng khi lưu/stream để browser đọc đúng.</param>
     /// <param name="fileName">Giá trị kiểu string dùng trong File.</param>
-    public static OperationResult File(Stream content, string contentType, string fileName) => new(200, Download: new(content, contentType, fileName));
+    public static OperationResult File(Stream content, string contentType, string fileName, string? eTag = null) => new(200, Download: new(content, contentType, fileName, eTag));
+    /// <summary>Client đã có đúng bản file (ETag khớp): trả 304, không tải lại từ storage.</summary>
+    public static OperationResult NotModified(string eTag) => new(304, eTag);
 }

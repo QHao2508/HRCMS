@@ -13,4 +13,5 @@ public sealed record CareTaskSummaryResponse(
     decimal? ApprovedPortionKg,
     decimal? ActualPortionKg,
     string? Instructions,
-    string? Notes);
+    string? Notes,
+    Guid? TreatmentPlanId = null);

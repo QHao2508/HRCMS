@@ -8,4 +8,5 @@ public sealed record HorseDetailResponse(
     List<StaffAssignment> Assignments,
     StallOccupancy? CurrentStall,
     HorsePreferencesResponse Preferences,
-    HorsePhotoResponse? Photo = null);
+    HorsePhotoResponse? Photo = null,
+    Dictionary<Guid, string>? StaffNames = null);

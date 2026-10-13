@@ -21,7 +21,7 @@ public sealed class InventoryRepository(ClubDbContext db) : IInventoryRepository
         return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
     }
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
-        => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        => await query.AsNoTracking().ToPageAsync(page, size);
     public ValueTask<InventoryItem?> FindItemAsync(Guid id) => db.Inventory.FindAsync(id);
     public ValueTask<ReplenishmentRequest?> FindReplenishmentAsync(Guid id) => db.Replenishments.FindAsync(id);
     public Task<bool> HasOpenReplenishmentsAsync(Guid itemId) => db.Replenishments.AnyAsync(r => r.ItemId == itemId && (r.Status == ReplenishmentStatus.Pending || r.Status == ReplenishmentStatus.Approved || r.Status == ReplenishmentStatus.PartiallyReceived));

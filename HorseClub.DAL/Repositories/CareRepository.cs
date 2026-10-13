@@ -6,7 +6,7 @@ namespace HorseClub.DAL.Repositories;
 public sealed class CareRepository(ClubDbContext db) : ICareRepository
 {
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
-        => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        => await query.AsNoTracking().ToPageAsync(page, size);
     public void AddCareTask(CareTask entity) => db.CareTasks.Add(entity);
     public ValueTask<CareTask?> FindCareTaskAsync(Guid id) => db.CareTasks.FindAsync(id);
     public void AddIncident(Incident entity) => db.Incidents.Add(entity);

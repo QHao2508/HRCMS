@@ -270,7 +270,9 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListStaffDirectory.</param>
     public async Task<PageResponse<StaffDirectoryResponse>> ListStaffDirectory(Role? role, int? page, int? pageSize)
     {
-        await current.Get();
+        var u = await current.Get();
+        // Chủ ngựa chỉ cần danh bạ HeadTrainer/Groom/Vet để chọn người ưu tiên khi đăng ký ngựa.
+        if (u.Role == Role.HorseOwner) Ensure.That(role.HasValue && RolePolicy.OwnerDirectoryRoles.Contains(role.Value), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
         return PageReader.Map(await pager.Page(page, pageSize, (p, size) => repository.ListStaffAsync(role, true, p, size)), x => new StaffDirectoryResponse(x.Id, x.FirstName, x.LastName, x.Role));
     }
 

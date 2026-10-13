@@ -8,23 +8,44 @@ namespace HorseClub.DAL.Repositories;
 public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
 {
     public ValueTask<Horse?> FindAsync(Guid id) => db.Horses.FindAsync(id);
+    // Tìm ngựa và kiểm tra phân công đang hoạt động trong cùng một câu SQL (entity vẫn được track như FindAsync).
+    public async Task<(Horse? Horse, bool Assigned)> FindWithAssignmentAsync(Guid id, Guid staffId)
+    {
+        var row = await db.Horses.Where(h => h.Id == id).Select(h => new { Horse = h, Assigned = db.Assignments.Any(a => a.HorseId == id && a.StaffId == staffId && a.Active) }).SingleOrDefaultAsync();
+        return (row?.Horse, row?.Assigned ?? false);
+    }
     public ValueTask<Stall?> FindStallAsync(Guid id) => db.Stalls.FindAsync(id);
     public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size)
     {
         var query = ScopedHorses.For(db, scope);
         if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.Name.Contains(search) || x.RegistrationNumber != null && x.RegistrationNumber.Contains(search));
         if (healthStatus.HasValue) query = query.Where(x => x.HealthStatus == healthStatus);
-        return new(await query.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id).Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        return await query.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id).ToPageAsync(page, size);
     }
     public Task<Attachment?> GetPhotoAsync(Guid registrationId) => db.Attachments.AsNoTracking().Where(x => x.RegistrationId == registrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync();
     public Task<Measurement?> GetLatestMeasurementAsync(Guid horseId) => db.Measurements.Where(x => x.HorseId == horseId).OrderByDescending(x => x.Date).FirstOrDefaultAsync();
     public Task<List<StaffAssignment>> GetAssignmentsAsync(Guid horseId) => db.Assignments.Where(x => x.HorseId == horseId).OrderByDescending(x => x.CreatedAt).ToListAsync();
     public Task<StallOccupancy?> GetOccupancyAsync(Guid horseId) => db.Occupancies.Where(x => x.HorseId == horseId && x.EndedAt == null).FirstOrDefaultAsync();
     public Task<HorseRegistration> GetRegistrationAsync(Guid id) => db.Registrations.AsNoTracking().SingleAsync(x => x.Id == id);
+    // Một câu SQL (OUTER APPLY) thay cho 5 lượt gọi riêng: mỗi lượt tới Azure SQL tốn ~50 ms.
+    public async Task<HorseDetailData> GetDetailAsync(Guid horseId, Guid registrationId)
+    {
+        var row = await db.Registrations.AsNoTracking().Where(r => r.Id == registrationId).Select(r => new
+        {
+            Registration = r,
+            Photo = db.Attachments.Where(x => x.RegistrationId == registrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefault(),
+            Latest = db.Measurements.Where(x => x.HorseId == horseId).OrderByDescending(x => x.Date).ThenByDescending(x => x.Id).FirstOrDefault(),
+            Occupancy = db.Occupancies.Where(x => x.HorseId == horseId && x.EndedAt == null).OrderByDescending(x => x.CreatedAt).FirstOrDefault(),
+            Assignments = db.Assignments.Where(x => x.HorseId == horseId).OrderByDescending(x => x.CreatedAt).ToList(),
+            // Tên nhân sự trong lịch sử phân công, để mọi vai trò (kể cả Chủ ngựa) không cần gọi danh bạ.
+            Staff = db.Users.Where(u => db.Assignments.Any(a => a.HorseId == horseId && a.StaffId == u.Id)).Select(u => new { u.Id, Name = u.FirstName + " " + u.LastName }).ToList(),
+        }).SingleAsync();
+        return new HorseDetailData(row.Registration, row.Photo, row.Latest, row.Assignments, row.Occupancy, row.Staff.ToDictionary(x => x.Id, x => x.Name.Trim()));
+    }
     public async Task<DataPage<Measurement>> ListMeasurementsAsync(Guid horseId, int page, int size)
     {
         var query = db.Measurements.Where(x => x.HorseId == horseId);
-        return new(await query.AsNoTracking().OrderByDescending(x => x.Date).ThenByDescending(x => x.Id).Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        return await query.AsNoTracking().OrderByDescending(x => x.Date).ThenByDescending(x => x.Id).ToPageAsync(page, size);
     }
     public void AddMeasurement(Measurement measurement) => db.Measurements.Add(measurement);
     public Task<bool> HasActiveSessionAsync(Guid horseId) => db.Sessions.AnyAsync(x => x.HorseId == horseId && x.Status == SessionStatus.InProgress);

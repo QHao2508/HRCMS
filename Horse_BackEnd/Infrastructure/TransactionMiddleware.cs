@@ -36,6 +36,7 @@ public sealed class TransactionMiddleware(RequestDelegate next)
         {
             context.Response.Body = originalBody;
             await uploads.CleanupUncommitted();
+            await uploads.DeleteReplaced();
         }
     }
 }

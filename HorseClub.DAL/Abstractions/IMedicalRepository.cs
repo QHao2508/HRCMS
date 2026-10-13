@@ -27,4 +27,9 @@ public interface IMedicalRepository
     Task<PreventiveCare?> GetPreventiveAsync(Guid horseId, Guid id);
     Task<bool> HasRecordAsync(Guid horseId, Guid id);
     Task<List<MedicalRestriction>> GetEffectiveRestrictionsAsync(Guid horseId, DateTimeOffset now);
+    Task<List<MedicalFollowUp>> GetFollowUpsAsync(Guid horseId);
+    Task<List<MedicalRecord>> GetRecordsAsync(Guid horseId);
+    Task<List<MedicalRecord>> GetTrackedRecordsAsync(Guid horseId);
+    Task<List<AuditEvent>> GetCaseAuditsAsync(IEnumerable<Guid> referenceIds);
+    Task<TreatmentPlan?> GetTreatmentAsync(Guid horseId, Guid id);
 }

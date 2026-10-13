@@ -31,7 +31,7 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
     public void AddEvaluation(TrainerEvaluation evaluation) => db.Evaluations.Add(evaluation);
     public void AddIncident(Incident incident) => db.Incidents.Add(incident);
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
-        => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        => await query.AsNoTracking().ToPageAsync(page, size);
     public Task<DataPage<TrainingTemplate>> ListTemplatesAsync(int page, int size)
         => Page(db.Templates.Where(x => !x.Archived).OrderBy(x => x.Name).ThenBy(x => x.Id), page, size);
     public Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size, string? search = null)

@@ -8,6 +8,7 @@ namespace HorseClub.BLL.Common;
 public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnvironment environment, IFileRepository repository, ILogger<UploadStorage> logger, AzureBlobStore blobs)
 {
     private readonly List<string> created = [];
+    private readonly List<string> replaced = [];
     private bool committed;
     private bool UsesAzure => options.Value.Provider == "AzureBlob";
     public string Root => !UsesAzure ? Path.GetFullPath(options.Value.Path ?? Path.Combine(environment.ContentRootPath, "App_Data", "uploads"))
@@ -67,6 +68,38 @@ public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnviron
     /// Đánh dấu upload đã được commit với database để cơ chế dọn cuối request không xóa tài nguyên hợp lệ.
     /// </summary>
     public void Commit() => committed = true;
+
+    /// <summary>
+    /// Đánh dấu file cũ (ví dụ ảnh ngựa bị thay) cần xóa khỏi storage, chỉ thực hiện sau khi transaction DB đã commit.
+    /// </summary>
+    /// <param name="storageName">Storage key của file đã bị gỡ khỏi DB trong cùng request.</param>
+    public void DeleteAfterCommit(string storageName) { ValidateName(storageName); replaced.Add(storageName); }
+
+    /// <summary>
+    /// Xóa các file đã bị thay sau khi commit; giữ file nếu DB vẫn còn tham chiếu hoặc lỗi I/O (chỉ log để đối soát).
+    /// </summary>
+    public async Task DeleteReplaced()
+    {
+        if (!committed) return;
+        foreach (var name in replaced)
+        {
+            try
+            {
+                if (await repository.IsStorageReferencedAsync(name)) continue;
+                if (UsesAzure)
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await blobs.Delete(name, timeout.Token);
+                }
+                else if (File.Exists(Resolve(name))) File.Delete(Resolve(name));
+            }
+            catch (Exception error)
+            {
+                logger.LogWarning("Replaced upload {StorageName} requires reconciliation: {ExceptionType}", name, error.GetType().Name);
+            }
+        }
+        replaced.Clear();
+    }
 
     /// <summary>
     /// Đọc blob Azure hoặc file kiểm thử sau khi kiểm storage key; trả stream để không tải cả file vào response buffer.

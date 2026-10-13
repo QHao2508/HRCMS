@@ -9,7 +9,7 @@ namespace HorseClub.BLL.Abstractions.Services;
 /// <summary>Application operations implemented by AttachmentService.</summary>
 public interface IAttachmentService
 {
-    Task<OperationResult> GetHorsePhoto(Guid horseId);
+    Task<OperationResult> GetHorsePhoto(Guid horseId, string? ifNoneMatch = null);
     Task<List<AttachmentResponse>> ListAttachments(Guid registrationId);
     Task<OperationResult> UploadAttachment(Guid registrationId, UploadRequest request);
     Task<OperationResult> DownloadAttachment(Guid registrationId, Guid id);

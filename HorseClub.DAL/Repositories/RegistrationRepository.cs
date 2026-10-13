@@ -16,6 +16,6 @@ public sealed class RegistrationRepository(ClubDbContext db) : IRegistrationRepo
         var query = db.Registrations.AsNoTracking();
         if (ownerId.HasValue) query = query.Where(x => x.OwnerId == ownerId);
         if (status.HasValue) query = query.Where(x => x.Status == status);
-        return new(await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        return await query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).ToPageAsync(page, size);
     }
 }

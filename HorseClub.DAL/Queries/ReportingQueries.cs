@@ -7,7 +7,7 @@ namespace HorseClub.DAL.Queries;
 public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
 {
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
-        => new(await query.AsNoTracking().Skip((page - 1) * size).Take(size).ToListAsync(), await query.CountAsync());
+        => await query.AsNoTracking().ToPageAsync(page, size);
     public Task<DataPage<Notification>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size)
     {
         var query = db.Notifications.Where(x => x.RecipientId == recipientId);

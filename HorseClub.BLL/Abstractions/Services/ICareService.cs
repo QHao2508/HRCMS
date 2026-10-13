@@ -22,4 +22,6 @@ public interface ICareService
     Task<StallOccupancy> OccupyStall(Guid id, OccupancyRequest r);
     Task<OperationResult> VacateStall(Guid id);
     Task<OperationResult> MarkStallClean(Guid id);
+    Task<OperationResult> SetStallCleaning(Guid id, StallCleaningRequest request);
+    Task<Incident> RerouteIncident(Guid id, IncidentRouteRequest r);
 }

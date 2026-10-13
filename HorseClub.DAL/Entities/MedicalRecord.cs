@@ -3,6 +3,9 @@ namespace HorseClub.DAL.Entities;
 public sealed class MedicalRecord : Entity
 {
     public Guid? SupersedesRecordId { get; set; }
+    public Guid? CaseRootId { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string InitialSnapshotJson { get; set; } = "";
     public Guid HorseId { get; set; }
     public Guid VeterinarianId { get; set; }
     public DateTimeOffset ExaminationAt { get; set; }

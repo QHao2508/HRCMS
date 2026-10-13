@@ -65,7 +65,7 @@ public sealed class IncidentPhotoService(IFileRepository repository, IUnitOfWork
     public static async Task<Incident> Check(Guid id, IFileRepository repository, ClubAccess access, CurrentUser current)
     {
         var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId); var user = await current.Get();
-        Ensure.That(user.Role == Role.ClubManager || user.Id == incident.ReporterId || user.Role == incident.RoutedTo, Messages.Get(MessageKey.IncidentIsOutsideYourScope), 403, "forbidden");
+        Ensure.That(RolePolicy.CanViewIncidentPhotos(user.Role) || user.Id == incident.ReporterId || user.Role == incident.RoutedTo, Messages.Get(MessageKey.IncidentIsOutsideYourScope), 403, "forbidden");
         return incident;
     }
 

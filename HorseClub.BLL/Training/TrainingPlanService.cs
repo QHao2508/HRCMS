@@ -45,7 +45,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         if (horseId.HasValue && user.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListPlansAsync(scope, horseId, user.Role == Role.WorkRider ? user.Id : null, p, size, search?.Trim());
-        var names = (await repository.PlanNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
+        var names = data.Items.Count == 0 ? new Dictionary<Guid, HorseClub.DAL.Abstractions.TrainingNames>() : (await repository.PlanNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
         return new(data.Items.Select(x=>TrainingPlanListItem.From(x,names[x.Id])).ToList(),p,size,data.Total);
     }
 

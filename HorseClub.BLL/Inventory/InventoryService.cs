@@ -87,7 +87,7 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListReplenishmentsAsync(u.Role == Role.Groom ? u.Id : null, p, size);
-        var names = await repository.ItemNamesAsync(data.Items.Select(x=>x.ItemId).Distinct().ToArray());
+        var names = data.Items.Count == 0 ? new Dictionary<Guid, string>() : await repository.ItemNamesAsync(data.Items.Select(x=>x.ItemId).Distinct().ToArray());
         return new(data.Items.Select(x=>ReplenishmentSummaryResponse.From(x,names.GetValueOrDefault(x.ItemId))).ToList(),p,size,data.Total);
     }
 

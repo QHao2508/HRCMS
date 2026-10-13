@@ -36,7 +36,6 @@ public sealed class AuthRepository(ClubDbContext db) : IAuthRepository
         var query = db.Users.Where(x => x.Role != Role.HorseOwner);
         if (directory) query = query.Where(x => x.Active && x.Role != Role.ClubManager);
         if (role.HasValue) query = query.Where(x => x.Role == role);
-        var items = await query.OrderBy(x => x.UserName).Select(x => new StaffReadModel(x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified)).Skip((page - 1) * size).Take(size).ToListAsync();
-        return new(items, await query.CountAsync());
+        return await query.OrderBy(x => x.UserName).Select(x => new StaffReadModel(x.Id, x.UserName, x.FirstName, x.LastName, x.Email, x.Role, x.Active, x.EmailVerified)).ToPageAsync(page, size);
     }
 }

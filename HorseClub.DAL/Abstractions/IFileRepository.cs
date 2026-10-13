@@ -7,6 +7,8 @@ public interface IFileRepository
     Task<int> CountAttachmentsAsync(Guid registrationId);
     Task<Attachment?> FindAttachmentAsync(Guid registrationId, Guid id);
     void AddAttachment(Attachment attachment);
+    Task<List<Attachment>> ListHorsePhotosForReplaceAsync(Guid registrationId);
+    void RemoveAttachment(Attachment attachment);
     ValueTask<Incident?> FindIncidentAsync(Guid id);
     Task<List<IncidentPhoto>> ListPhotosAsync(Guid incidentId);
     Task<int> CountPhotosAsync(Guid incidentId);

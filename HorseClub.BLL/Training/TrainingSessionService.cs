@@ -186,7 +186,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         if (horseId.HasValue && u.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListSessionsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, status, from, to, p, size, search?.Trim());
-        var names=(await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
+        var names=data.Items.Count==0 ? new Dictionary<Guid, HorseClub.DAL.Abstractions.TrainingNames>() : (await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray())).ToDictionary(x=>x.Id);
         return new(data.Items.Select(x=>TrainingSessionListItem.From(x,names[x.Id])).ToList(),p,size,data.Total);
     }
 
