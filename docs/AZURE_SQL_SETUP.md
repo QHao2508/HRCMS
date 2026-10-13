@@ -14,7 +14,7 @@ Run from the backend repository in your own PowerShell terminal:
 
 The script prompts for a hidden password and updates only the SQL connection/provider/migration settings. It keeps other existing secrets. It does not apply migrations, print credentials or write a password into the repository. User Secrets are local development storage; for deployment provide the connection via the hosting environment's secret configuration.
 
-Current schema (13/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all ten migrations, including trainer expertise and availability. It contains 36 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
+Current schema (13/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all eleven migrations, including trainer expertise/availability and public reference data. It contains 37 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
 
 After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies the application table count from the EF model snapshot and the migrations present in DAL source. It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
 

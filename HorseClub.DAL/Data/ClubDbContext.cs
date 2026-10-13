@@ -5,6 +5,7 @@ namespace HorseClub.DAL.Data;
 public class ClubDbContext(DbContextOptions options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<PublicReferenceRecord> PublicReferenceRecords => Set<PublicReferenceRecord>();
     public DbSet<TrainerExpertise> TrainerExpertise => Set<TrainerExpertise>();
     public DbSet<StaffWorkingHours> StaffWorkingHours => Set<StaffWorkingHours>();
     public DbSet<StaffTimeOff> StaffTimeOff => Set<StaffTimeOff>();

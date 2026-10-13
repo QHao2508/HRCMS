@@ -5,4 +5,5 @@
   <Project Path="tests/Horse_BackEnd.Tests/Horse_BackEnd.Tests.csproj" />
   <Project Path="tools/HorseClub.DemoSeed/HorseClub.DemoSeed.csproj" />
   <Project Path="tools/HorseClub.StaffSeed/HorseClub.StaffSeed.csproj" />
+  <Project Path="tools/HorseClub.ReferenceImport/HorseClub.ReferenceImport.csproj" />
 </Solution>

@@ -75,6 +75,10 @@ internal static class ClubModelConfiguration
             }
         }
         b.Entity<User>().Property(x => x.Email).HasMaxLength(254);
+        b.Entity<PublicReferenceRecord>().HasIndex(x => x.ExternalKey).IsUnique();
+        b.Entity<PublicReferenceRecord>().Property(x => x.ExternalKey).HasMaxLength(300);
+        b.Entity<PublicReferenceRecord>().Property(x => x.Kind).HasMaxLength(40);
+        b.Entity<PublicReferenceRecord>().Property(x => x.ContentSha256).HasMaxLength(64);
         b.Entity<User>().Property(x => x.UserName).HasMaxLength(80);
         b.Entity<TrainingRevision>().Property(x => x.Snapshot).HasMaxLength(20000);
         b.Entity<WebsiteSettings>().Property(x=>x.Id).ValueGeneratedNever();
