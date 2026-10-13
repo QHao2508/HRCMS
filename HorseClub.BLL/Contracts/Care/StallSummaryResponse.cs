@@ -8,4 +8,5 @@ public sealed record StallSummaryResponse(
     string Name,
     CleaningStatus CleaningStatus,
     bool Occupied = false,
-    Guid? HorseId = null);
+    Guid? HorseId = null,
+    bool CanClean = false);

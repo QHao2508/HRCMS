@@ -33,7 +33,7 @@ public sealed class PerformanceTests(ITestOutputHelper output)
             var template = new TrainingTemplate { Name = "Test" };
             var plan = new TrainingPlan { HorseId = horse.Id, TrainerId = trainer.Id, TemplateId = template.Id };
             db.Templates.Add(template); db.Plans.Add(plan);
-            db.Sessions.Add(new TrainingSession { HorseId = horse.Id, PlanId = plan.Id, RiderId = rider.Id, ScheduledAt = now.AddMinutes(-1), Status = SessionStatus.Assigned });
+            db.Sessions.Add(new TrainingSession { HorseId = horse.Id, PlanId = plan.Id, RiderId = rider.Id, ScheduledAt = now.AddMinutes(-61), Status = SessionStatus.Assigned });
             db.CareTasks.Add(new CareTask { HorseId = horse.Id, GroomId = groom.Id, ScheduledAt = now });
             var examination = new MedicalRecord { HorseId = horse.Id, ExaminationAt = now };
             db.MedicalRecords.Add(examination);

@@ -21,7 +21,7 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
         if (referenceId.HasValue) query = query.Where(x => x.ReferenceId == referenceId);
         return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
     }
-    public Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end)
+    public Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
         var sessions = db.Sessions.Where(x => horses.Contains(x.HorseId));
@@ -31,7 +31,7 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
         return db.Users.Where(x => x.Id == userId).Select(_ => new DashboardData(
             horses.Count(), db.Plans.Count(x => horses.Contains(x.HorseId) && x.Status == PlanStatus.Active),
             sessions.Count(x => x.ScheduledAt >= start && x.ScheduledAt < end),
-            sessions.Count(x => x.ScheduledAt < now && x.Status == SessionStatus.Assigned),
+            sessions.Count(x => x.ScheduledAt < overdueBefore && x.Status == SessionStatus.Assigned && db.Plans.Any(p => p.Id == x.PlanId && p.Status == PlanStatus.Active)),
             care.Count(x => x.ScheduledAt >= start && x.ScheduledAt < end),
             db.Restrictions.Where(x => horses.Contains(x.HorseId) && !x.Cleared && x.ValidFrom <= now && (x.ValidUntil == null || x.ValidUntil >= now)).Select(x => x.HorseId).Distinct().Count(),
             db.Notifications.Count(x => x.RecipientId == userId && !x.Read))).SingleAsync();
@@ -60,9 +60,9 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
         var horses = HorseIds(scope, horseId);
         return db.MedicalRecords.CountAsync(x => horses.Contains(x.HorseId) && x.ExaminationAt >= start && x.ExaminationAt <= end);
     }
-    public Task<List<MedicalRecord>> ClinicalAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end)
+    public Task<List<MedicalRecord>> ClinicalAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end, int limit)
     {
         var horses = HorseIds(scope, horseId);
-        return db.MedicalRecords.AsNoTracking().Where(x => horses.Contains(x.HorseId) && x.ExaminationAt >= start && x.ExaminationAt <= end).OrderByDescending(x => x.ExaminationAt).ThenByDescending(x => x.Id).Take(100).ToListAsync();
+        return db.MedicalRecords.AsNoTracking().Where(x => horses.Contains(x.HorseId) && x.ExaminationAt >= start && x.ExaminationAt <= end).OrderByDescending(x => x.ExaminationAt).ThenByDescending(x => x.Id).Take(limit + 1).ToListAsync();
     }
 }

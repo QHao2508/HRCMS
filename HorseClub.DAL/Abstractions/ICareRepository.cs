@@ -16,6 +16,10 @@ public interface ICareRepository
     Task<bool> IsOccupiedAsync(Guid id);
     Task<List<StallOccupancy>> GetHorseOccupanciesAsync(Guid horseId);
     Task<StallOccupancy?> GetStallOccupancyAsync(Guid id);
+    Task<StallOccupancy?> GetLatestStallOccupancyAsync(Guid id);
+    Task<List<Guid>> CleanableStallsAsync(IEnumerable<Guid> ids, HorseScope scope);
+    Task<DataPage<StallOccupancy>> ListStallHistoryAsync(Guid id, HorseScope scope, bool includeAll, int page, int size);
+    Task<Dictionary<Guid, string>> HorseNamesAsync(IEnumerable<Guid> ids);
     Task<DataPage<Stable>> ListStablesAsync(int page, int size);
     Task<DataPage<CareTask>> ListTasksAsync(HorseScope scope, Guid? horseId, Guid? groomId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size);
     Task<DataPage<Incident>> ListIncidentsAsync(HorseScope scope, Guid? horseId, Guid? reporterId, Role? routedRole, int page, int size);

@@ -148,10 +148,12 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API).</remarks>
     public async Task<PageResponse<StallSummaryResponse>> ListStalls(Guid? stableId, int? page, int? pageSize)
     {
-        Ensure.Role(await current.Get(), Role.ClubManager, Role.Groom);
+        var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom);
         var data = await pager.Page(page, pageSize, (p, size) => repository.ListStallsAsync(stableId, p, size));
-        var occupancy = await repository.ListStallOccupanciesAsync(data.Items.Select(x => x.Id), await access.Scope());
-        return PageReader.Map(data, x => new StallSummaryResponse(x.Id, x.StableId, x.Name, x.CleaningStatus, occupancy.ContainsKey(x.Id), occupancy.GetValueOrDefault(x.Id)));
+        var scope = await access.Scope();
+        var occupancy = await repository.ListStallOccupanciesAsync(data.Items.Select(x => x.Id), scope);
+        var cleanable = u.Role == Role.ClubManager ? data.Items.Select(x => x.Id).ToHashSet() : (await repository.CleanableStallsAsync(data.Items.Select(x => x.Id), scope)).ToHashSet();
+        return PageReader.Map(data, x => new StallSummaryResponse(x.Id, x.StableId, x.Name, x.CleaningStatus, occupancy.ContainsKey(x.Id), occupancy.GetValueOrDefault(x.Id), cleanable.Contains(x.Id)));
     }
 
     /// <summary>
@@ -165,6 +167,16 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
         var stall = new Stall { StableId = r.StableId, Name = r.Name }; repository.AddStall(stall); await events.Audit(AuditAction.StallCreated, stall.Id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return stall;
     }
 
+    public async Task<PageResponse<StallHistoryResponse>> ListStallHistory(Guid id, int? page, int? pageSize)
+    {
+        var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom);
+        Ensure.Found(await repository.FindStallAsync(id));
+        var scope = await access.Scope();
+        var data = await pager.Page(page, pageSize, (p, size) => repository.ListStallHistoryAsync(id, scope, u.Role == Role.ClubManager, p, size));
+        var names = await repository.HorseNamesAsync(data.Items.Select(x => x.HorseId));
+        return PageReader.Map(data, x => new StallHistoryResponse(x.Id, x.HorseId, names[x.HorseId], x.CreatedAt, x.EndedAt));
+    }
+
     /// <summary>
     /// Ghi nhận sử dụng ô chuồng trong CareService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
     /// </summary>
@@ -175,7 +187,12 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     {
         Ensure.Role(await current.Get(), Role.ClubManager); Ensure.Found(await repository.FindStallAsync(id)); await access.Horse(r.HorseId);
         Ensure.That(!await repository.IsOccupiedAsync(id), Messages.Get(MessageKey.StallIsOccupiedVacateItFirst), 409, "stall_occupied");
-        foreach (var old in await repository.GetHorseOccupanciesAsync(r.HorseId)) old.EndedAt = clock.GetUtcNow();
+        foreach (var old in await repository.GetHorseOccupanciesAsync(r.HorseId))
+        {
+            old.EndedAt = clock.GetUtcNow();
+            var oldStall = Ensure.Found(await repository.FindStallAsync(old.StallId));
+            oldStall.CleaningStatus = CleaningStatus.NeedsCleaning;
+        }
         var o = new StallOccupancy { StallId = id, HorseId = r.HorseId }; repository.AddStallOccupancy(o); await events.Audit(AuditAction.StallOccupied, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return o;
     }
 
@@ -187,7 +204,10 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<OperationResult> VacateStall(Guid id)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var occupancy = Ensure.Found(await repository.GetStallOccupancyAsync(id));
-        occupancy.EndedAt = clock.GetUtcNow(); await events.Audit(AuditAction.StallVacated, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
+        occupancy.EndedAt = clock.GetUtcNow();
+        var stall = Ensure.Found(await repository.FindStallAsync(id));
+        stall.CleaningStatus = CleaningStatus.NeedsCleaning;
+        await events.Audit(AuditAction.StallVacated, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
     /// <summary>
@@ -200,7 +220,7 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom); var stall = Ensure.Found(await repository.FindStallAsync(id));
         if (u.Role == Role.Groom)
         {
-            var occupancy = Ensure.Found(await repository.GetStallOccupancyAsync(id));
+            var occupancy = Ensure.Found(await repository.GetLatestStallOccupancyAsync(id));
             await access.Horse(occupancy.HorseId);
         }
         stall.CleaningStatus = CleaningStatus.Clean; await events.Audit(AuditAction.StallCleaned, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();

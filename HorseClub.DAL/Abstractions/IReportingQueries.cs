@@ -10,9 +10,9 @@ public interface IReportingQueries
     Task<DataPage<Notification>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size);
     Task<Notification?> GetNotificationAsync(Guid recipientId, Guid id);
     Task<DataPage<AuditEvent>> ListAuditAsync(Guid? referenceId, int page, int size);
-    Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end);
+    Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore);
     Task<ReportRows> ReportRowsAsync(HorseScope scope, Guid? horseId, Guid? riderId, Guid? groomId, DateTimeOffset start, DateTimeOffset end, int limit);
     Task<List<SessionResult>> ResultsAsync(Guid[] sessionIds);
     Task<int> MedicalCountAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end);
-    Task<List<MedicalRecord>> ClinicalAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end);
+    Task<List<MedicalRecord>> ClinicalAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end, int limit);
 }

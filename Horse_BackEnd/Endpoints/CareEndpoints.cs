@@ -23,6 +23,7 @@ public static class CareEndpoints
         c.MapPost("/stables", async (NameRequest r, ICareService moduleService) => await moduleService.CreateStable(r)).Produces<Stable>(200);
         c.MapGet("/stalls", async (Guid? stableId, int? page, int? pageSize, ICareService moduleService) => await moduleService.ListStalls(stableId, page, pageSize)).Produces<PageResponse<StallSummaryResponse>>(200);
         c.MapPost("/stalls", async (StallRequest r, ICareService moduleService) => await moduleService.CreateStall(r)).Produces<Stall>(200);
+        c.MapGet("/stalls/{id:guid}/history", async (Guid id, int? page, int? pageSize, ICareService moduleService) => await moduleService.ListStallHistory(id, page, pageSize)).Produces<PageResponse<StallHistoryResponse>>(200);
         c.MapPost("/stalls/{id:guid}/occupancy", async (Guid id, OccupancyRequest r, ICareService moduleService) => await moduleService.OccupyStall(id, r)).Produces<StallOccupancy>(200);
         c.MapPost("/stalls/{id:guid}/vacate", async (Guid id, ICareService moduleService) => (await moduleService.VacateStall(id)).ToHttpResult()).Produces(204);
         c.MapPost("/stalls/{id:guid}/cleaned", async (Guid id, ICareService moduleService) => (await moduleService.MarkStallClean(id)).ToHttpResult()).Produces(204);

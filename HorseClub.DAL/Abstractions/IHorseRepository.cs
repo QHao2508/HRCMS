@@ -13,6 +13,7 @@ public interface IHorseRepository
     void AddMeasurement(Measurement measurement);
     Task<bool> HasActiveSessionAsync(Guid horseId);
     Task<List<StallOccupancy>> GetOccupanciesAsync(Guid horseId);
+    ValueTask<Stall?> FindStallAsync(Guid id);
     Task<bool> HasActiveCareAsync(Guid horseId);
     Task<List<TrainingPlan>> GetOpenPlansAsync(Guid horseId);
     Task<List<TrainingSession>> GetPendingSessionsAsync(Guid horseId);

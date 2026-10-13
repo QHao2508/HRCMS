@@ -17,6 +17,7 @@ public interface ICareService
     Task<PageResponse<Stable>> ListStables(int? page, int? pageSize);
     Task<Stable> CreateStable(NameRequest r);
     Task<PageResponse<StallSummaryResponse>> ListStalls(Guid? stableId, int? page, int? pageSize);
+    Task<PageResponse<StallHistoryResponse>> ListStallHistory(Guid id, int? page, int? pageSize);
     Task<Stall> CreateStall(StallRequest r);
     Task<StallOccupancy> OccupyStall(Guid id, OccupancyRequest r);
     Task<OperationResult> VacateStall(Guid id);

@@ -22,7 +22,20 @@ public sealed class CareRepository(ClubDbContext db) : ICareRepository
     public Task<bool> IsOccupiedAsync(Guid id) => db.Occupancies.AnyAsync(x => x.StallId == id && x.EndedAt == null);
     public Task<List<StallOccupancy>> GetHorseOccupanciesAsync(Guid horseId) => db.Occupancies.Where(x => x.HorseId == horseId && x.EndedAt == null).ToListAsync();
     public Task<StallOccupancy?> GetStallOccupancyAsync(Guid id) => db.Occupancies.SingleOrDefaultAsync(x => x.StallId == id && x.EndedAt == null);
+    public Task<StallOccupancy?> GetLatestStallOccupancyAsync(Guid id) => db.Occupancies.Where(x => x.StallId == id).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync();
+    public Task<List<Guid>> CleanableStallsAsync(IEnumerable<Guid> ids, HorseScope scope)
+    {
+        var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
+        return db.Stalls.Where(s => ids.Contains(s.Id) && horses.Contains(db.Occupancies.Where(o => o.StallId == s.Id).OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id).Select(o => o.HorseId).FirstOrDefault())).Select(s => s.Id).ToListAsync();
+    }
     public Task<DataPage<Stable>> ListStablesAsync(int page, int size) => Page(db.Stables.OrderBy(x => x.Name).ThenBy(x => x.Id), page, size);
+    public Task<DataPage<StallOccupancy>> ListStallHistoryAsync(Guid id, HorseScope scope, bool includeAll, int page, int size)
+    {
+        var query = db.Occupancies.Where(x => x.StallId == id);
+        if (!includeAll) { var horses = ScopedHorses.For(db, scope).Select(x => x.Id); query = query.Where(x => horses.Contains(x.HorseId)); }
+        return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
+    }
+    public Task<Dictionary<Guid, string>> HorseNamesAsync(IEnumerable<Guid> ids) => db.Horses.Where(x => ids.Contains(x.Id)).ToDictionaryAsync(x => x.Id, x => x.Name);
     public async Task<DataPage<CareTask>> ListTasksAsync(HorseScope scope, Guid? horseId, Guid? groomId, CareStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);

@@ -109,7 +109,13 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
         }
         events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.HorseIsArchived, id);
         horse.Archived = true; horse.ArchiveCategory = r?.Category; horse.ArchiveReason = r?.Reason.Trim(); horse.ArchivedBy = (await current.Get()).Id; horse.ArchivedAt = now;
-        foreach (var occupancy in await repository.GetOccupanciesAsync(id)) occupancy.EndedAt = now;
+        foreach (var occupancy in await repository.GetOccupanciesAsync(id))
+        {
+            occupancy.EndedAt = now;
+            var stall = Ensure.Found(await repository.FindStallAsync(occupancy.StallId));
+            stall.CleaningStatus = CleaningStatus.NeedsCleaning;
+        }
+        await events.RefreshRoles(Role.ClubManager, Role.Groom);
         await events.Audit(AuditAction.HorseArchived, id, System.Text.Json.JsonSerializer.Serialize(new { Category = r?.Category.ToString(), Reason = r?.Reason.Trim() })); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 

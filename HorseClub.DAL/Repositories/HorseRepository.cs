@@ -8,6 +8,7 @@ namespace HorseClub.DAL.Repositories;
 public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
 {
     public ValueTask<Horse?> FindAsync(Guid id) => db.Horses.FindAsync(id);
+    public ValueTask<Stall?> FindStallAsync(Guid id) => db.Stalls.FindAsync(id);
     public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size)
     {
         var query = ScopedHorses.For(db, scope);
