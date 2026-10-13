@@ -9,7 +9,7 @@ namespace HorseClub.BLL.Training;
 
 public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repository, ITrainingRepository training,
     IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, ClubCalendar calendar,
-    TimeProvider clock, IOptions<BusinessOptions> options) : ITrainingSchedulingService
+    TimeProvider clock, IOptions<BusinessOptions> options, ITrainingTemplateService templates) : ITrainingSchedulingService
 {
     private static string Name(User user) => (user.FirstName + " " + user.LastName).Trim();
     public async Task<System.Text.Json.JsonElement> ReferenceData()
@@ -50,7 +50,7 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         Check(staff.Role is Role.Trainer or Role.WorkRider, "training_staff_required");
         Ensure.That(request.Specialties is not null && request.WorkingHours is not null && request.TimeOff is not null, Messages.Get(MessageKey.InvalidRequestBody));
         var specialties = request.Specialties!; var hours = request.WorkingHours!; var timeOff = request.TimeOff!;
-        Ensure.That(specialties.Count <= 6 && (staff.Role == Role.Trainer || specialties.Count == 0)
+        Ensure.That(specialties.Count <= Enum.GetValues<TrainingType>().Length && (staff.Role == Role.Trainer || specialties.Count == 0)
             && specialties.All(x => x is not null && Enum.IsDefined(x.TrainingType) && x.Level is >= 1 and <= 3)
             && specialties.Select(x => x.TrainingType).Distinct().Count() == specialties.Count
             && hours.Count <= 21 && hours.All(x => x is not null && Enum.IsDefined(x.DayOfWeek) && x.StartMinute >= 0 && x.EndMinute <= 1440 && x.EndMinute > x.StartMinute)
@@ -161,12 +161,13 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         return hours.Any(x => x.DayOfWeek == day.DayOfWeek && calendar.At(day, x.StartMinute) <= start && calendar.At(day, x.EndMinute) >= end);
     }
 
-    public async Task ValidateSession(Guid horseId, Guid? riderId, TrainingType trainingType, DateTimeOffset start, DateTimeOffset? end, Guid exceptSessionId)
+    public async Task ValidateSession(Guid horseId, Guid? riderId, TrainingType trainingType, DateTimeOffset start, DateTimeOffset? end, Guid exceptSessionId, Guid? templateId = null)
     {
         var trainerId = await repository.CurrentTrainerAsync(horseId);
         Check(trainerId.HasValue, "trainer_unassigned");
         var trainer = await access.Staff(trainerId!.Value, Role.Trainer);
         Check(trainer.EmailVerified, "training_staff_required");
+        if (templateId.HasValue) await templates.ValidateTrainer(templateId.Value, trainer.Id);
         var expertise = await repository.ExpertiseAsync([trainer.Id]);
         // Preserve legacy API scheduling while making configured profiles authoritative.
         if (expertise.Count > 0) Check(expertise.Any(x => x.TrainingType == trainingType), "trainer_specialty_mismatch");
@@ -204,6 +205,9 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         }
         foreach (var session in await repository.PendingHorseSessionsAsync(horseId))
         {
+            var pendingSession = Ensure.Found(await training.FindSessionAsync(session.SessionId));
+            var pendingPlan = Ensure.Found(await training.FindPlanAsync(pendingSession.PlanId));
+            await templates.ValidateTrainer(pendingPlan.TemplateId, trainerId);
             Check(!session.InProgress || await repository.CurrentTrainerAsync(horseId) == trainerId, "trainer_session_in_progress");
             if (expertise.Count > 0) Check(expertise.Any(x => x.TrainingType == session.TrainingType), "trainer_specialty_mismatch");
             await ValidateHours(Ensure.Found(await repository.FindStaffAsync(trainerId)), session.Start, session.End);

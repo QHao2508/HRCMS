@@ -59,6 +59,14 @@ internal static class ClubModelConfiguration
         b.Entity<Incident>().Property(x => x.Resolution).HasMaxLength(2000);
         b.Entity<Horse>().Property(x => x.ArchiveReason).HasMaxLength(2000);
         b.Entity<ReplenishmentRequest>().HasOne<InventoryItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<TrainingTemplate>().Property(x => x.CurriculumJson).HasMaxLength(16000);
+        b.Entity<TrainingTemplate>().Property(x => x.SystemKey).HasMaxLength(100);
+        b.Entity<TrainingTemplate>().HasIndex(x => x.SystemKey).IsUnique().HasFilter("[SystemKey] IS NOT NULL");
+        b.Entity<TrainerTemplateAssignment>().HasIndex(x => new { x.TemplateId, x.TrainerId }).IsUnique();
+        b.Entity<TrainerTemplateAssignment>().HasOne<TrainingTemplate>().WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<TrainerTemplateAssignment>().HasOne<User>().WithMany().HasForeignKey(x => x.TrainerId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<TrainerTemplateAssignment>().HasOne<User>().WithMany().HasForeignKey(x => x.AssignedBy).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<TrainingTemplate>().HasData(DefaultTrainingTemplates.All);
         foreach (var t in b.Model.GetEntityTypes().ToArray())
         {
             if (t.FindProperty("HorseId") is not null)
@@ -88,5 +96,9 @@ internal static class ClubModelConfiguration
         b.Entity<MedicalFollowUp>().Property(x => x.PreviousSnapshotJson).HasMaxLength(200000);
         b.Entity<MedicalFollowUp>().Property(x => x.CurrentSnapshotJson).HasMaxLength(200000);
         ReadPerformanceConfiguration.Configure(b);
+        b.Entity<TrainingTemplate>().Property(x => x.CurriculumJson).HasMaxLength(16000);
+        b.Entity<TrainingTemplate>().Property(x => x.SystemKey).HasMaxLength(100);
+        b.Entity<TrainingTemplate>().Property(x => x.MinimumExpertiseLevel).HasDefaultValue(1);
+        b.Entity<TrainingTemplate>().Property(x => x.RequiredTrainingTypesJson).HasDefaultValue("[]");
     }
 }

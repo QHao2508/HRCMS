@@ -21,6 +21,9 @@ public static class TrainingEndpoints
         t.MapGet("/trainer-candidates", async (Guid horseId, TrainingType trainingType, ITrainingSchedulingService service) => await service.Candidates(horseId, trainingType))
             .Produces<List<TrainerCandidateResponse>>(200);
         t.MapGet("/templates", async (int? page, int? pageSize, ITrainingTemplateService moduleService) => await moduleService.ListTemplates(page, pageSize)).Produces<PageResponse<TrainingTemplate>>(200);
+        t.MapGet("/templates/defaults", async (ITrainingTemplateService service) => await service.Defaults()).Produces<List<TrainingTemplate>>(200);
+        t.MapGet("/templates/{id:guid}/trainer-candidates", async (Guid id, ITrainingTemplateService service) => await service.Candidates(id)).Produces<List<TemplateTrainerCandidate>>(200);
+        t.MapPost("/templates/{id:guid}/assign", async (Guid id, TemplateTrainerRequest request, ITrainingTemplateService service) => (await service.AssignTrainer(id, request)).ToHttpResult()).Produces(204);
         t.MapPost("/templates", async (TemplateRequest r, ITrainingTemplateService moduleService) => (await moduleService.CreateTemplate(r)).ToHttpResult()).Produces<TrainingTemplate>(201);
         t.MapPut("/templates/{id:guid}", async (Guid id, TemplateRequest r, ITrainingTemplateService moduleService) => await moduleService.UpdateTemplate(id, r)).Produces<TrainingTemplate>(200);
         t.MapPost("/templates/{id:guid}/archive", async (Guid id, ITrainingTemplateService moduleService) => (await moduleService.ArchiveTemplate(id)).ToHttpResult()).Produces(204);

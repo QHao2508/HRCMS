@@ -12,4 +12,8 @@ public interface ITrainingTemplateService
     Task<OperationResult> CreateTemplate(TemplateRequest r);
     Task<TrainingTemplate> UpdateTemplate(Guid id, TemplateRequest r);
     Task<OperationResult> ArchiveTemplate(Guid id);
+    Task<List<TrainingTemplate>> Defaults();
+    Task<List<TemplateTrainerCandidate>> Candidates(Guid id);
+    Task<OperationResult> AssignTrainer(Guid id, TemplateTrainerRequest request);
+    Task ValidateTrainer(Guid templateId, Guid trainerId, bool requireAssignment = true);
 }

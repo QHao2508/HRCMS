@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingSessionService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling) : ITrainingSessionService
+public sealed class TrainingSessionService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling, ITrainingTemplateService templates) : ITrainingSessionService
 {
     /// <summary>
     /// Kiểm tình trạng ngựa và hạn chế y tế tại thời điểm buổi tập; chặn bài tập, cường độ hoặc quãng đường không phù hợp.
@@ -75,6 +75,8 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
     private async Task ApplySession(TrainingSession s, TrainingPlan p, SessionRequest r)
     {
+        var template = Ensure.Found(await repository.FindTemplateAsync(p.TemplateId));
+        await templates.ValidateTrainer(template.Id, (await current.Get()).Id); TemplateCurriculumPolicy.ValidateSession(template, r);
         var date = calendar.DateAt(r.ScheduledAt);
         Ensure.That(r.ScheduledAt != default && date >= p.StartDate && date <= p.EndDate, Messages.Get(MessageKey.SessionMustFallWithinPlanDatesInTheClub));
         Ensure.That(r.ScheduledAt >= clock.GetUtcNow().AddMinutes(-options.Value.ScheduleGraceMinutes), Messages.Get(MessageKey.ScheduleSessionsInTheFuture));
@@ -82,7 +84,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var end = r.DurationMinutes.HasValue ? (DateTimeOffset?)r.ScheduledAt.AddMinutes(r.DurationMinutes.Value) : null;
         Ensure.That(!end.HasValue || calendar.DateAt(end.Value.AddTicks(-1)) <= p.EndDate, Messages.Get(MessageKey.InvalidSessionDuration));
         await Guard(s.HorseId, r.DistanceMetres, r.Intensity, r.TrainingType, r.ScheduledAt, end);
-        await scheduling.ValidateSession(s.HorseId, r.RiderId, r.TrainingType, r.ScheduledAt, end, s.Id);
+        await scheduling.ValidateSession(s.HorseId, r.RiderId, r.TrainingType, r.ScheduledAt, end, s.Id, p.TemplateId);
         Ensure.That(!await repository.HasScheduleConflictAsync(s.Id,s.HorseId,r.RiderId,r.ScheduledAt,end), Messages.Get(MessageKey.SessionScheduleOverlap),409,"schedule_overlap");
         if (r.RiderId.HasValue)
         {
@@ -92,6 +94,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         s.DurationMinutes = r.DurationMinutes; s.ScheduledEndAt = end?.ToUniversalTime();
         s.ScheduledAt = r.ScheduledAt.ToUniversalTime(); s.TrainingType = r.TrainingType; s.DistanceMetres = r.DistanceMetres;
         s.Intensity = r.Intensity; s.Surface = r.Surface; s.Target = r.Target; s.Notes = r.Notes; s.RiderId = r.RiderId;
+        s.TemplateExerciseKey = r.TemplateExerciseKey; s.UseCustomExercise = r.UseCustomExercise;
         s.Status = r.RiderId.HasValue ? SessionStatus.Assigned : SessionStatus.Planned;
     }
     /// <summary>
@@ -113,7 +116,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Get(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
         Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
         await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null);
-        await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null, s.Id);
+        await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null, s.Id, plan.TemplateId);
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
         await events.TrainingHistory(plan, s);
         await events.Audit(AuditAction.TrainingSessionStarted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync();
@@ -201,7 +204,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         if (u.Role != Role.WorkRider) await access.TrainingHistoryHorse(s.HorseId, Ensure.Found(await repository.FindPlanAsync(s.PlanId)).TrainerId);
         var names=(await repository.SessionNamesAsync([id])).Single();
-        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id),names.HorseName,names.TrainerName,names.RiderName, Ensure.Found(await repository.FindHorseAsync(s.HorseId)).Archived);
+        return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id),names.HorseName,names.TrainerName,names.RiderName, Ensure.Found(await repository.FindHorseAsync(s.HorseId)).Archived, await repository.FindTemplateAsync(Ensure.Found(await repository.FindPlanAsync(s.PlanId)).TemplateId));
     }
 
     /// <summary>
@@ -220,7 +223,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<TrainingSession> AssignRider(Guid id, RiderRequest r)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id));
-        return await EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId, s.DurationMinutes));
+        return await EditSession(id, new SessionRequest(s.ScheduledAt, s.TrainingType, s.DistanceMetres, s.Intensity, s.Surface, s.Target, s.Notes, r.RiderId, s.DurationMinutes, s.TemplateExerciseKey, s.UseCustomExercise));
     }
 
     /// <summary>

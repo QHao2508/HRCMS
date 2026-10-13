@@ -15,6 +15,11 @@ public interface ITrainingRepository
     void AddEvaluation(TrainerEvaluation evaluation);
     void AddIncident(Incident incident);
     Task<DataPage<TrainingTemplate>> ListTemplatesAsync(int page, int size);
+    Task<List<TrainingTemplate>> ListDefaultTemplatesAsync();
+    Task<List<TrainingTemplate>> TemplatesForTrainerAsync(Guid trainerId);
+    Task<List<TrainerTemplateAssignment>> TemplateAssignmentsAsync(Guid templateId);
+    Task<TrainerTemplateAssignment?> FindTemplateAssignmentAsync(Guid templateId, Guid trainerId);
+    void AddTemplateAssignment(TrainerTemplateAssignment assignment);
     Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size, string? search = null);
     Task<DataPage<TrainingSession>> ListSessionsAsync(HorseScope scope, Guid? horseId, Guid? riderId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int page, int size, string? search = null);
     Task<DataPage<TrainingSession>> ListPlanSessionsAsync(Guid planId, Guid? riderId, int page, int size);

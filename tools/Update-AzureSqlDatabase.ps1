@@ -1,9 +1,15 @@
 param([string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'))
 $ErrorActionPreference = 'Stop'
 $secretPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Microsoft/UserSecrets/horseclub-backend/secrets.json'
-if (!(Test-Path -LiteralPath $secretPath)) { throw 'Run Set-AzureSqlConnection.ps1 first.' }
-$secrets = Get-Content -Raw -LiteralPath $secretPath | ConvertFrom-Json
+$secrets = if (Test-Path -LiteralPath $secretPath) { Get-Content -Raw -LiteralPath $secretPath | ConvertFrom-Json } else { $null }
 $connectionText = $secrets.'ConnectionStrings:SqlServer'
+if ([string]::IsNullOrWhiteSpace($connectionText)) {
+    $accessPath = Join-Path $PSScriptRoot '../Horse_BackEnd/appsettings.AzureAccess.Local.json'
+    if (Test-Path -LiteralPath $accessPath) {
+        $secrets = Get-Content -Raw -LiteralPath $accessPath | ConvertFrom-Json
+        $connectionText = $secrets.'ConnectionStrings:SqlServer'
+    }
+}
 if ([string]::IsNullOrWhiteSpace($connectionText)) { throw 'Azure SQL connection is missing from User Secrets.' }
 $connection = [System.Data.SqlClient.SqlConnectionStringBuilder]::new($connectionText)
 if ($connection.DataSource -ne 'tcp:hrcms.database.windows.net,1433' -or $connection.InitialCatalog -ne 'HRCMS' -or $connection.IntegratedSecurity -or !$connection.Encrypt -or $connection.TrustServerCertificate -or [string]::IsNullOrEmpty($connection.Password)) {
@@ -34,7 +40,7 @@ SELECT DB_NAME() AS TargetDatabase, COUNT(*) AS ExistingTables FROM sys.tables W
 "@
     & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -b -l 30 -Q $preflight
     if ($LASTEXITCODE -ne 0) { throw 'Azure SQL preflight failed; no migration applied.' }
-    & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -b -l 30 -i $schemaPath
+    & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -I -b -l 30 -i $schemaPath
     if ($LASTEXITCODE -ne 0) { throw 'Migration failed. Review the SQL error before retrying.' }
     $verify = @"
 SET NOCOUNT ON;

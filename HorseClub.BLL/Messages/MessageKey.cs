@@ -194,4 +194,5 @@ public enum MessageKey
     MedicalCaseAlreadyResolved = 190,
     MedicalCaseMustUseLatestVersion = 191,
     ManagerTrainerAssignmentReasonRequired = 192,
-}
+
+    ChooseTemplatePlanOption,     ChooseTemplateSessionOption,     DefaultTemplateReadOnly,     InvalidTemplateCurriculum,     TemplateMustBeAssignedToQualifiedTrainer,}

@@ -16,4 +16,6 @@ public sealed class TrainingSession : Entity
     public DateTimeOffset? StartedAt { get; set; }
     public int? DurationMinutes { get; set; }
     public DateTimeOffset? ScheduledEndAt { get; set; }
+    public string? TemplateExerciseKey { get; set; }
+    public bool UseCustomExercise { get; set; }
 }

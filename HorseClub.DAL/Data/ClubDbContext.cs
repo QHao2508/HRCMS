@@ -16,6 +16,7 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<Measurement> Measurements => Set<Measurement>();
     public DbSet<StaffAssignment> Assignments => Set<StaffAssignment>();
     public DbSet<TrainingTemplate> Templates => Set<TrainingTemplate>();
+    public DbSet<TrainerTemplateAssignment> TrainerTemplateAssignments => Set<TrainerTemplateAssignment>();
     public DbSet<TrainingPlan> Plans => Set<TrainingPlan>();
     public DbSet<TrainingSession> Sessions => Set<TrainingSession>();
     public DbSet<SessionResult> Results => Set<SessionResult>();

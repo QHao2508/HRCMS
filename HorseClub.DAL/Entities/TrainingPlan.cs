@@ -11,4 +11,6 @@ public sealed class TrainingPlan : Entity
     public DateOnly EndDate { get; set; }
     public string Notes { get; set; } = "";
     public PlanStatus Status { get; set; } = PlanStatus.Active;
+    public string? TemplatePlanOptionKey { get; set; }
+    public bool UseCustomPlan { get; set; }
 }

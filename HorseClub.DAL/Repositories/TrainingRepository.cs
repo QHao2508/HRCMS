@@ -32,8 +32,15 @@ public sealed class TrainingRepository(ClubDbContext db) : ITrainingRepository
     public void AddIncident(Incident incident) => db.Incidents.Add(incident);
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
         => await query.AsNoTracking().ToPageAsync(page, size);
+    public Task<List<TrainingTemplate>> ListDefaultTemplatesAsync() => db.Templates.AsNoTracking().Where(x => x.IsSystemDefault).OrderBy(x => x.SystemKey).ToListAsync();
+    public Task<List<TrainingTemplate>> TemplatesForTrainerAsync(Guid trainerId) => db.Templates.AsNoTracking().Where(x => !x.Archived &&
+        (db.TrainerTemplateAssignments.Any(a => a.TemplateId == x.Id && a.TrainerId == trainerId && a.Active)
+        || x.CurriculumJson == "" && db.Plans.Any(p => p.TemplateId == x.Id && p.TrainerId == trainerId))).OrderByDescending(x => x.IsSystemDefault).ThenBy(x => x.Name).ToListAsync();
+    public Task<List<TrainerTemplateAssignment>> TemplateAssignmentsAsync(Guid templateId) => db.TrainerTemplateAssignments.AsNoTracking().Where(x => x.TemplateId == templateId && x.Active).ToListAsync();
+    public Task<TrainerTemplateAssignment?> FindTemplateAssignmentAsync(Guid templateId, Guid trainerId) => db.TrainerTemplateAssignments.SingleOrDefaultAsync(x => x.TemplateId == templateId && x.TrainerId == trainerId);
+    public void AddTemplateAssignment(TrainerTemplateAssignment assignment) => db.TrainerTemplateAssignments.Add(assignment);
     public Task<DataPage<TrainingTemplate>> ListTemplatesAsync(int page, int size)
-        => Page(db.Templates.Where(x => !x.Archived).OrderBy(x => x.Name).ThenBy(x => x.Id), page, size);
+        => Page(db.Templates.Where(x => !x.Archived).OrderByDescending(x => x.IsSystemDefault).ThenBy(x => x.Name).ThenBy(x => x.Id), page, size);
     public Task<DataPage<TrainingPlan>> ListPlansAsync(HorseScope scope, Guid? horseId, Guid? riderId, int page, int size, string? search = null)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
