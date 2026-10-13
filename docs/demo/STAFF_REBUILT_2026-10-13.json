@@ -1,0 +1,209 @@
+[
+  {
+    "email": "headtrainer.minh@example.test",
+    "userName": "headtrainer.minh",
+    "role": "HeadTrainer",
+    "firstName": "Minh",
+    "lastName": "Nguyễn Văn",
+    "phone": "0900000101",
+    "address": "Khu huấn luyện A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "headtrainer.phong@example.test",
+    "userName": "headtrainer.phong",
+    "role": "HeadTrainer",
+    "firstName": "Phong",
+    "lastName": "Trần Quốc",
+    "phone": "0900000102",
+    "address": "Khu huấn luyện B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "headtrainer.khanh@example.test",
+    "userName": "headtrainer.khanh",
+    "role": "HeadTrainer",
+    "firstName": "Khánh",
+    "lastName": "Lê Minh",
+    "phone": "0900000103",
+    "address": "Khu huấn luyện C, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "trainer.an@example.test",
+    "userName": "trainer.an",
+    "role": "Trainer",
+    "firstName": "An",
+    "lastName": "Nguyễn Hoàng",
+    "phone": "0900000201",
+    "address": "Khu huấn luyện A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "trainer.bao@example.test",
+    "userName": "trainer.bao",
+    "role": "Trainer",
+    "firstName": "Bảo",
+    "lastName": "Trần Gia",
+    "phone": "0900000202",
+    "address": "Khu huấn luyện A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "trainer.duc@example.test",
+    "userName": "trainer.duc",
+    "role": "Trainer",
+    "firstName": "Đức",
+    "lastName": "Lê Anh",
+    "phone": "0900000203",
+    "address": "Khu huấn luyện B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "trainer.nam@example.test",
+    "userName": "trainer.nam",
+    "role": "Trainer",
+    "firstName": "Nam",
+    "lastName": "Phạm Hải",
+    "phone": "0900000204",
+    "address": "Khu huấn luyện B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "trainer.son@example.test",
+    "userName": "trainer.son",
+    "role": "Trainer",
+    "firstName": "Sơn",
+    "lastName": "Võ Thanh",
+    "phone": "0900000205",
+    "address": "Khu huấn luyện C, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "workrider.huy@example.test",
+    "userName": "workrider.huy",
+    "role": "WorkRider",
+    "firstName": "Huy",
+    "lastName": "Nguyễn Quang",
+    "phone": "0900000301",
+    "address": "Khu kỵ sĩ A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "workrider.kiet@example.test",
+    "userName": "workrider.kiet",
+    "role": "WorkRider",
+    "firstName": "Kiệt",
+    "lastName": "Trần Tuấn",
+    "phone": "0900000302",
+    "address": "Khu kỵ sĩ A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "workrider.long@example.test",
+    "userName": "workrider.long",
+    "role": "WorkRider",
+    "firstName": "Long",
+    "lastName": "Lê Thành",
+    "phone": "0900000303",
+    "address": "Khu kỵ sĩ B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "workrider.quan@example.test",
+    "userName": "workrider.quan",
+    "role": "WorkRider",
+    "firstName": "Quân",
+    "lastName": "Phạm Minh",
+    "phone": "0900000304",
+    "address": "Khu kỵ sĩ B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "workrider.tuan@example.test",
+    "userName": "workrider.tuan",
+    "role": "WorkRider",
+    "firstName": "Tuấn",
+    "lastName": "Võ Anh",
+    "phone": "0900000305",
+    "address": "Khu kỵ sĩ C, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "groom.mai@example.test",
+    "userName": "groom.mai",
+    "role": "Groom",
+    "firstName": "Mai",
+    "lastName": "Nguyễn Thị",
+    "phone": "0900000401",
+    "address": "Khu chăm sóc A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "groom.ha@example.test",
+    "userName": "groom.ha",
+    "role": "Groom",
+    "firstName": "Hà",
+    "lastName": "Trần Ngọc",
+    "phone": "0900000402",
+    "address": "Khu chăm sóc A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "groom.linh@example.test",
+    "userName": "groom.linh",
+    "role": "Groom",
+    "firstName": "Linh",
+    "lastName": "Lê Thùy",
+    "phone": "0900000403",
+    "address": "Khu chăm sóc B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "groom.trang@example.test",
+    "userName": "groom.trang",
+    "role": "Groom",
+    "firstName": "Trang",
+    "lastName": "Phạm Thu",
+    "phone": "0900000404",
+    "address": "Khu chăm sóc B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "groom.yen@example.test",
+    "userName": "groom.yen",
+    "role": "Groom",
+    "firstName": "Yến",
+    "lastName": "Võ Hải",
+    "phone": "0900000405",
+    "address": "Khu chăm sóc C, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "vet.lan@example.test",
+    "userName": "vet.lan",
+    "role": "Veterinarian",
+    "firstName": "Lan",
+    "lastName": "Nguyễn Ngọc",
+    "phone": "0900000501",
+    "address": "Khu thú y A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "vet.thao@example.test",
+    "userName": "vet.thao",
+    "role": "Veterinarian",
+    "firstName": "Thảo",
+    "lastName": "Trần Phương",
+    "phone": "0900000502",
+    "address": "Khu thú y A, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "vet.ngoc@example.test",
+    "userName": "vet.ngoc",
+    "role": "Veterinarian",
+    "firstName": "Ngọc",
+    "lastName": "Lê Bảo",
+    "phone": "0900000503",
+    "address": "Khu thú y B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "vet.tung@example.test",
+    "userName": "vet.tung",
+    "role": "Veterinarian",
+    "firstName": "Tùng",
+    "lastName": "Phạm Thanh",
+    "phone": "0900000504",
+    "address": "Khu thú y B, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  },
+  {
+    "email": "vet.vinh@example.test",
+    "userName": "vet.vinh",
+    "role": "Veterinarian",
+    "firstName": "Vinh",
+    "lastName": "Võ Quang",
+    "phone": "0900000505",
+    "address": "Khu thú y C, TP. Hồ Chí Minh (hồ sơ mẫu)"
+  }
+]

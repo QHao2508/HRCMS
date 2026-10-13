@@ -1,6 +1,6 @@
 # Kế hoạch dọn tài khoản và tạo lại đủ role
 
-Database đã kiểm tra: Azure `hrcms.database.windows.net / HRCMS`, 13/10/2026. Sau xác nhận của người dùng, đã commit dọn tài khoản và dữ liệu liên quan lúc 13:48 (UTC+7). Chưa tạo tài khoản mới.
+Database đã kiểm tra: Azure `hrcms.database.windows.net / HRCMS`, 13/10/2026. Sau xác nhận của người dùng, đã commit dọn tài khoản và dữ liệu liên quan lúc 13:48 (UTC+7). Theo yêu cầu tiếp theo, đã tạo lại 23 staff (3 HeadTrainer; 5 Trainer, WorkRider, Groom và Veterinarian mỗi role), giữ ClubManager: tổng 24. Xem [danh sách hiện hành](demo/STAFF_REBUILT_2026-10-13.md). Bảng đề xuất 12 tài khoản bên dưới là kế hoạch trước yêu cầu mới, không phải số tài khoản hiện tại.
 
 ## Hiện trạng trước khi dọn
 
