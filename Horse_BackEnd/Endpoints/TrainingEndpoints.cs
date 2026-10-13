@@ -14,6 +14,12 @@ public static class TrainingEndpoints
     {
         var t = api.MapGroup("/training").RequireAuthorization().WithTags("Training");
         t.AddEndpointFilter(new AllowedRolesFilter(Role.ClubManager, Role.HorseOwner, Role.HeadTrainer, Role.Trainer, Role.WorkRider, Role.Veterinarian));
+        t.MapGet("/reference-data", async (ITrainingSchedulingService service) => await service.ReferenceData()).Produces<System.Text.Json.JsonElement>(200);
+        t.MapGet("/availability", async (Guid horseId, DateOnly date, int durationMinutes, TrainingType trainingType, Intensity intensity, decimal distanceMetres,
+            Guid? riderId, Guid? exceptSessionId, ITrainingSchedulingService service) => await service.Availability(horseId, date, durationMinutes, trainingType, intensity, distanceMetres, riderId, exceptSessionId))
+            .Produces<TrainingAvailabilityResponse>(200);
+        t.MapGet("/trainer-candidates", async (Guid horseId, TrainingType trainingType, ITrainingSchedulingService service) => await service.Candidates(horseId, trainingType))
+            .Produces<List<TrainerCandidateResponse>>(200);
         t.MapGet("/templates", async (int? page, int? pageSize, ITrainingTemplateService moduleService) => await moduleService.ListTemplates(page, pageSize)).Produces<PageResponse<TrainingTemplate>>(200);
         t.MapPost("/templates", async (TemplateRequest r, ITrainingTemplateService moduleService) => (await moduleService.CreateTemplate(r)).ToHttpResult()).Produces<TrainingTemplate>(201);
         t.MapPut("/templates/{id:guid}", async (Guid id, TemplateRequest r, ITrainingTemplateService moduleService) => await moduleService.UpdateTemplate(id, r)).Produces<TrainingTemplate>(200);

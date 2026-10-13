@@ -1,6 +1,6 @@
 # Tài liệu HRCMS
 
-Cập nhật 08/10/2026. Tài liệu hiện hành nằm bên dưới; kế hoạch và snapshot cũ nằm trong [archive](archive/README.md).
+Cập nhật 13/10/2026. Tài liệu hiện hành nằm bên dưới; kế hoạch và snapshot cũ nằm trong [archive](archive/README.md).
 
 ## Báo cáo và kiến trúc
 
@@ -18,6 +18,7 @@ Cập nhật 08/10/2026. Tài liệu hiện hành nằm bên dưới; kế hoạ
 
 ## API và nghiệp vụ
 
+- [Chuyên môn trainer, lịch trống và dữ liệu thực tế](TRAINER_AVAILABILITY_2026-10-13.md).
 - [API contract](API_CONTRACT.md), [intake và phân công](BE-003_INTAKE_AND_ASSIGNMENT.md), [training](BE-004_TRAINING.md).
 - [Policy baseline](T02_POLICY_BASELINE.md), [đăng ký 24 giờ](PENDING_REGISTRATION.md), [email worker](WORKER_RELIABILITY.md).
 
@@ -28,8 +29,9 @@ Cập nhật 08/10/2026. Tài liệu hiện hành nằm bên dưới; kế hoạ
 | `contracts/` | OpenAPI, endpoint inventory và audit; baseline phục vụ đối chiếu tương thích. |
 | `demo/` | Dữ liệu tài khoản mà công cụ seed tham chiếu. |
 | `http/` | Request mẫu intake và training. |
-| `azure-sql-schema.sql` | Schema hiện hành, đủ 7 migration. |
-| `database.sql` | Schema cũ gồm 3 migration; giữ để tra lịch sử. |
+| `data/` | Hồ sơ công khai đã đối chiếu, có nguồn và ngày thu thập; tách khỏi ownership/booking nội bộ. |
+| `azure-sql-schema.sql` | Script idempotent schema mới nhất; không đồng nghĩa đã áp vào Azure. |
+| `database.sql` | Script idempotent toàn bộ schema mới nhất. |
 | `Export-ContractInventory.ps1` | Công cụ xuất contract inventory. |
 | `archive/` | Kế hoạch, báo cáo và function reference trước refactor. |
 

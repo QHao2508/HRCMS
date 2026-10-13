@@ -178,5 +178,13 @@
   "InvalidReceiptQuantity": "Receipt quantity must be positive and cannot exceed the remaining approved quantity.",
   "ItemHasOpenReplenishments": "Finish or reject open replenishments before archiving this item.",
   "ArchiveReasonRequired": "An archive category and operational reason are required.",
-  "FinishCareBeforeReassignment": "Finish in-progress care before replacing the groom."
+  "FinishCareBeforeReassignment": "Finish in-progress care before replacing the groom.",
+  "TrainerScheduleOverlap": "The trainer has an overlapping training session.",
+  "TrainerSpecialtyMismatch": "The trainer does not have the required training specialty.",
+  "StaffOutsideWorkingHours": "The session falls outside staff working hours.",
+  "StaffTimeOffConflict": "The staff member is on time off during this session.",
+  "StaffProfileBookingsConflict": "The updated profile would invalidate existing training bookings.",
+  "TrainerSessionInProgress": "Finish in-progress training before replacing the trainer.",
+  "SchedulingDurationRequired": "A session duration is required to check working hours.",
+  "TrainerUnassigned": "Assign an active trainer to the horse before scheduling."
 }

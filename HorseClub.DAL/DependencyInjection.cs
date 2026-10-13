@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddScoped<HorseClub.DAL.Abstractions.IRegistrationRepository, HorseClub.DAL.Repositories.RegistrationRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.IAssignmentRepository, HorseClub.DAL.Repositories.AssignmentRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.ITrainingRepository, HorseClub.DAL.Repositories.TrainingRepository>();
+        services.AddScoped<ITrainingSchedulingRepository, TrainingSchedulingRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.IHorseRepository, HorseClub.DAL.Repositories.HorseRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.IAccessRepository, HorseClub.DAL.Repositories.AccessRepository>();
         services.AddScoped<HorseClub.DAL.Abstractions.IEventRepository, HorseClub.DAL.Repositories.EventRepository>();

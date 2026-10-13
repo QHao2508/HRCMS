@@ -20,6 +20,11 @@ public sealed class ClubCalendar(IOptions<BusinessOptions> options)
     /// </summary>
     /// <param name="clock">Giá trị kiểu TimeProvider dùng trong Today.</param>
     public DateOnly Today(TimeProvider clock) => DateAt(clock.GetUtcNow());
+    public DateTimeOffset At(DateOnly date, int minute)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue).AddMinutes(minute);
+        return new DateTimeOffset(local, zone.GetUtcOffset(local)).ToUniversalTime();
+    }
     /// <summary>
     /// Tạo cặp mốc UTC đầu/cuối của một ngày nghiệp vụ để lọc thời gian trong database.
     /// </summary>

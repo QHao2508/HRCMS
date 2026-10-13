@@ -1574,3 +1574,290 @@ END;
 
 COMMIT;
 GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    CREATE TABLE [WebsiteSettings] (
+        [Id] uniqueidentifier NOT NULL,
+        [ContentJson] nvarchar(max) NOT NULL,
+        [LogoName] nvarchar(4000) NULL,
+        [LogoType] nvarchar(4000) NULL,
+        [HeroName] nvarchar(4000) NULL,
+        [HeroType] nvarchar(4000) NULL,
+        [BackgroundName] nvarchar(4000) NULL,
+        [BackgroundType] nvarchar(4000) NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_WebsiteSettings] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261009025334_WebsiteManagement', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD [ReplenishmentRequestId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [DurationMinutes] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [ScheduledEndAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedQuantity] decimal(18,3) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewNotes] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [Resolution] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveCategory] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveReason] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    CREATE INDEX [IX_StockMovements_ReplenishmentRequestId] ON [StockMovements] ([ReplenishmentRequestId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD CONSTRAINT [FK_StockMovements_Replenishments_ReplenishmentRequestId] FOREIGN KEY ([ReplenishmentRequestId]) REFERENCES [Replenishments] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261011120226_BusinessRuleLifecycle', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    ALTER TABLE [Assignments] ADD [RequiredTrainingType] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [StaffTimeOff] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [Start] bigint NOT NULL,
+        [End] bigint NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_StaffTimeOff] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_StaffTimeOff_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [StaffWorkingHours] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [DayOfWeek] int NOT NULL,
+        [StartMinute] int NOT NULL,
+        [EndMinute] int NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_StaffWorkingHours] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_StaffWorkingHours_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [TrainerExpertise] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [TrainingType] int NOT NULL,
+        [Level] int NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_TrainerExpertise] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_TrainerExpertise_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE INDEX [IX_StaffTimeOff_StaffId_Start_End] ON [StaffTimeOff] ([StaffId], [Start], [End]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_StaffWorkingHours_StaffId_DayOfWeek_StartMinute] ON [StaffWorkingHours] ([StaffId], [DayOfWeek], [StartMinute]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_TrainerExpertise_StaffId_TrainingType] ON [TrainerExpertise] ([StaffId], [TrainingType]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013044927_TrainerExpertiseAndAvailability', N'10.0.12');
+END;
+
+COMMIT;
+GO

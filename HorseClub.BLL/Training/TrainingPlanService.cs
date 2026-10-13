@@ -6,7 +6,7 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, ClubCalendar calendar, PageReader pager) : ITrainingPlanService
+public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling) : ITrainingPlanService
 {
     /// <summary>
     /// Tạo mới kế hoạch huấn luyện trong TrainingPlanService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -97,6 +97,9 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     {
         var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.Trainer(p.HorseId);
         Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Get(MessageKey.CompletedArchivedPlansCannotBeReopened), 409, "invalid_state");
+        if (r.Status == PlanStatus.Active && p.Status == PlanStatus.Paused)
+            foreach (var session in await repository.GetPlanSessionsAsync(id, pendingOnly: true))
+                await scheduling.ValidateSession(session.HorseId, session.RiderId, session.TrainingType, session.ScheduledAt, session.ScheduledEndAt, session.Id);
         if (r.Status != PlanStatus.Active)
             Ensure.That(!await repository.HasPlanSessionsAsync(id, SessionStatus.InProgress), Messages.Get(MessageKey.FinishActiveSessionsFirst), 409, "invalid_state");
         if (r.Status == PlanStatus.Completed)

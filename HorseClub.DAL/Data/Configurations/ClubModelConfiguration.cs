@@ -20,6 +20,12 @@ internal static class ClubModelConfiguration
             entity.Property(nameof(Entity.Version)).IsConcurrencyToken();
         }
         b.Entity<User>().HasIndex(x => x.Email).IsUnique();
+        b.Entity<TrainerExpertise>().HasIndex(x => new { x.StaffId, x.TrainingType }).IsUnique();
+        b.Entity<TrainerExpertise>().HasOne<User>().WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<StaffWorkingHours>().HasIndex(x => new { x.StaffId, x.DayOfWeek, x.StartMinute }).IsUnique();
+        b.Entity<StaffWorkingHours>().HasOne<User>().WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<StaffTimeOff>().HasIndex(x => new { x.StaffId, x.Start, x.End });
+        b.Entity<StaffTimeOff>().HasOne<User>().WithMany().HasForeignKey(x => x.StaffId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<RealtimeOutboxMessage>().HasIndex(x => new { x.SourceId, x.SourceVersion }).IsUnique();
         b.Entity<RealtimeOutboxMessage>().HasIndex(x => new { x.SentAt, x.NextAttemptAt, x.LockedUntil });
         b.Entity<User>().HasIndex(x => x.UserName).IsUnique();

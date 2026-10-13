@@ -182,4 +182,12 @@ public enum MessageKey
     ItemHasOpenReplenishments = 178,
     ArchiveReasonRequired = 179,
     FinishCareBeforeReassignment = 180,
+    TrainerScheduleOverlap = 181,
+    TrainerSpecialtyMismatch = 182,
+    StaffOutsideWorkingHours = 183,
+    StaffTimeOffConflict = 184,
+    StaffProfileBookingsConflict = 185,
+    TrainerSessionInProgress = 186,
+    SchedulingDurationRequired = 187,
+    TrainerUnassigned = 188,
 }

@@ -1,0 +1,28 @@
+{
+  "collectedOn": "2026-10-13",
+  "publisher": "The Hong Kong Jockey Club",
+  "purpose": "Public reference profiles, separate from HRCMS club ownership, staff accounts and operational bookings.",
+  "horses": [
+    { "externalId": "J062", "name": "KA YING RISING", "origin": "NZ", "colour": "Bay", "sex": "Gelding", "sire": "Shamexpress", "dam": "Missy Moo", "sourceStatus": "Listed", "trainerName": "David Hayes", "trainerRelationship": "ProfileTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/horse?horseno=J062", "collectedOn": "2026-10-13" },
+    { "externalId": "G180", "name": "LUCKY SWEYNESSE", "origin": "NZ", "colour": "Brown", "sex": "Gelding", "sire": "Sweynesse", "dam": "Madonna Mia", "sourceStatus": "Listed", "trainerName": "Manfred Man Ka-leung", "trainerRelationship": "ProfileTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/horse?HorseNo=G180", "collectedOn": "2026-10-13" },
+    { "externalId": "E486", "name": "ROMANTIC WARRIOR", "origin": "IRE", "colour": "Bay", "sex": "Gelding", "sire": "Acclamation", "dam": "Folk Melody", "sourceStatus": "Retired", "trainerName": "Danny Shum Chap-shing", "trainerRelationship": "LastRecordedRaceTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/otherhorse?horseid=HK_2020_E486", "collectedOn": "2026-10-13" },
+    { "externalId": "H008", "name": "BEAUTY ETERNAL", "origin": "AUS", "colour": "Chestnut", "sex": "Gelding", "sire": "Starspangledbanner", "dam": "Ithacan Queen", "sourceStatus": "Retired", "trainerName": "John Size", "trainerRelationship": "LastRecordedRaceTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/otherhorse?horseid=HK_2021_H008", "collectedOn": "2026-10-13" },
+    { "externalId": "E436", "name": "VOYAGE BUBBLE", "origin": "AUS", "colour": "Bay / Brown", "sex": "Gelding", "sire": "Deep Field", "dam": "Raheights", "sourceStatus": "Listed", "trainerName": "Ricky Yiu Poon-fai", "trainerRelationship": "ProfileTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/horse?horseno=e436", "collectedOn": "2026-10-13" },
+    { "externalId": "E314", "name": "CALIFORNIA SPANGLE", "origin": "IRE", "colour": "Bay", "sex": "Gelding", "sire": "Starspangledbanner", "dam": "Pearlitas Passion", "sourceStatus": "Retired", "trainerName": "Tony Cruz", "trainerRelationship": "LastRecordedRaceTrainer", "dateOfBirth": null, "healthStatus": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/otherhorse?horseid=HK_2020_E314", "collectedOn": "2026-10-13" }
+  ],
+  "trainers": [
+    { "externalId": "HDA", "name": "David Hayes", "evidenceSummary": "Đã huấn luyện Ka Ying Rising thắng Hong Kong Sprint 2024 và 2025; từng vô địch huấn luyện viên Hong Kong mùa 1997/98 và 1998/99.", "confirmedSpecialties": null, "workingHours": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/trainerprofile?TrainerId=HDA", "collectedOn": "2026-10-13" },
+    { "externalId": "MKL", "name": "Manfred Man Ka-leung", "evidenceSummary": "Huấn luyện Lucky Sweynesse thắng Hong Kong Sprint 2023 và Eagle Regiment thắng Centenary Sprint Cup 2012, 2013.", "confirmedSpecialties": null, "workingHours": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/trainerprofile?season=Current&trainerid=MKL", "collectedOn": "2026-10-13" },
+    { "externalId": "SCS", "name": "Danny Shum Chap-shing", "evidenceSummary": "Được cấp phép huấn luyện tại Hong Kong từ mùa 2003/04; huấn luyện Romantic Warrior và Little Bridge, ngựa thắng King's Stand Stakes 2012.", "confirmedSpecialties": null, "workingHours": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/trainerprofile?season=Current&trainerid=SCS", "collectedOn": "2026-10-13" },
+    { "externalId": "SJJ", "name": "John Size", "evidenceSummary": "Thành tích gồm Champions Mile 2024 với Beauty Eternal và Hong Kong Sprint 2017 với Mr Stunning, 2019 với Beat The Clock.", "confirmedSpecialties": null, "workingHours": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/trainerprofile?season=Current&trainerid=SJJ", "collectedOn": "2026-10-13" },
+    { "externalId": "YPF", "name": "Ricky Yiu Poon-fai", "evidenceSummary": "Vô địch huấn luyện viên Hong Kong mùa 2019/20; Voyage Bubble hoàn thành Hong Kong Triple Crown mùa 2024/25 dưới sự huấn luyện của ông.", "confirmedSpecialties": null, "workingHours": null, "sourceUrl": "https://racing.hkjc.com/en-us/local/information/trainerprofile?season=Current&trainerid=YPF", "collectedOn": "2026-10-13" }
+  ],
+  "missingOperationalFields": ["verifiedClubOwnership", "clubStaffMembership", "currentVeterinaryAssessment", "workingHours", "timeOff", "confirmedTrainingSpecialties", "sessionStartTime", "sessionDuration", "horseRestRequirements"],
+  "notes": [
+    "Listed means the source has a horse profile without a Retired marker at collection; it is not veterinary clearance or a guarantee of current racing activity.",
+    "Retired horses remain historical reference records and must not be silently imported as active HRCMS horses.",
+    "Public racing achievements are evidence of results, not certification of HRCMS Walk/Trot/Canter/Gallop/Sprint/Recovery proficiency.",
+    "No synthetic email, password, owner account, health clearance, date of birth or future booking has been created for a real person or horse.",
+    "Source pages are dynamic; values are a dated collection snapshot and should be rechecked before operational use."
+  ]
+}

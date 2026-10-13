@@ -6,7 +6,7 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Horses;
 
-public sealed class HorseAssignmentService(IAssignmentRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar) : IHorseAssignmentService
+public sealed class HorseAssignmentService(IAssignmentRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, ClubCalendar calendar, ITrainingSchedulingService scheduling) : IHorseAssignmentService
 {
     /// <summary>
     /// Kiểm vai trò người phân công, nhân sự được chọn và ngày bắt đầu; kết thúc phân công cũ, ghi phân công mới cùng audit/thông báo.
@@ -25,6 +25,13 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         }
         else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Get(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
         await access.Staff(r.StaffId, r.Role);
+        Ensure.That(r.Role == Role.Trainer || r.RequiredTrainingType is null, Messages.Get(MessageKey.InvalidRequestBody));
+        var requiredType = r.RequiredTrainingType;
+        if (r.Role == Role.Trainer)
+        {
+            requiredType ??= (await repository.GetActiveAsync(horseId, Role.Trainer)).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefault()?.RequiredTrainingType;
+            await scheduling.ValidateAssignment(horseId, r.StaffId, requiredType);
+        }
         foreach (var old in await repository.GetActiveAsync(horseId, r.Role))
         {
             Ensure.That(r.StartDate >= old.StartDate, Messages.Get(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
@@ -48,7 +55,7 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
             events.Notify(old.StaffId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
             old.Active = false; old.EndDate = r.StartDate;
         }
-        var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, Notes = r.Notes };
+        var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, Notes = r.Notes, RequiredTrainingType = requiredType };
         repository.Add(a);
         events.Notify(r.StaffId, NotificationType.HorseAssignment, MessageKey.YouHaveBeenAssignedToAHorse, horseId);
         events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);

@@ -1122,6 +1122,9 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<int?>("RequiredTrainingType")
+                        .HasColumnType("int");
+
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
@@ -1142,6 +1145,68 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                     b.HasIndex("StaffId", "Active", "HorseId");
 
                     b.ToTable("Assignments");
+                });
+
+            modelBuilder.Entity("HorseClub.DAL.Entities.StaffTimeOff", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("End")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("Start")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId", "Start", "End");
+
+                    b.ToTable("StaffTimeOff");
+                });
+
+            modelBuilder.Entity("HorseClub.DAL.Entities.StaffWorkingHours", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EndMinute")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StaffId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("StartMinute")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId", "DayOfWeek", "StartMinute")
+                        .IsUnique();
+
+                    b.ToTable("StaffWorkingHours");
                 });
 
             modelBuilder.Entity("HorseClub.DAL.Entities.Stall", b =>
@@ -1279,6 +1344,36 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .IsUnique();
 
                     b.ToTable("Evaluations");
+                });
+
+            modelBuilder.Entity("HorseClub.DAL.Entities.TrainerExpertise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StaffId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("TrainingType")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId", "TrainingType")
+                        .IsUnique();
+
+                    b.ToTable("TrainerExpertise");
                 });
 
             modelBuilder.Entity("HorseClub.DAL.Entities.TrainingPlan", b =>
@@ -1856,6 +1951,24 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("HorseClub.DAL.Entities.StaffTimeOff", b =>
+                {
+                    b.HasOne("HorseClub.DAL.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HorseClub.DAL.Entities.StaffWorkingHours", b =>
+                {
+                    b.HasOne("HorseClub.DAL.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HorseClub.DAL.Entities.Stall", b =>
                 {
                     b.HasOne("HorseClub.DAL.Entities.Stable", null)
@@ -1899,6 +2012,15 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                     b.HasOne("HorseClub.DAL.Entities.TrainingSession", null)
                         .WithMany()
                         .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HorseClub.DAL.Entities.TrainerExpertise", b =>
+                {
+                    b.HasOne("HorseClub.DAL.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("StaffId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

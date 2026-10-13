@@ -27,6 +27,8 @@ public static class AuthEndpoints
         auth.MapPost("/logout", async (IAuthenticationService moduleService) => (await moduleService.Logout()).ToHttpResult()).RequireAuthorization().Produces(204);
 
         var staff = api.MapGroup("/staff").WithTags("Staff").RequireAuthorization();
+        staff.MapGet("/{id:guid}/training-profile", async (Guid id, ITrainingSchedulingService service) => await service.GetProfile(id)).Produces<StaffTrainingProfileResponse>(200);
+        staff.MapPut("/{id:guid}/training-profile", async (Guid id, StaffTrainingProfileRequest r, ITrainingSchedulingService service) => await service.UpdateProfile(id, r)).Produces<StaffTrainingProfileResponse>(200);
         staff.MapGet("", async (int? page, int? pageSize, Role? role, IAuthenticationService moduleService) => await moduleService.ListStaff(page, pageSize, role)).Produces<PageResponse<StaffResponse>>(200);
         staff.MapGet("/directory", async (Role? role, int? page, int? pageSize, IAuthenticationService moduleService) => await moduleService.ListStaffDirectory(role, page, pageSize)).Produces<PageResponse<StaffDirectoryResponse>>(200);
         staff.MapPost("/{id:guid}/resend-invitation",async (Guid id,IAuthenticationService service)=>(await service.ResendInvitation(id)).ToHttpResult()).Produces(204);

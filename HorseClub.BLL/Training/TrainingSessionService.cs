@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingSessionService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager) : ITrainingSessionService
+public sealed class TrainingSessionService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling) : ITrainingSessionService
 {
     /// <summary>
     /// Kiểm tình trạng ngựa và hạn chế y tế tại thời điểm buổi tập; chặn bài tập, cường độ hoặc quãng đường không phù hợp.
@@ -82,6 +82,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var end = r.DurationMinutes.HasValue ? (DateTimeOffset?)r.ScheduledAt.AddMinutes(r.DurationMinutes.Value) : null;
         Ensure.That(!end.HasValue || calendar.DateAt(end.Value.AddTicks(-1)) <= p.EndDate, Messages.Get(MessageKey.InvalidSessionDuration));
         await Guard(s.HorseId, r.DistanceMetres, r.Intensity, r.TrainingType, r.ScheduledAt, end);
+        await scheduling.ValidateSession(s.HorseId, r.RiderId, r.TrainingType, r.ScheduledAt, end, s.Id);
         Ensure.That(!await repository.HasScheduleConflictAsync(s.Id,s.HorseId,r.RiderId,r.ScheduledAt,end), Messages.Get(MessageKey.SessionScheduleOverlap),409,"schedule_overlap");
         if (r.RiderId.HasValue)
         {
@@ -112,6 +113,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Get(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
         Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
         await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null);
+        await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null, s.Id);
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
         await events.TrainingHistory(plan, s);
         await events.Audit(AuditAction.TrainingSessionStarted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync();

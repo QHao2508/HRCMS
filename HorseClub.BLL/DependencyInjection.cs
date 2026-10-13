@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<TrainingPlanService>();
         services.AddScoped<ITrainingPlanService>(sp => sp.GetRequiredService<TrainingPlanService>());
         services.AddScoped<TrainingSessionService>();
+        services.AddScoped<ITrainingSchedulingService, TrainingSchedulingService>();
         services.AddScoped<ITrainingSessionService>(sp => sp.GetRequiredService<TrainingSessionService>());
         services.AddScoped<MedicalService>();
         services.AddScoped<IMedicalService>(sp => sp.GetRequiredService<MedicalService>());

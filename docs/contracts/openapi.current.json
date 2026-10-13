@@ -872,6 +872,208 @@
         ]
       }
     },
+    "/api/staff/{id}/training-profile": {
+      "get": {
+        "tags": [
+          "Staff"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_staff_id_training_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTrainingProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Staff"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "put_api_staff_id_training_profile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffTrainingProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffTrainingProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/staff": {
       "get": {
         "tags": [
@@ -2877,6 +3079,364 @@
         "responses": {
           "204": {
             "description": "No Content"
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/training/reference-data": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_training_reference_data",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonElement"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/training/availability": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_training_availability",
+        "parameters": [
+          {
+            "name": "horseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "durationMinutes",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "trainingType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrainingType"
+            }
+          },
+          {
+            "name": "intensity",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Intensity"
+            }
+          },
+          {
+            "name": "distanceMetres",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+              "type": [
+                "number",
+                "string"
+              ],
+              "format": "double"
+            }
+          },
+          {
+            "name": "riderId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "exceptSessionId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingAvailabilityResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, query, enum, or business validation. See title/detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State, duplicate data, or concurrent transaction conflict. Reload before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error. Use traceId for support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required or token/account invalid. Authentication middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role or record ownership/assignment does not permit this action. Authorization middleware can return an empty body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced record or file was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/training/trainer-candidates": {
+      "get": {
+        "tags": [
+          "Training"
+        ],
+        "description": " Authentication is required. Role and record ownership/assignment checks also apply; see docs/CONTRACT_AND_SCREEN_MAP.md.",
+        "operationId": "get_api_training_trainer_candidates",
+        "parameters": [
+          {
+            "name": "horseId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "trainingType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/TrainingType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrainerCandidateResponse"
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid body, query, enum, or business validation. See title/detail.",
@@ -10954,6 +11514,16 @@
               "null",
               "string"
             ]
+          },
+          "requiredTrainingType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TrainingType"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -11106,7 +11676,8 @@
           "WebsiteContentUpdated",
           "WebsiteAssetUpdated",
           "InventoryReplenishmentReceived",
-          "CareTaskReassigned"
+          "CareTaskReassigned",
+          "StaffTrainingProfileUpdated"
         ]
       },
       "AuditReadModel": {
@@ -11144,6 +11715,28 @@
             "format": "uuid"
           },
           "detail": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BusyRange": {
+        "required": [
+          "start",
+          "end",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
             "type": "string"
           }
         },
@@ -11481,6 +12074,17 @@
         },
         "additionalProperties": false
       },
+      "DayOfWeek": {
+        "enum": [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday"
+        ]
+      },
       "EmailRequest": {
         "required": [
           "email"
@@ -11505,6 +12109,27 @@
           },
           "adjustFutureSessions": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExpertiseInput": {
+        "required": [
+          "trainingType",
+          "level"
+        ],
+        "type": "object",
+        "properties": {
+          "trainingType": {
+            "$ref": "#/components/schemas/TrainingType"
+          },
+          "level": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -12485,6 +13110,7 @@
         },
         "additionalProperties": false
       },
+      "JsonElement": { },
       "LoginErrorResponse": {
         "required": [
           "error"
@@ -15066,6 +15692,44 @@
         },
         "additionalProperties": false
       },
+      "ResourceAvailability": {
+        "required": [
+          "id",
+          "name",
+          "state",
+          "free",
+          "busy"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "free": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "busy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BusyRange"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "RestrictionRequest": {
         "required": [
           "medicalRecordId",
@@ -15533,6 +16197,16 @@
           "role": {
             "$ref": "#/components/schemas/Role"
           },
+          "requiredTrainingType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TrainingType"
+              }
+            ]
+          },
           "startDate": {
             "type": "string",
             "format": "date"
@@ -15669,6 +16343,69 @@
           },
           "emailVerified": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffTrainingProfileRequest": {
+        "required": [
+          "specialties",
+          "workingHours",
+          "timeOff"
+        ],
+        "type": "object",
+        "properties": {
+          "specialties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpertiseInput"
+            }
+          },
+          "workingHours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkingHoursInput"
+            }
+          },
+          "timeOff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeOffInput"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "StaffTrainingProfileResponse": {
+        "required": [
+          "staffId",
+          "specialties",
+          "workingHours",
+          "timeOff"
+        ],
+        "type": "object",
+        "properties": {
+          "staffId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpertiseInput"
+            }
+          },
+          "workingHours": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkingHoursInput"
+            }
+          },
+          "timeOff": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeOffInput"
+            }
           }
         },
         "additionalProperties": false
@@ -15991,6 +16728,88 @@
         },
         "additionalProperties": false
       },
+      "TimeOffInput": {
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TimeRange": {
+        "required": [
+          "start",
+          "end"
+        ],
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrainerCandidateResponse": {
+        "required": [
+          "id",
+          "name",
+          "specialties",
+          "assignedHorses",
+          "matches",
+          "matchLevel"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "specialties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExpertiseInput"
+            }
+          },
+          "assignedHorses": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matches": {
+            "type": "boolean"
+          },
+          "matchLevel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "TrainerEvaluation": {
         "type": "object",
         "properties": {
@@ -16023,6 +16842,58 @@
               "string"
             ],
             "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrainingAvailabilityResponse": {
+        "required": [
+          "date",
+          "timeZone",
+          "durationMinutes",
+          "horse",
+          "trainer",
+          "rider",
+          "commonFree"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "horse": {
+            "$ref": "#/components/schemas/ResourceAvailability"
+          },
+          "trainer": {
+            "$ref": "#/components/schemas/ResourceAvailability"
+          },
+          "rider": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ResourceAvailability"
+              }
+            ]
+          },
+          "commonFree": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
           }
         },
         "additionalProperties": false
@@ -16820,6 +17691,36 @@
               "null",
               "string"
             ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkingHoursInput": {
+        "required": [
+          "dayOfWeek",
+          "startMinute",
+          "endMinute"
+        ],
+        "type": "object",
+        "properties": {
+          "dayOfWeek": {
+            "$ref": "#/components/schemas/DayOfWeek"
+          },
+          "startMinute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "endMinute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "additionalProperties": false
