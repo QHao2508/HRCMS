@@ -43,7 +43,7 @@ Migration `20261013044927_TrainerExpertiseAndAvailability` thêm bảng `Trainer
 
 SQL delta idempotent: [TRAINER_AVAILABILITY_MIGRATION_2026-10-13.sql](TRAINER_AVAILABILITY_MIGRATION_2026-10-13.sql). Script toàn bộ schema được tạo lại tại `database.sql` và `azure-sql-schema.sql`. OpenAPI mới tại `contracts/openapi.current.json` có 112 operations.
 
-Để đưa vào môi trường vận hành: backup database, áp migration, cập nhật BE và FE cùng phiên bản, rồi Manager xác nhận profile thực tế của Trainer/WorkRider. Chưa áp migration vào Azure HRCMS và chưa khởi động lại BE của người dùng trong đợt sửa này. Kiểm thử dùng database SQL Express tạm, không ghi data thật/booking hoặc gửi email vào Azure.
+Để đưa vào môi trường vận hành: backup database, áp migration, cập nhật BE và FE cùng phiên bản, rồi Manager xác nhận profile thực tế của Trainer/WorkRider. Migration đã áp vào Azure HRCMS ngày 13/10/2026 theo yêu cầu kiểm thử Azure; chưa khởi động lại BE của người dùng. Regression dùng SQL Express tạm; smoke Azure dùng transaction rollback và không giữ booking/tài khoản thử hoặc gửi email.
 
 ## Kiểm chứng
 
@@ -52,6 +52,16 @@ SQL delta idempotent: [TRAINER_AVAILABILITY_MIGRATION_2026-10-13.sql](TRAINER_AV
 - Test nghiệp vụ: hồ sơ/ca chồng nhau, chuyên môn và phạm vi HeadTrainer, giữ yêu cầu chuyên môn khi đổi người, khoảng trống chung, thời gian nghỉ, không lộ ngựa khác, loại buổi đang sửa, thiếu ca/thời lượng, adjacency, chuyên môn không phù hợp, profile ảnh hưởng booking, plan Paused mở lại và hai host đặt cùng trainer.
 - FE: hợp đồng query/profile không replay write, timezone +07, toàn bộ duration phải nằm trong khoảng trống, trạng thái thiếu dữ liệu, bảng mức thành thạo và số ngựa đang phụ trách.
 - Browser preview dùng component thật và axios adapter trong bộ nhớ: đổi 60→120 phút làm gợi ý thay đổi, chọn 15:00 cập nhật ô bắt đầu, lưu profile giữ thông báo thành công, thư viện có URL nguồn và trạng thái nghỉ đua. Desktop 1366px và mobile 390px; mobile không tràn ngang. Preview không phải bằng chứng UAT trên database vận hành.
+
+## Kết quả kiểm thử Azure SQL — 13/10/2026, 12:35 (UTC+7)
+
+- Target xác minh: `hrcms.database.windows.net / HRCMS`, TLS Encrypt bật và không bỏ kiểm tra chứng chỉ.
+- Áp riêng migration `20261013044927_TrainerExpertiseAndAvailability`: 33 → 36 bảng nghiệp vụ, 9 → 10 migrations; thêm bảng/cột, không thay hoặc xóa bản ghi nghiệp vụ cũ.
+- Cập nhật script deployment để lấy số bảng mong đợi từ EF model snapshot; số cũ hardcode 32 đã lỗi thời sau module WebsiteSettings và scheduling.
+- 17 kiểm tra đạt qua BLL/repository thật trên Azure: lưu profile/ca/nghỉ, lọc chuyên môn, phân công phù hợp và chặn sai chuyên môn, lưu buổi tập, giao lịch trống ngựa/trainer/rider, bỏ buổi đang sửa, chặn trùng trainer giữa hai ngựa, cho phép tiếp giáp, chặn nghỉ/ngoài ca, chặn profile làm mất chuyên môn, kiểm phạm vi và hạn chế y tế có mốc phút an toàn.
+- Dữ liệu thử `[AZURE TEST]` chỉ tồn tại trong một transaction ReadCommitted và đã rollback. Kiểm tra ID fixture trên toàn bộ 36 bảng: 0 bản ghi còn lại. Tài khoản 21 → 21, ngựa 7 → 7, buổi tập 7 → 7; expertise/hours/timeOff đều 0 trước và sau.
+- Không khởi động worker hoặc gửi email. Báo cáo chi tiết cục bộ, ngoài Git: `TestResults/TrainingAvailability/azure-smoke-result.json`. Migration là thay đổi schema được giữ lại; dữ liệu test không commit.
+- Phạm vi là BE/repository với database thật; chưa xác nhận HTTP/browser UAT, nhiều host trên Azure, restart BE live hoặc dữ liệu nhân sự thực tế. Test nhiều host được xác nhận trên SQL Express riêng trong regression.
 
 ## Dữ liệu cần CLB xác nhận
 

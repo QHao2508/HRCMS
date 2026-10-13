@@ -14,15 +14,17 @@ Run from the backend repository in your own PowerShell terminal:
 
 The script prompts for a hidden password and updates only the SQL connection/provider/migration settings. It keeps other existing secrets. It does not apply migrations, print credentials or write a password into the repository. User Secrets are local development storage; for deployment provide the connection via the hosting environment's secret configuration.
 
-Current schema: [azure-sql-schema.sql](azure-sql-schema.sql), generated from all seven migrations, including the three realtime outbox migrations. It contains 32 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
+Current schema (13/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all ten migrations, including trainer expertise and availability. It contains 36 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
 
-After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies 32 application tables and the migrations present in the DAL source (currently seven). It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
+After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies the application table count from the EF model snapshot and the migrations present in DAL source. It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
 
 Verified on 07/10/2026: the Azure database was empty before migration. All three migrations were applied successfully; 31 business tables plus __EFMigrationsHistory are present. The full SQL Login connection is stored in local User Secrets, without a password in source.
 
 The backend was restarted at localhost:5299 using Azure SQL. Direct health, Swagger and frontend proxy health at localhost:5173 returned HTTP 200. The frontend live smoke test passed login/me, enum metadata, dashboard and horse-list reads, then logout, using the existing Bootstrap Manager configuration. Startup created the Manager from that configuration in the new Azure database. No fixture data was inserted and no local database data was copied to Azure.
 
 Runtime AutoMigrate remains false. Future schema changes require reviewed migrations and updating the Azure deployment script. This verifies local API-to-Azure connectivity; it does not deploy the API or frontend to Azure hosting.
+
+Verified on 13/10/2026 at the user's request: the trainer expertise/availability migration was applied to Azure HRCMS (36 application tables, 10 migrations). A rollback-only BLL/repository smoke passed 17 checks covering profile persistence, specialty matching, assignment, trainer overlap, common availability, working hours/time off, medical restrictions and access scope. Fixture row verification across all tables returned zero remaining rows; user/horse/session counts stayed 21/7/7. No worker was started and no email was sent. This did not restart the user's API or verify HTTP/browser UAT. See [detailed results](TRAINER_AVAILABILITY_2026-10-13.md).
 
 TLS uses Encrypt=True and TrustServerCertificate=False. Reference: [Microsoft SqlClient connection string syntax](https://learn.microsoft.com/en-us/sql/connect/ado-net/connection-string-syntax?view=sql-server-ver17).
 
