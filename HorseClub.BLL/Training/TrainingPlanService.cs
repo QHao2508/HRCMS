@@ -6,7 +6,7 @@ using HorseClub.DAL.Enums;
 
 namespace HorseClub.BLL.Training;
 
-public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling) : ITrainingPlanService
+public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfWork unitOfWork, CurrentUser current, ClubAccess access, ClubEvents events, ClubCalendar calendar, PageReader pager, ITrainingSchedulingService scheduling, ITrainingTemplateService templates) : ITrainingPlanService
 {
     /// <summary>
     /// Tạo mới kế hoạch huấn luyện trong TrainingPlanService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -18,8 +18,9 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         await access.Trainer(r.HorseId); var u = await current.Get();
         var template = Ensure.Found(await repository.FindTemplateAsync(r.TemplateId));
         Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived));
+        await templates.ValidateTrainer(template.Id, u.Id); TemplateCurriculumPolicy.ValidatePlan(template, r);
         Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Get(MessageKey.InvalidPlanDates));
-        var p = new TrainingPlan { HorseId = r.HorseId, TrainerId = u.Id, TemplateId = r.TemplateId, Goal = r.Goal, Phase = r.Phase, StartDate = r.StartDate, EndDate = r.EndDate, Notes = r.Notes };
+        var p = new TrainingPlan { HorseId = r.HorseId, TrainerId = u.Id, TemplateId = r.TemplateId, Goal = r.Goal, Phase = r.Phase, StartDate = r.StartDate, EndDate = r.EndDate, Notes = r.Notes, TemplatePlanOptionKey = r.TemplatePlanOptionKey, UseCustomPlan = r.UseCustomPlan };
         repository.AddPlan(p); await events.TrainingHistory(p); await events.Audit(AuditAction.TrainingPlanCreated, p.Id); await events.RefreshHorse(p.HorseId); await unitOfWork.SaveChangesAsync(); return p;
     }
 
@@ -66,7 +67,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         var data = await repository.ListPlanSessionsAsync(id, riderId, page, size);
         var names = (await repository.PlanNamesAsync([id])).Single();
         return new PlanDetailResponse(p, data.Items, await access.IsCurrentHorseReader(p.HorseId) ? await repository.GetRestrictionsAsync(p.HorseId) : [], page, size, data.Total, names.HorseName, names.TrainerName,
-            await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray()), Ensure.Found(await repository.FindHorseAsync(p.HorseId)).Archived);
+            await repository.SessionNamesAsync(data.Items.Select(x=>x.Id).ToArray()), Ensure.Found(await repository.FindHorseAsync(p.HorseId)).Archived, await repository.FindTemplateAsync(p.TemplateId));
     }
 
     /// <summary>
@@ -83,6 +84,9 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
         Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Get(MessageKey.InvalidDates));
         var sessions = await repository.GetPlanSessionsAsync(id);
         Ensure.That(sessions.All(x => calendar.DateAt(x.ScheduledAt) >= r.StartDate && calendar.DateAt(x.ScheduledAt) <= r.EndDate), Messages.Get(MessageKey.DatesWouldExcludeExistingSessions));
+        var template = Ensure.Found(await repository.FindTemplateAsync(p.TemplateId));
+        await templates.ValidateTrainer(template.Id, (await current.Get()).Id); TemplateCurriculumPolicy.ValidatePlan(template, r);
+        p.TemplatePlanOptionKey = r.TemplatePlanOptionKey; p.UseCustomPlan = r.UseCustomPlan;
         p.Goal = r.Goal; p.Phase = r.Phase; p.Notes = r.Notes; p.StartDate = r.StartDate; p.EndDate = r.EndDate;
         await events.TrainingHistory(p); await events.Audit(AuditAction.TrainingPlanEdited, id); await events.RefreshHorse(p.HorseId); await unitOfWork.SaveChangesAsync(); return p;
     }

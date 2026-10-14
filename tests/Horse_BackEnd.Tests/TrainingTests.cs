@@ -54,7 +54,7 @@ public sealed class TrainingTests
     {
         await using var f = new ClubFactory(); using var client = await f.Client(await f.User(role));
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("/api/training/templates", Template(), ClubFactory.Json)).StatusCode);
-        await WorkerTests.Read(f, async db => Assert.Empty(await db.Templates.ToListAsync()));
+        await WorkerTests.Read(f, async db => Assert.Empty(await db.Templates.Where(t => !t.IsSystemDefault).ToListAsync()));
     }
 
     [Fact]
