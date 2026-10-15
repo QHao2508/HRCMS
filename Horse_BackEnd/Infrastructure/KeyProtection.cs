@@ -85,8 +85,10 @@ public static class KeyProtection
                     if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("WindowsDpapi key encryption requires Windows.");
                     break;
                 case "Certificate":
-                    var certificatePath = section["CertificatePath"] ?? throw new InvalidOperationException("Configure DataProtection:CertificatePath.");
-                    var certificate = X509CertificateLoader.LoadPkcs12FromFile(certificatePath, section["CertificatePassword"], X509KeyStorageFlags.EphemeralKeySet);
+                    var certificateBase64 = section["CertificateBase64"];
+                    var certificate = string.IsNullOrWhiteSpace(certificateBase64)
+                        ? X509CertificateLoader.LoadPkcs12FromFile(section["CertificatePath"] ?? throw new InvalidOperationException("Configure DataProtection:CertificatePath or DataProtection:CertificateBase64."), section["CertificatePassword"], X509KeyStorageFlags.EphemeralKeySet)
+                        : X509CertificateLoader.LoadPkcs12(Convert.FromBase64String(certificateBase64), section["CertificatePassword"], X509KeyStorageFlags.EphemeralKeySet);
                     if (!certificate.HasPrivateKey) { certificate.Dispose(); throw new InvalidOperationException("Data Protection certificate requires a private key."); }
                     Certificate = certificate;
                     break;

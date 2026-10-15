@@ -12,6 +12,8 @@ Giữ Minimal API và ba project API → BLL → DAL. Đọc [mục lục tài l
 
 ## Azure SQL và chạy API
 
+Deploy FE lên Static Web Apps Free và BE Docker lên Container Apps Consumption: [runbook tiết kiệm credit Students](docs/DEPLOY_AZURE.md), [mẫu môi trường BE](deploy/azure-appsettings.example.json), [mẫu Container App](deploy/containerapp.example.yaml).
+
 Server `hrcms.database.windows.net`, database `HRCMS`. Mật khẩu SQL Login lưu trong User Secrets, không commit source. Chi tiết: [AZURE_SQL_SETUP.md](docs/AZURE_SQL_SETUP.md).
 
 ```powershell

@@ -6,4 +6,5 @@
   <Project Path="tools/HorseClub.DemoSeed/HorseClub.DemoSeed.csproj" />
   <Project Path="tools/HorseClub.StaffSeed/HorseClub.StaffSeed.csproj" />
   <Project Path="tools/HorseClub.ReferenceImport/HorseClub.ReferenceImport.csproj" />
+  <Project Path="tools/HorseClub.Deployment/HorseClub.Deployment.csproj" />
 </Solution>

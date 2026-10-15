@@ -104,8 +104,12 @@ public sealed class DatabaseWorkflowTests
         Assert.All(await db.Injuries.Where(x => x.HorseId == s.HorseId).ToListAsync(), x => Assert.Equal(InjuryStatus.Recovered, x.Status));
         Assert.All(await db.Treatments.Where(x => x.HorseId == s.HorseId).ToListAsync(), x => Assert.True(x.Completed));
         Assert.Equal(PlanStatus.Paused, (await db.Plans.FindAsync(s.PlanId))!.Status);
-        Assert.Equal(2, await db.MedicalRecords.CountAsync(x => x.HorseId == s.HorseId));
-        Assert.Equal(1, await db.FollowUps.CountAsync(x => x.HorseId == s.HorseId));
+        Assert.Equal(1, await db.MedicalRecords.CountAsync(x => x.HorseId == s.HorseId));
+        var followUp = Assert.Single(await db.FollowUps.Where(x => x.HorseId == s.HorseId).ToListAsync());
+        Assert.Equal(s.RecordId, followUp.PreviousRecordId);
+        Assert.Equal(s.RecordId, followUp.CurrentRecordId);
+        Assert.False(string.IsNullOrWhiteSpace(followUp.PreviousSnapshotJson));
+        Assert.False(string.IsNullOrWhiteSpace(followUp.CurrentSnapshotJson));
     }
 
     [Fact]

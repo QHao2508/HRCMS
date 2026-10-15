@@ -1,0 +1,115 @@
+name: hrcms-api
+location: REPLACE_WITH_REGION
+identity:
+  type: SystemAssigned
+properties:
+  managedEnvironmentId: REPLACE_WITH_CONTAINER_APPS_ENVIRONMENT_RESOURCE_ID
+  workloadProfileName: Consumption
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      allowInsecure: false
+      targetPort: 8080
+      transport: auto
+      traffic:
+        - latestRevision: true
+          weight: 100
+    registries:
+      - server: ghcr.io
+        username: REPLACE_WITH_GITHUB_USERNAME
+        passwordSecretRef: ghcr-read-token
+  template:
+    containers:
+      - name: api
+        image: ghcr.io/qhao2508/hrcms-api:sha-REPLACE_WITH_COMMIT_SHA
+        resources:
+          cpu: 0.25
+          memory: 0.5Gi
+        env:
+          - name: ASPNETCORE_ENVIRONMENT
+            value: Production
+          - name: ASPNETCORE_HTTP_PORTS
+            value: '8080'
+          - name: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+            value: 'true'
+          - name: AllowedHosts
+            value: REPLACE_WITH_BACKEND_HOST
+          - name: Cors__Origins__0
+            value: https://REPLACE_WITH_FRONTEND.azurestaticapps.net
+          - name: ConnectionStrings__SqlServer
+            secretRef: sql-connection
+          - name: Database__Provider
+            value: SqlServer
+          - name: Database__AutoMigrate
+            value: 'false'
+          - name: Storage__Provider
+            value: AzureBlob
+          - name: Storage__IdentityCredential
+            value: Default
+          - name: Storage__ServiceUri
+            value: https://hrcmsg2.blob.core.windows.net/
+          - name: Storage__Container
+            value: hrcms-files
+          - name: DataProtection__Path
+            value: /mnt/hrcms-keys
+          - name: DataProtection__KeyEncryption
+            value: Certificate
+          - name: DataProtection__RequireEncryptedKeys
+            value: 'true'
+          - name: DataProtection__CertificateBase64
+            secretRef: dp-certificate-base64
+          - name: DataProtection__CertificatePassword
+            secretRef: dp-certificate-password
+          - name: Workers__Enabled
+            value: 'true'
+          - name: Email__Provider
+            value: Smtp
+          - name: Email__FromAddress
+            value: REPLACE_WITH_SENDER_EMAIL
+          - name: Email__Smtp__Host
+            value: smtp.gmail.com
+          - name: Email__Smtp__Port
+            value: '587'
+          - name: Email__Smtp__EnableSsl
+            value: 'true'
+          - name: Email__Smtp__Username
+            value: REPLACE_WITH_SENDER_EMAIL
+          - name: Email__Smtp__Password
+            secretRef: smtp-password
+        volumeMounts:
+          - volumeName: key-ring
+            mountPath: /mnt/hrcms-keys
+        probes:
+          - type: Startup
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          - type: Liveness
+            tcpSocket:
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          - type: Readiness
+            httpGet:
+              path: /health
+              port: 8080
+              httpHeaders:
+                - name: Host
+                  value: REPLACE_WITH_BACKEND_HOST
+                - name: X-Forwarded-Proto
+                  value: https
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+    scale:
+      minReplicas: 1
+      maxReplicas: 1
+    volumes:
+      - name: key-ring
+        storageType: AzureFile
+        storageName: hrcms-keys

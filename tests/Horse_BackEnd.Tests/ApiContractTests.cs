@@ -66,6 +66,8 @@ public sealed class ApiContractTests
                 if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
             }
         Assert.Equal(122, operationCount);
+        foreach (var medicalPath in new[] { "/api/horses/{horseId}/medical/overview", "/api/horses/{horseId}/medical/records/{id}/history", "/api/horses/{horseId}/medical/records/{id}/merge", "/api/horses/{horseId}/medical/treatments/{id}/status" })
+            Assert.True(paths.TryGetProperty(medicalPath, out _), medicalPath);
         foreach (var addedPath in new[] { "/api/training/availability", "/api/training/trainer-candidates", "/api/training/reference-data", "/api/staff/{id}/training-profile" })
             Assert.True(paths.TryGetProperty(addedPath, out _));
         Assert.True(paths.TryGetProperty("/api/staff/{id}/workload", out _));

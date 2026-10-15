@@ -11,10 +11,10 @@ $env:Storage__Path='D:\HRCMSData\uploads'
 $env:DataProtection__Path='D:\HRCMSData\keys'
 $env:DataProtection__KeyEncryption='Certificate'
 $env:DataProtection__CertificatePath='D:\HRCMSSecrets\key-protection.pfx'
-# Cấp DataProtection__CertificatePassword qua secret store của môi trường chạy.
+# Cấp DataProtection__CertificatePassword qua biến môi trường của host, tham chiếu Container Apps Secret trên Azure.
 ```
 
-Certificate phải có private key. PFX/password không đưa vào Git, bundle hoặc command history; sao lưu riêng trong kho bảo mật và kiểm khả năng cấp lại khi restore. Giữ certificate cũ trong khi keys cũ còn cần dùng. Phiên bản hiện tại chỉ nạp một certificate từ cấu hình, chưa hỗ trợ danh sách certificate cho rotation; phải chuẩn bị hỗ trợ migration/rotation trước khi đổi certificate.
+Certificate phải có private key. Có thể cấp PFX qua biến môi trường `DataProtection__CertificateBase64` thay cho `CertificatePath`; Base64 được ưu tiên nếu cả hai cùng có giá trị. Trên Azure Container Apps, nhập Base64 và password trong Secrets rồi tham chiếu qua Environment variables; không cần Key Vault. Key ring phải mount Azure Files tại `/mnt/hrcms-keys` theo runbook. PFX/password không đưa vào Git, bundle hoặc command history; sao lưu riêng trong kho bảo mật và kiểm khả năng cấp lại khi restore. Giữ certificate cũ trong khi keys cũ còn cần dùng. Phiên bản hiện tại chỉ nạp một certificate từ cấu hình, chưa hỗ trợ danh sách certificate cho rotation; phải chuẩn bị hỗ trợ migration/rotation trước khi đổi certificate.
 
 WindowsDpapi dùng identity Windows hiện tại. Khôi phục sang máy hoặc identity khác không được đảm bảo; Certificate phù hợp hơn nếu cần di chuyển. Chọn None với RequireEncryptedKeys=false là opt-out rõ ràng, không phù hợp baseline production. Bật encryption chỉ bảo vệ keys được tạo mới; không tự chuyển các XML key plaintext đã có. Không xóa key ring cũ: NationalId đã lưu và dữ liệu Data Protection còn cần khóa tương ứng.
 

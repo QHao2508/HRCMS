@@ -28,7 +28,7 @@ public sealed class MedicalPolicyTests
     private static MedicalRequest Exam(DateTimeOffset at, HealthStatus status) => new(at, "Assessment", "Private symptoms", "Private findings", "Private diagnosis", status, "Private clinical notes");
 
     [Fact]
-    public async Task ClearanceOnlyClosesSelectedIssueAndLeavesOtherAndFutureIssuesOpen()
+    public async Task ClearanceClosesLinkedCaseStateAndLeavesOtherAndFutureIssuesOpen()
     {
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f);
         var second = await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/records", Exam(DateTimeOffset.UtcNow.AddMinutes(-10), HealthStatus.Monitoring));
@@ -48,28 +48,30 @@ public sealed class MedicalPolicyTests
             Assert.False((await db.Restrictions.FindAsync(b.GetProperty("id").GetGuid()))!.Cleared);
             Assert.False((await db.Restrictions.FindAsync(future.GetProperty("id").GetGuid()))!.Cleared);
             Assert.Equal(InjuryStatus.Recovered, (await db.Injuries.FindAsync(injuryId))!.Status);
-            Assert.False((await db.Treatments.FindAsync(treatment.GetProperty("id").GetGuid()))!.Completed);
+            Assert.True((await db.Treatments.FindAsync(treatment.GetProperty("id").GetGuid()))!.Completed);
             Assert.Equal(HealthStatus.Monitoring, (await db.Horses.FindAsync(s.HorseId))!.HealthStatus);
             Assert.Equal(PlanStatus.Active, (await db.Plans.FindAsync(s.PlanId))!.Status);
             var audit = await db.Audit.SingleAsync(x => x.ReferenceId == follow.GetProperty("id").GetGuid() && x.Action == AuditAction.MedicalClearanceIssued);
             var detail = JsonDocument.Parse(audit.Detail).RootElement;
             Assert.Equal(aId, detail.GetProperty("RestrictionIds")[0].GetGuid());
-            Assert.Empty(detail.GetProperty("TreatmentIds").EnumerateArray());
+            Assert.Equal(treatment.GetProperty("id").GetGuid(), Assert.Single(detail.GetProperty("TreatmentIds").EnumerateArray()).GetGuid());
         });
         Assert.Equal(HttpStatusCode.Conflict, (await s.RiderClient.PostAsJsonAsync($"/api/training/sessions/{s.SessionId}/start", new { })).StatusCode);
     }
 
     [Fact]
-    public async Task MissingCrossHorseDuplicateAndFutureSelectionsFailWithoutCreatingFollowUp()
+    public async Task CrossHorseDuplicateAndFutureSelectionsFailButCaseClearanceNeedsNoExplicitSelection()
     {
         await using var f = new ClubFactory(); var s = await TrainingScenario.Create(f); var other = await TrainingScenario.Create(f);
         var foreign = await ClubFactory.Post(other.VetClient, $"/api/horses/{other.HorseId}/medical/restrictions", other.Restriction);
         var future = await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/restrictions", s.Restriction with { ValidFrom = DateTimeOffset.UtcNow.AddDays(1) });
         var request = new FollowUpRequest(s.RecordId, Exam(DateTimeOffset.UtcNow.AddSeconds(-1), HealthStatus.Fit), true, "Review");
         var foreignId = foreign.GetProperty("id").GetGuid();
-        foreach (var invalid in new[] { request, request with { RestrictionIds = [foreignId] }, request with { RestrictionIds = [foreignId, foreignId] }, request with { RestrictionIds = [future.GetProperty("id").GetGuid()] } })
+        foreach (var invalid in new[] { request with { RestrictionIds = [foreignId] }, request with { RestrictionIds = [foreignId, foreignId] }, request with { RestrictionIds = [future.GetProperty("id").GetGuid()] } })
             Assert.Equal(HttpStatusCode.BadRequest, (await s.VetClient.PostAsJsonAsync($"/api/horses/{s.HorseId}/medical/follow-ups", invalid, ClubFactory.Json)).StatusCode);
         await WorkerTests.Read(f, async db => { Assert.Empty(await db.FollowUps.Where(x => x.HorseId == s.HorseId).ToListAsync()); Assert.False((await db.Restrictions.FindAsync(foreignId))!.Cleared); });
+        await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/follow-ups", request);
+        await WorkerTests.Read(f, async db => Assert.False((await db.Restrictions.FindAsync(future.GetProperty("id").GetGuid()))!.Cleared));
     }
 
     [Fact]
@@ -82,7 +84,7 @@ public sealed class MedicalPolicyTests
         await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/records", Exam(pastAt.AddDays(1), HealthStatus.Fit));
         var oldId = old.GetProperty("id").GetGuid();
         await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/follow-ups", new FollowUpRequest(oldId, Exam(pastAt.AddDays(2), HealthStatus.Fit), false, "Historical review"));
-        Assert.Equal(HttpStatusCode.OK, (await s.VetClient.PutAsJsonAsync($"/api/horses/{s.HorseId}/medical/records/{oldId}", Exam(pastAt, HealthStatus.Monitoring), ClubFactory.Json)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await s.VetClient.PutAsJsonAsync($"/api/horses/{s.HorseId}/medical/records/{oldId}", Exam(pastAt.AddDays(2), HealthStatus.Monitoring), ClubFactory.Json)).StatusCode);
         var injuryDate = DateOnly.FromDateTime(pastAt.UtcDateTime);
         await ClubFactory.Post(s.VetClient, $"/api/horses/{s.HorseId}/medical/injuries", new InjuryRequest(oldId, injuryDate, InjuryType.Muscle, "Leg", InjurySeverity.Mild, "History", injuryDate.AddDays(2)));
         await WorkerTests.Read(f, async db => Assert.Equal(HealthStatus.Isolated, (await db.Horses.FindAsync(s.HorseId))!.HealthStatus));
@@ -101,7 +103,6 @@ public sealed class MedicalPolicyTests
     }
 
     [Theory]
-    [InlineData(Role.ClubManager)]
     [InlineData(Role.HorseOwner)]
     [InlineData(Role.HeadTrainer)]
     [InlineData(Role.Trainer)]
@@ -114,5 +115,15 @@ public sealed class MedicalPolicyTests
         foreach (var route in new[] { "records", "treatments", "follow-ups" })
             Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync($"/api/horses/{s.HorseId}/medical/{route}")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync($"/api/horses/{s.HorseId}/medical/records", Exam(DateTimeOffset.UtcNow.AddSeconds(-1), HealthStatus.Fit), ClubFactory.Json)).StatusCode);
+    }
+
+    [Fact]
+    public async Task ManagerCanReadClinicalRecordsButCannotWriteThem()
+    {
+        await using var factory = new ClubFactory(); var scenario = await TrainingScenario.Create(factory);
+        using var manager = await factory.Client();
+        foreach (var route in new[] { "records", "treatments", "follow-ups" })
+            Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync($"/api/horses/{scenario.HorseId}/medical/{route}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.PostAsJsonAsync($"/api/horses/{scenario.HorseId}/medical/records", Exam(DateTimeOffset.UtcNow.AddSeconds(-1), HealthStatus.Fit), ClubFactory.Json)).StatusCode);
     }
 }

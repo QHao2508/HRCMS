@@ -26,6 +26,12 @@ TestResults/
 *.pfx
 *.pem
 *.key
+deploy/*.local.json
+deploy/*.local.sql
+deploy/*.local.yaml
+deploy/*.local.yml
+**/*.private.json
+**/keys.zip
 **/uploads/
 *.log
 
