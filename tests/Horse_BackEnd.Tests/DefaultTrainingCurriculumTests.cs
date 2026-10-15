@@ -68,7 +68,7 @@ public sealed class DefaultTrainingCurriculumTests
             exercise.Surface, exercise.Target, "", null, exercise.DurationMinutes, exercise.Key);
         Assert.Equal(HttpStatusCode.BadRequest, (await trainerClient.PostAsJsonAsync($"/api/training/plans/{plan.Id}/sessions", sessionRequest with { DistanceMetres = 999 }, ClubFactory.Json)).StatusCode);
         var custom = await trainerClient.PostAsJsonAsync($"/api/training/plans/{plan.Id}/sessions", sessionRequest with { DistanceMetres = 999, TemplateExerciseKey = null, UseCustomExercise = true }, ClubFactory.Json);
-        Assert.Equal(HttpStatusCode.Created, custom.StatusCode);
+        Assert.True(custom.StatusCode == HttpStatusCode.Created, $"{(int)custom.StatusCode}: {await custom.Content.ReadAsStringAsync()}");
         var session = (await custom.Content.ReadFromJsonAsync<TrainingSession>(ClubFactory.Json))!;
         var rider = await factory.User(Role.WorkRider);
         Assert.Equal(HttpStatusCode.OK, (await trainerClient.PostAsJsonAsync($"/api/training/sessions/{session.Id}/assign", new RiderRequest(rider.Id), ClubFactory.Json)).StatusCode);
