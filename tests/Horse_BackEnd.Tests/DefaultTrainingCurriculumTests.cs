@@ -52,7 +52,7 @@ public sealed class DefaultTrainingCurriculumTests
         var template = DefaultTrainingTemplates.All[0]; var curriculum = TemplateCurriculumPolicy.Read(template)!;
         var profile = new StaffTrainingProfileRequest([new(TrainingType.Walk, 1), new(TrainingType.Trot, 1)], [], []);
         Assert.Equal(HttpStatusCode.OK, (await manager.PutAsJsonAsync($"/api/staff/{trainer.Id}/training-profile", profile, ClubFactory.Json)).StatusCode);
-        var option = curriculum.PlanOptions[0]; var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime);
+        var option = curriculum.PlanOptions[0]; var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime); // ClubFactory uses Business:TimeZoneId=UTC
         var planRequest = new PlanRequest(horse.Id, template.Id, option.Goal, option.Phase, today, today.AddDays(7), "", option.Key);
         Assert.Equal(HttpStatusCode.Conflict, (await trainerClient.PostAsJsonAsync("/api/training/plans", planRequest, ClubFactory.Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await headClient.PostAsJsonAsync($"/api/training/templates/{template.Id}/assign", new TemplateTrainerRequest(low.Id), ClubFactory.Json)).StatusCode);
