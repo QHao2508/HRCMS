@@ -1,19 +1,36 @@
 name: Publish backend image to GHCR
 
+# Mỗi lần push lên main: build Docker image, đẩy lên GHCR và cập nhật Azure Container App hrcms-api.
+# Chạy tay được bằng "Run workflow" (ví dụ để deploy lại bản main hiện tại).
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'tests/**'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: g2-HRCMS
+  AZURE_CONTAINER_APP: hrcms-api
+
 jobs:
   publish:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - name: Image name
@@ -38,3 +55,31 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
+
+      # Đăng nhập Azure bằng OIDC (managed identity hrcms-github-deploy), không lưu mật khẩu.
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy new image to Container App
+        shell: bash
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          az containerapp update \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" \
+            --image "${{ steps.image.outputs.name }}:sha-${{ github.sha }}" \
+            --output none
+      - name: Wait for new revision and /health
+        shell: bash
+        run: |
+          for i in $(seq 1 36); do
+            read -r latest ready fqdn < <(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_CONTAINER_APP" \
+              --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.configuration.ingress.fqdn]" -o tsv | tr '\n' ' ')
+            if [ -n "$latest" ] && [ "$latest" = "$ready" ] && curl -fsS "https://$fqdn/health"; then
+              echo; echo "Revision $latest is ready: https://$fqdn (image sha-${{ github.sha }})"; exit 0
+            fi
+            echo "Waiting for revision $latest to become ready ($i/36)..."; sleep 10
+          done
+          echo "::error::New revision was not ready within 6 minutes. Check Container App > Revisions and Log stream."; exit 1

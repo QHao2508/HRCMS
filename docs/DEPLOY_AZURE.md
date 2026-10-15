@@ -4,6 +4,31 @@ Phương án hiện tại: FE Azure Static Web Apps Free, BE Docker trên Azure 
 image riêng tư trên GitHub Container Registry (GHCR), Azure SQL/Blob hiện có.
 Không tạo ACR hoặc App Service Plan B1. Chỉ chuẩn bị local; bạn tự tạo tài nguyên trên Portal.
 
+## 0. Cấu hình đang chạy (16/10/2026)
+
+Bản triển khai thực tế đơn giản hơn các mục bên dưới; các mục 3+ là phương án đầy đủ để tham khảo.
+
+| Thành phần | Giá trị |
+| --- | --- |
+| BE | Container App `hrcms-api` (RG `g2-HRCMS`, Japan East), chạy trong environment dùng chung `smartcinema-env` vì Students giới hạn 1 environment/region |
+| URL BE | `https://hrcms-api.ashysand-0e4a958a.japaneast.azurecontainerapps.io` (`/health`) |
+| FE | Static Web App `https://orange-ocean-04488bd00.1.azurestaticapps.net` |
+| Data Protection | `KeyEncryption=None`, `RequireEncryptedKeys=false`, `Path=/tmp/hrcms-keys`: không dùng Azure Files/certificate; restart BE thì người dùng phải đăng nhập lại |
+| Probes | Startup/Liveness/Readiness đều TCP 8080 (HTTP probe bị AllowedHosts trả 400) |
+| Scale | min 1 / max 1; Stop app khi không demo để tiết kiệm credit |
+| Secrets | `sql-connection`, `smtp-password`, secret password GHCR do Portal tạo |
+
+Deploy tự động:
+
+- FE: push `main` của HRCMS-Frontend → test, build với `VITE_API_BASE_URL`, upload Static Web App.
+- BE: push `main` (trừ docs/tests/*.md) → workflow `Publish backend image to GHCR` build image `sha-<commit>`,
+  đăng nhập Azure bằng OIDC (managed identity `hrcms-github-deploy`, role Contributor trên `hrcms-api`),
+  `az containerapp update --image` và chờ revision mới + `/health`. Secrets repo: `AZURE_CLIENT_ID`,
+  `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Rollback: Run workflow trên commit cũ hoặc đổi image tag trên Portal.
+- Migration không tự chạy (`AutoMigrate=false`): chạy `./tools/Update-AzureSqlDatabase.ps1` trước khi push code cần schema mới.
+- FE: ảnh/link tải từ BE phải dùng `apiUrl('/api/...')`, không viết `'/api/...'` trực tiếp.
+
+
 ## 1. Kiểm tra ngân sách trước
 
 - Trong subscription Azure for Students, kiểm tra credit còn lại và giữ spending limit. Không tự nâng Pay-As-You-Go.
