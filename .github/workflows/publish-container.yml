@@ -74,12 +74,14 @@ jobs:
       - name: Wait for new revision and /health
         shell: bash
         run: |
+          app=(--resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_APP")
+          fqdn=$(az containerapp show "${app[@]}" --query properties.configuration.ingress.fqdn -o tsv)
           for i in $(seq 1 36); do
-            read -r latest ready fqdn < <(az containerapp show -g "$AZURE_RESOURCE_GROUP" -n "$AZURE_CONTAINER_APP" \
-              --query "[properties.latestRevisionName, properties.latestReadyRevisionName, properties.configuration.ingress.fqdn]" -o tsv | tr '\n' ' ')
+            latest=$(az containerapp show "${app[@]}" --query properties.latestRevisionName -o tsv || true)
+            ready=$(az containerapp show "${app[@]}" --query properties.latestReadyRevisionName -o tsv || true)
             if [ -n "$latest" ] && [ "$latest" = "$ready" ] && curl -fsS "https://$fqdn/health"; then
               echo; echo "Revision $latest is ready: https://$fqdn (image sha-${{ github.sha }})"; exit 0
             fi
-            echo "Waiting for revision $latest to become ready ($i/36)..."; sleep 10
+            echo "Waiting for revision $latest (ready: $ready) ($i/36)..."; sleep 10
           done
           echo "::error::New revision was not ready within 6 minutes. Check Container App > Revisions and Log stream."; exit 1
