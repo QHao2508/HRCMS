@@ -15,7 +15,8 @@ Bản triển khai thực tế đơn giản hơn các mục bên dưới; các m
 | FE | Static Web App `https://orange-ocean-04488bd00.1.azurestaticapps.net` |
 | Data Protection | `KeyEncryption=None`, `RequireEncryptedKeys=false`, `Path=/tmp/hrcms-keys`: không dùng Azure Files/certificate; restart BE thì người dùng phải đăng nhập lại |
 | Probes | Startup/Liveness/Readiness đều TCP 8080 (HTTP probe bị AllowedHosts trả 400) |
-| Scale | min 1 / max 1; Stop app khi không demo để tiết kiệm credit |
+| Scale | min 0 / max 1, HTTP rule 10 concurrent requests: không có truy cập ~5 phút thì về 0 replica, worker ngừng truy vấn nên SQL tự pause sau 1 giờ; lần mở đầu tiên chờ 30–60 giây (cold start BE + SQL resume) |
+| Database | `HRCMS-free` (Free offer, serverless 0.5–1 vCore, auto-pause 1 giờ, hết hạn mức thì Auto-pause tới tháng sau). `HRCMS` cũ hết free amount tháng 10/2026, giữ dữ liệu cũ, chạy lại từ 01/11 |
 | Secrets | `sql-connection`, `smtp-password`, secret password GHCR do Portal tạo |
 
 Deploy tự động:
@@ -25,7 +26,8 @@ Deploy tự động:
   đăng nhập Azure bằng OIDC (managed identity `hrcms-github-deploy`, role Contributor trên `hrcms-api`),
   `az containerapp update --image` và chờ revision mới + `/health`. Secrets repo: `AZURE_CLIENT_ID`,
   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Rollback: Run workflow trên commit cũ hoặc đổi image tag trên Portal.
-- Migration không tự chạy (`AutoMigrate=false`): chạy `./tools/Update-AzureSqlDatabase.ps1` trước khi push code cần schema mới.
+- Migration không tự chạy (`AutoMigrate=false`): đặt `$env:HRCMS_SQL_DATABASE = 'HRCMS-free'` rồi chạy `./tools/Update-AzureSqlDatabase.ps1` trước khi push code cần schema mới.
+- Tài khoản Quản lý đầu tiên tạo bởi `Bootstrap__ManagerEmail` + secret `Bootstrap__ManagerPassword` (bỏ qua nếu đã có Manager).
 - FE: ảnh/link tải từ BE phải dùng `apiUrl('/api/...')`, không viết `'/api/...'` trực tiếp.
 
 
