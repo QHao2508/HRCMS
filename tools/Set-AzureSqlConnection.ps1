@@ -1,10 +1,12 @@
 param(
-    [string]$UserName = 'hrcms'
+    [string]$UserName = 'hrcms',
+    # Database on hrcms.database.windows.net; HRCMS_SQL_DATABASE overrides the default HRCMS.
+    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'HRCMS' })
 )
 
 $ErrorActionPreference = 'Stop'
 $backendProject = Join-Path $PSScriptRoot '../Horse_BackEnd/Horse_BackEnd.csproj'
-$securePassword = Read-Host 'Azure SQL password for hrcms.database.windows.net / HRCMS' -AsSecureString
+$securePassword = Read-Host "Azure SQL password for hrcms.database.windows.net / $DatabaseName" -AsSecureString
 $passwordPointer = [IntPtr]::Zero
 $probeConnection = $null
 try {
@@ -13,7 +15,7 @@ try {
     # Windows PowerShell treats property assignment on this dictionary as a key.
     # Use supported connection-string keywords explicitly.
     $connection['Data Source'] = 'tcp:hrcms.database.windows.net,1433'
-    $connection['Initial Catalog'] = 'HRCMS'
+    $connection['Initial Catalog'] = $DatabaseName
     $connection['User ID'] = $UserName
     $connection['Password'] = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
     $connection['Encrypt'] = $true
@@ -27,7 +29,7 @@ try {
         $probeConnection.Open()
         $probeCommand = $probeConnection.CreateCommand()
         $probeCommand.CommandText = 'SELECT DB_NAME();'
-        if ($probeCommand.ExecuteScalar() -ne 'HRCMS') { throw 'Unexpected target database; no settings saved.' }
+        if ($probeCommand.ExecuteScalar() -ne $DatabaseName) { throw 'Unexpected target database; no settings saved.' }
     }
     catch [System.Data.SqlClient.SqlException] {
         throw "Azure SQL connection failed (SQL error $($_.Exception.Number)). No settings saved. Check the login, password and server access."

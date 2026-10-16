@@ -1,4 +1,8 @@
-param([string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'))
+param(
+    [string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'),
+    # Must match the database saved by Set-AzureSqlConnection.ps1; HRCMS_SQL_DATABASE overrides the default HRCMS.
+    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'HRCMS' })
+)
 $ErrorActionPreference = 'Stop'
 $secretPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Microsoft/UserSecrets/horseclub-backend/secrets.json'
 $secrets = if (Test-Path -LiteralPath $secretPath) { Get-Content -Raw -LiteralPath $secretPath | ConvertFrom-Json } else { $null }
@@ -12,8 +16,8 @@ if ([string]::IsNullOrWhiteSpace($connectionText)) {
 }
 if ([string]::IsNullOrWhiteSpace($connectionText)) { throw 'Azure SQL connection is missing from User Secrets.' }
 $connection = [System.Data.SqlClient.SqlConnectionStringBuilder]::new($connectionText)
-if ($connection.DataSource -ne 'tcp:hrcms.database.windows.net,1433' -or $connection.InitialCatalog -ne 'HRCMS' -or $connection.IntegratedSecurity -or !$connection.Encrypt -or $connection.TrustServerCertificate -or [string]::IsNullOrEmpty($connection.Password)) {
-    throw 'Expected the authenticated, encrypted Azure SQL connection for hrcms.database.windows.net / HRCMS. Run Set-AzureSqlConnection.ps1 first.'
+if ($connection.DataSource -ne 'tcp:hrcms.database.windows.net,1433' -or $connection.InitialCatalog -ne $DatabaseName -or $connection.IntegratedSecurity -or !$connection.Encrypt -or $connection.TrustServerCertificate -or [string]::IsNullOrEmpty($connection.Password)) {
+    throw "Expected the authenticated, encrypted Azure SQL connection for hrcms.database.windows.net / $DatabaseName. Run Set-AzureSqlConnection.ps1 first."
 }
 $schemaPath = $SchemaPath
 $migrationFolder = Join-Path $PSScriptRoot '../HorseClub.DAL/Data/Migrations/SqlServer'
@@ -31,7 +35,7 @@ try {
     $env:SQLCMDPASSWORD = $connection.Password
     $preflight = @"
 SET NOCOUNT ON;
-IF DB_NAME() <> 'HRCMS' THROW 51000, 'Unexpected target database.', 1;
+IF DB_NAME() <> N'$DatabaseName' THROW 51000, 'Unexpected target database.', 1;
 IF OBJECT_ID(N'dbo.__EFMigrationsHistory') IS NULL AND EXISTS (SELECT 1 FROM sys.tables WHERE is_ms_shipped = 0)
     THROW 51000, 'Existing unmanaged tables: review schema before migration.', 1;
 IF OBJECT_ID(N'dbo.__EFMigrationsHistory') IS NOT NULL
