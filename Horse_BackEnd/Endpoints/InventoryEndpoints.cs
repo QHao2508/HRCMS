@@ -1,24 +1,25 @@
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-
-using HorseClub.BLL.Workflows;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Entities;
 
 namespace Horse_BackEnd.Endpoints;
 
 public static class InventoryEndpoints
 {
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Inventory với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="api">Giá trị kiểu RouteGroupBuilder dùng trong MapInventory.</param>
     public static void MapInventory(this RouteGroupBuilder api)
     {
         var inventory = api.MapGroup("/inventory").WithTags("Inventory").RequireAuthorization();
-        inventory.MapGet("", async (CurrentUser current, ClubDbContext db, bool? lowStock, int? page, int? pageSize, PageReader pager) => await InventoryWorkflow.GetList(current, db, lowStock, page, pageSize, pager));
-        inventory.MapPost("", async (InventoryRequest r, CurrentUser current, ClubDbContext db, ClubEvents events) => await InventoryWorkflow.PostList(r, current, db, events));
-        inventory.MapGet("/{id:guid}/movements", async (Guid id, CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await InventoryWorkflow.GetByIdMovements(id, current, db, page, pageSize, pager));
-        inventory.MapPost("/{id:guid}/movements", async (Guid id, MovementRequest r, CurrentUser current, ClubDbContext db, ClubEvents events) => await InventoryWorkflow.PostByIdMovements(id, r, current, db, events));
-        inventory.MapPost("/{id:guid}/archive", async (Guid id, CurrentUser current, ClubDbContext db, ClubEvents events) => await InventoryWorkflow.PostByIdArchive(id, current, db, events));
-        inventory.MapGet("/replenishments", async (CurrentUser current, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await InventoryWorkflow.GetReplenishments(current, db, page, pageSize, pager));
-        inventory.MapPost("/replenishments", async (ReplenishmentRequestDto r, CurrentUser current, ClubDbContext db, ClubEvents events) => await InventoryWorkflow.PostReplenishments(r, current, db, events));
-        inventory.MapPost("/replenishments/{id:guid}/review", async (Guid id, ReplenishmentReviewRequest r, CurrentUser current, ClubDbContext db, ClubEvents events) => await InventoryWorkflow.PostReplenishmentsByIdReview(id, r, current, db, events));
+        inventory.MapGet("", async (bool? lowStock, int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListItems(lowStock, page, pageSize)).Produces<PageResponse<InventoryItem>>(200);
+        inventory.MapPost("", async (InventoryRequest r, IInventoryService moduleService) => await moduleService.CreateItem(r)).Produces<InventoryItem>(200);
+        inventory.MapGet("/{id:guid}/movements", async (Guid id, int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListMovements(id, page, pageSize)).Produces<PageResponse<StockMovement>>(200);
+        inventory.MapPost("/{id:guid}/movements", async (Guid id, MovementRequest r, IInventoryService moduleService) => await moduleService.RecordMovement(id, r)).Produces<StockMovementResponse>(200);
+        inventory.MapPost("/{id:guid}/archive", async (Guid id, IInventoryService moduleService) => (await moduleService.ArchiveItem(id)).ToHttpResult()).Produces(204);
+        inventory.MapGet("/replenishments", async (int? page, int? pageSize, IInventoryService moduleService) => await moduleService.ListReplenishments(page, pageSize)).Produces<PageResponse<ReplenishmentSummaryResponse>>(200);
+        inventory.MapPost("/replenishments", async (ReplenishmentRequestDto r, IInventoryService moduleService) => await moduleService.RequestReplenishment(r)).Produces<ReplenishmentRequest>(200);
+        inventory.MapPost("/replenishments/{id:guid}/receive", async (Guid id, ReplenishmentReceiptRequest r, IInventoryService service) => await service.ReceiveReplenishment(id,r)).Produces<ReplenishmentReceiptResponse>(200);
+        inventory.MapPost("/replenishments/{id:guid}/review", async (Guid id, ReplenishmentReviewRequest r, IInventoryService moduleService) => await moduleService.ReviewReplenishment(id, r)).Produces<ReplenishmentRequest>(200);
     }
 }

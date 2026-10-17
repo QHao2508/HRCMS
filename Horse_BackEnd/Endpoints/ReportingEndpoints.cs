@@ -1,22 +1,23 @@
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-using Microsoft.Extensions.Options;
-
-using HorseClub.BLL.Workflows;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Entities;
+using HorseClub.DAL.Enums;
 
 namespace Horse_BackEnd.Endpoints;
 
 public static class ReportingEndpoints
 {
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Reporting với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="api">Giá trị kiểu RouteGroupBuilder dùng trong MapReporting.</param>
     public static void MapReporting(this RouteGroupBuilder api)
     {
         var n = api.MapGroup("/notifications").WithTags("Notifications").RequireAuthorization();
-        n.MapGet("", async (CurrentUser current, ClubDbContext db, bool? unread, int? page, int? pageSize, PageReader pager) => await ReportingWorkflow.GetList(current, db, unread, page, pageSize, pager));
-        n.MapPost("/{id:guid}/read", async (Guid id, CurrentUser current, ClubDbContext db) => await ReportingWorkflow.PostByIdRead(id, current, db));
-        api.MapGet("/audit", async (CurrentUser current, ClubDbContext db, Guid? referenceId, int? page, int? pageSize, PageReader pager) => await ReportingWorkflow.GetAudit(current, db, referenceId, page, pageSize, pager)).RequireAuthorization().WithTags("Audit");
-        api.MapGet("/reports", async (Guid? horseId, DateTimeOffset? from, DateTimeOffset? to, ReportGrouping? groupBy, ClubAccess access, CurrentUser current, ClubDbContext db, TimeProvider clock, IOptions<BusinessOptions> options, ClubCalendar calendar) => await ReportingWorkflow.BuildReport(horseId, from, to, groupBy, access, current, db, clock, options, calendar)).RequireAuthorization().WithTags("Reports");
-        api.MapGet("/dashboard", async (ClubAccess access, CurrentUser current, ClubDbContext db, TimeProvider clock, ClubCalendar calendar) => await ReportingWorkflow.GetDashboard(access, current, db, clock, calendar)).RequireAuthorization().WithTags("Dashboard");
+        n.MapGet("", async (bool? unread, int? page, int? pageSize, IReportingService moduleService) => await moduleService.ListNotifications(unread, page, pageSize)).Produces<PageResponse<Notification>>(200);
+        n.MapPost("/{id:guid}/read", async (Guid id, IReportingService moduleService) => (await moduleService.MarkNotificationRead(id)).ToHttpResult()).Produces(204);
+        api.MapGet("/audit", async (Guid? referenceId,string? search,DateOnly? from,DateOnly? to,int? page,int? pageSize,IManagementService moduleService) => await moduleService.ListAudit(referenceId,search,from,to,page,pageSize)).RequireAuthorization().WithTags("Audit").Produces<PageResponse<HorseClub.DAL.Abstractions.AuditReadModel>>(200);
+        api.MapGet("/reports", async (Guid? horseId, DateTimeOffset? from, DateTimeOffset? to, ReportGrouping? groupBy, IReportingService moduleService) => (await moduleService.BuildReport(horseId, from, to, groupBy)).ToHttpResult()).RequireAuthorization().WithTags("Reports").Produces<ReportResponse>(200);
+        api.MapGet("/dashboard", async (IReportingService moduleService) => await moduleService.GetDashboard()).RequireAuthorization().WithTags("Dashboard").Produces<DashboardResponse>(200);
     }
 
 }

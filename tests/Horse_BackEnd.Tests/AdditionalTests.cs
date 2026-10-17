@@ -1,13 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Data;
+using HorseClub.DAL.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Horse_BackEnd.Infrastructure;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -69,9 +68,13 @@ public sealed class AdditionalTests
         var stable = await ClubFactory.Post(c, "/api/care/stables", new NameRequest("Stable A")); var stall = await ClubFactory.Post(c, "/api/care/stalls", new StallRequest(stable.GetProperty("id").GetGuid(), "A1")); var id = stall.GetProperty("id").GetGuid();
         await ClubFactory.Post(c, $"/api/care/stalls/{id}/occupancy", new OccupancyRequest(first.Id));
         Assert.Equal(HttpStatusCode.Conflict, (await c.PostAsJsonAsync($"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id))).StatusCode);
+<<<<<<< HEAD
         await ClubFactory.Post(c, $"/api/horses/{first.Id}/archive", new ReasonRequest("Horse retired"));
+=======
+        await ClubFactory.Post(c, $"/api/horses/{first.Id}/archive", new { category = "LeftClub", reason = "Test archive" });
+>>>>>>> main
         await ClubFactory.Post(c, $"/api/care/stalls/{id}/occupancy", new OccupancyRequest(second.Id));
-        Assert.Equal(HttpStatusCode.Conflict, (await c.GetAsync($"/api/horses/{first.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await c.GetAsync($"/api/horses/{first.Id}")).StatusCode);
     }
 
     [Fact]
@@ -81,7 +84,8 @@ public sealed class AdditionalTests
             .UseSqlServer("Server=localhost;Database=HorseClubSchemaTest;Trusted_Connection=True;TrustServerCertificate=True").Options);
         var script = db.Database.GenerateCreateScript();
         Assert.Contains("CREATE TABLE [Sessions]", script); Assert.Contains("CREATE TABLE [Restrictions]", script);
-        Assert.Single(db.Database.GetMigrations());
+        Assert.Contains(db.Database.GetMigrations(), x => x.EndsWith("_QueryPerformanceIndexes", StringComparison.Ordinal));
+        Assert.Contains("IX_Sessions_HorseId_Status_ScheduledAt", script);
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

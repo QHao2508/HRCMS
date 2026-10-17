@@ -1,41 +1,49 @@
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-using Horse_BackEnd.Services;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using Microsoft.Extensions.Options;
-using System.Security.Claims;
-
-using HorseClub.BLL.Workflows;
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Enums;
 
 namespace Horse_BackEnd.Endpoints;
 
 public static class AuthEndpoints
 {
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Auth với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="api">Giá trị kiểu RouteGroupBuilder dùng trong MapAuth.</param>
     public static void MapAuth(this RouteGroupBuilder api)
     {
         var auth = api.MapGroup("/auth").WithTags("Authentication").RequireRateLimiting("auth");
-        auth.MapPost("/register", async (RegisterRequest r, AuthenticationService service) => await AuthWorkflow.PostRegister(r, service));
-        auth.MapPost("/login", async (LoginRequest r, AuthenticationService service, HttpContext context) => await AuthWorkflow.PostLogin(r, service, context));
-        auth.MapPost("/refresh", async (RefreshRequest r, IOptionsMonitor<BearerTokenOptions> options, ClubDbContext db, TimeProvider clock) => await AuthWorkflow.PostRefresh(r, options, db, clock));
-        auth.MapPost("/verify-email", async (VerifyRequest r, AuthenticationService s, ClubDbContext db) => await AuthWorkflow.PostVerifyEmail(r, s, db));
-        auth.MapPost("/resend-verification", async (EmailRequest r, AuthenticationService s, ClubDbContext db) => await AuthWorkflow.PostResendVerification(r, s, db));
-        auth.MapPost("/forgot-password", async (EmailRequest r, AuthenticationService s, ClubDbContext db) => await AuthWorkflow.PostForgotPassword(r, s, db));
+        auth.MapPost("/register", async (RegisterRequest r, IAuthenticationService moduleService) => (await moduleService.RegisterAccount(r)).ToHttpResult()).Produces<UserResponse>(201);
+        auth.MapPost("/login", BearerSessionHandler.Login).Produces<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>(200)
+            .Produces<LoginErrorResponse>(401).Produces<LoginErrorResponse>(410);
+        auth.MapPost("/refresh", BearerSessionHandler.Refresh).WithMetadata(new ReadOnlyOperation()).Produces<Microsoft.AspNetCore.Authentication.BearerToken.AccessTokenResponse>(200);
+        auth.MapPost("/verify-email", async (VerifyRequest r, IAuthenticationService moduleService) => (await moduleService.VerifyEmail(r)).ToHttpResult()).Produces<VerificationResponse>(200);
+        auth.MapPost("/resend-verification", async (EmailRequest r, IAuthenticationService moduleService) => (await moduleService.ResendVerification(r)).ToHttpResult()).Produces<MessageResponse>(200);
+        auth.MapPost("/forgot-password", async (EmailRequest r, IAuthenticationService moduleService) => (await moduleService.ForgotPassword(r)).ToHttpResult()).Produces<MessageResponse>(200);
         MapPassword(auth, "/reset-password", ChallengePurpose.Reset);
         MapPassword(auth, "/accept-invitation", ChallengePurpose.Invite);
-        auth.MapGet("/me", async (CurrentUser current) => await AuthWorkflow.GetMe(current)).RequireAuthorization();
-        auth.MapPost("/logout", async (CurrentUser current, ClubDbContext db) => await AuthWorkflow.PostLogout(current, db)).RequireAuthorization();
+        auth.MapPost("/invitation/verify",async (VerifyRequest r,IAuthenticationService service)=>await service.VerifyInvitation(r)).Produces<InvitationVerificationResponse>(200);
+        auth.MapPost("/invitation/password",async (InvitationPasswordRequest r,IAuthenticationService service)=>await service.CompleteInvitation(r)).Produces<PasswordChangedResponse>(200);
+        auth.MapGet("/me", async (IAuthenticationService moduleService) => await moduleService.GetProfile()).RequireAuthorization().Produces<UserResponse>(200);
+        auth.MapPost("/logout", async (IAuthenticationService moduleService) => (await moduleService.Logout()).ToHttpResult()).RequireAuthorization().Produces(204);
 
         var staff = api.MapGroup("/staff").WithTags("Staff").RequireAuthorization();
-        staff.MapGet("", async (CurrentUser current, ClubDbContext db, int? page, int? pageSize, Role? role, PageReader pager) => await AuthWorkflow.GetList(current, db, page, pageSize, role, pager));
-        staff.MapGet("/directory", async (CurrentUser current, ClubDbContext db, Role? role, int? page, int? pageSize, PageReader pager) => await AuthWorkflow.GetDirectory(current, db, role, page, pageSize, pager));
-        staff.MapPost("", async (StaffRequest r, CurrentUser current, AuthenticationService s, ClubEvents events, ClubDbContext db) => await AuthWorkflow.PostList(r, current, s, events, db));
-        staff.MapPut("/{id:guid}/active", async (Guid id, ActiveRequest r, CurrentUser current, ClubDbContext db, ClubEvents events) => await AuthWorkflow.PutByIdActive(id, r, current, db, events));
+        staff.MapGet("/{id:guid}/training-profile", async (Guid id, ITrainingSchedulingService service) => await service.GetProfile(id)).Produces<StaffTrainingProfileResponse>(200);
+        staff.MapPut("/{id:guid}/training-profile", async (Guid id, StaffTrainingProfileRequest r, ITrainingSchedulingService service) => await service.UpdateProfile(id, r)).Produces<StaffTrainingProfileResponse>(200);
+        staff.MapGet("", async (int? page, int? pageSize, Role? role, IAuthenticationService moduleService) => await moduleService.ListStaff(page, pageSize, role)).Produces<PageResponse<StaffResponse>>(200);
+        staff.MapGet("/directory", async (Role? role, int? page, int? pageSize, IAuthenticationService moduleService) => await moduleService.ListStaffDirectory(role, page, pageSize)).Produces<PageResponse<StaffDirectoryResponse>>(200);
+        staff.MapPost("/{id:guid}/resend-invitation",async (Guid id,IAuthenticationService service)=>(await service.ResendInvitation(id)).ToHttpResult()).Produces(204);
+        staff.MapPost("", async (StaffRequest r, IAuthenticationService moduleService) => (await moduleService.InviteStaff(r)).ToHttpResult()).Produces<UserResponse>(201);
+        staff.MapGet("/{id:guid}/workload", async (Guid id, IAuthenticationService service) => await service.GetStaffWorkload(id)).Produces<HorseClub.DAL.Abstractions.StaffWorkloadReadModel>(200);
+        staff.MapPut("/{id:guid}/active", async (Guid id, ActiveRequest r, IAuthenticationService moduleService) => (await moduleService.SetStaffActive(id, r)).ToHttpResult()).Produces(204);
     }
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Password với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="auth">Giá trị kiểu RouteGroupBuilder dùng trong MapPassword.</param>
+    /// <param name="route">Giá trị kiểu string dùng trong MapPassword.</param>
+    /// <param name="purpose">Enum mục đích OTP Verify/Reset/Invite; ngăn dùng mã của luồng khác.</param>
     private static void MapPassword(RouteGroupBuilder auth, string route, ChallengePurpose purpose)
     {
-        auth.MapPost(route, async (ResetRequest r, AuthenticationService s, ClubDbContext db) => await AuthWorkflow.PostPassword(r, s, db, purpose));
+        auth.MapPost(route, async (ResetRequest r, IAuthenticationService moduleService) => (await moduleService.ChangePassword(r, purpose)).ToHttpResult()).Produces<PasswordChangedResponse>(200);
     }
 }

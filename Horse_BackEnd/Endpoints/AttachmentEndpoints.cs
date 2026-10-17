@@ -1,22 +1,28 @@
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Horse_BackEnd.Infrastructure;
-using Microsoft.Extensions.Options;
-
-using HorseClub.BLL.Workflows;
+using HorseClub.BLL.Contracts;
 
 namespace Horse_BackEnd.Endpoints;
 
 public static class AttachmentEndpoints
 {
+    /// <summary>
+    /// Đăng ký endpoint HTTP của module Attachments với schema, role/rate limit; chuyển request vào service BLL rồi ánh xạ response.
+    /// </summary>
+    /// <param name="api">Giá trị kiểu RouteGroupBuilder dùng trong MapAttachments.</param>
     public static void MapAttachments(this RouteGroupBuilder api)
     {
         // Public profile images are still protected by the horse scope; staff cannot access intake medical files.
-        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, ClubAccess access, ClubDbContext db, IConfiguration config, IWebHostEnvironment env) => await AttachmentWorkflow.GetHorsesByIdPhoto(horseId, access, db, config, env)).RequireAuthorization().WithTags("Attachments");
+        api.MapGet("/horses/{horseId:guid}/photo", async (Guid horseId, HttpContext http, IAttachmentService moduleService) =>
+        {
+            var result = await moduleService.GetHorsePhoto(horseId, http.Request.Headers.IfNoneMatch.ToString());
+            // private + no-cache: trình duyệt giữ ảnh nhưng luôn hỏi lại bằng ETag, nên đổi ảnh vẫn thấy ngay.
+            http.Response.Headers.CacheControl = "private, no-cache";
+            if ((result.Download?.ETag ?? result.Value as string) is { } eTag) http.Response.Headers.ETag = eTag;
+            return result.StatusCode == 304 ? Results.StatusCode(304) : result.ToHttpResult();
+        }).RequireAuthorization().WithTags("Attachments").Produces<byte[]>(200, contentType: "application/octet-stream");
         var a = api.MapGroup("/registrations/{registrationId:guid}/attachments").WithTags("Attachments").RequireAuthorization();
-        a.MapGet("", async (Guid registrationId, ClubAccess access, ClubDbContext db) => await AttachmentWorkflow.GetList(registrationId, access, db));
-        a.MapPost("", async (Guid registrationId, HttpRequest request, ClubAccess access, CurrentUser current, ClubDbContext db, IConfiguration config, IWebHostEnvironment env, ClubEvents events, IOptions<StorageOptions> options) => await AttachmentWorkflow.PostList(registrationId, request, access, current, db, config, env, events, options)).RequireRateLimiting("uploads");
-        a.MapGet("/{id:guid}", async (Guid registrationId, Guid id, ClubAccess access, ClubDbContext db, IConfiguration config, IWebHostEnvironment env) => await AttachmentWorkflow.GetById(registrationId, id, access, db, config, env));
+        a.MapGet("", async (Guid registrationId, IAttachmentService moduleService) => await moduleService.ListAttachments(registrationId)).Produces<List<AttachmentResponse>>(200);
+        a.MapPost("", async (Guid registrationId, HttpRequest request, IAttachmentService moduleService) => (await moduleService.UploadAttachment(registrationId, UploadRequestAdapter.Create(request))).ToHttpResult()).RequireRateLimiting("uploads").Produces<AttachmentCreatedResponse>(201);
+        a.MapGet("/{id:guid}", async (Guid registrationId, Guid id, IAttachmentService moduleService) => (await moduleService.DownloadAttachment(registrationId, id)).ToHttpResult()).Produces<byte[]>(200, contentType: "application/octet-stream");
     }
 
 }

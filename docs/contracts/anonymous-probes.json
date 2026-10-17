@@ -1,0 +1,20 @@
+[
+  {
+    "Method": "GET",
+    "Path": "/health",
+    "Status": 200,
+    "Body": "{\"status\":\"healthy\"}"
+  },
+  {
+    "Method": "GET",
+    "Path": "/api/horses",
+    "Status": 401,
+    "Body": ""
+  },
+  {
+    "Method": "GET",
+    "Path": "/api/auth/me",
+    "Status": 401,
+    "Body": ""
+  }
+]

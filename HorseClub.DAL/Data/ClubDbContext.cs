@@ -1,12 +1,14 @@
-using Horse_BackEnd.Domain;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
-namespace Horse_BackEnd.Data;
+namespace HorseClub.DAL.Data;
 
 public class ClubDbContext(DbContextOptions options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<PublicReferenceRecord> PublicReferenceRecords => Set<PublicReferenceRecord>();
+    public DbSet<TrainerExpertise> TrainerExpertise => Set<TrainerExpertise>();
+    public DbSet<StaffWorkingHours> StaffWorkingHours => Set<StaffWorkingHours>();
+    public DbSet<StaffTimeOff> StaffTimeOff => Set<StaffTimeOff>();
     public DbSet<EmailChallenge> Challenges => Set<EmailChallenge>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<HorseRegistration> Registrations => Set<HorseRegistration>();
@@ -14,6 +16,7 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<Measurement> Measurements => Set<Measurement>();
     public DbSet<StaffAssignment> Assignments => Set<StaffAssignment>();
     public DbSet<TrainingTemplate> Templates => Set<TrainingTemplate>();
+    public DbSet<TrainerTemplateAssignment> TrainerTemplateAssignments => Set<TrainerTemplateAssignment>();
     public DbSet<TrainingPlan> Plans => Set<TrainingPlan>();
     public DbSet<TrainingSession> Sessions => Set<TrainingSession>();
     public DbSet<SessionResult> Results => Set<SessionResult>();
@@ -36,66 +39,35 @@ public class ClubDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<IncidentPhoto> IncidentPhotos => Set<IncidentPhoto>();
     public DbSet<TrainingRevision> TrainingRevisions => Set<TrainingRevision>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<WebsiteSettings> WebsiteSettings => Set<WebsiteSettings>();
     public DbSet<AuditEvent> Audit => Set<AuditEvent>();
+    public DbSet<RealtimeOutboxMessage> RealtimeOutboxMessages => Set<RealtimeOutboxMessage>();
 
-    protected override void OnModelCreating(ModelBuilder b)
-    {
-        // Every entity is its own table; the shared CLR base does not represent a database hierarchy.
-        foreach (var type in typeof(Entity).Assembly.GetTypes().Where(t => t.IsSubclassOf(typeof(Entity))))
-        {
-            var entity = b.Entity(type);
-            entity.HasBaseType((Type?)null);
-            entity.HasKey(nameof(Entity.Id));
-            entity.Property(nameof(Entity.Version)).IsConcurrencyToken();
-        }
-        b.Entity<User>().HasIndex(x => x.Email).IsUnique();
-        b.Entity<User>().HasIndex(x => x.UserName).IsUnique();
-        b.Entity<Horse>().HasIndex(x => x.RegistrationId).IsUnique();
-        b.Entity<SessionResult>().HasIndex(x => x.SessionId).IsUnique();
-        b.Entity<TrainerEvaluation>().HasIndex(x => x.SessionId).IsUnique();
-        b.Entity<StaffAssignment>().HasIndex(x => new { x.HorseId, x.Role, x.Active });
-        b.Entity<MedicalRestriction>().HasIndex(x => new { x.HorseId, x.Cleared });
-        b.Entity<Notification>().HasIndex(x => new { x.RecipientId, x.Read });
-        b.Entity<EmailChallenge>().HasIndex(x => new { x.UserId, x.Purpose });
-        b.Entity<HorseRegistration>().HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<Horse>().HasOne<HorseRegistration>().WithMany().HasForeignKey(x => x.RegistrationId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<Horse>().HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingPlan>().HasOne<TrainingTemplate>().WithMany().HasForeignKey(x => x.TemplateId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingPlan>().HasOne<User>().WithMany().HasForeignKey(x => x.TrainerId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingSession>().HasOne<TrainingPlan>().WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingSession>().HasOne<User>().WithMany().HasForeignKey(x => x.RiderId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<SessionResult>().HasOne<TrainingSession>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainerEvaluation>().HasOne<TrainingSession>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<Attachment>().HasOne<HorseRegistration>().WithMany().HasForeignKey(x => x.RegistrationId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<IncidentPhoto>().HasOne<Incident>().WithMany().HasForeignKey(x => x.IncidentId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingRevision>().HasOne<TrainingPlan>().WithMany().HasForeignKey(x => x.PlanId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<TrainingRevision>().HasOne<TrainingSession>().WithMany().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<Stall>().HasOne<Stable>().WithMany().HasForeignKey(x => x.StableId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<StallOccupancy>().HasOne<Stall>().WithMany().HasForeignKey(x => x.StallId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<StockMovement>().HasOne<InventoryItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<ReplenishmentRequest>().HasOne<InventoryItem>().WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Restrict);
-        foreach (var t in b.Model.GetEntityTypes().ToArray())
-        {
-            if (t.FindProperty("HorseId") is not null)
-                b.Entity(t.ClrType).HasOne(typeof(Horse)).WithMany().HasForeignKey("HorseId").OnDelete(DeleteBehavior.Restrict);
-            if (t.FindProperty("MedicalRecordId") is not null)
-                b.Entity(t.ClrType).HasOne(typeof(MedicalRecord)).WithMany().HasForeignKey("MedicalRecordId").OnDelete(DeleteBehavior.Restrict);
-            foreach (var p in t.GetProperties())
-            {
-                if (p.ClrType == typeof(string)) p.SetMaxLength(4000);
-                if (p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)) { p.SetPrecision(18); p.SetScale(3); }
-                // UTC ticks allow SQLite to filter/sort timestamps without client evaluation.
-                if (p.ClrType == typeof(DateTimeOffset) || p.ClrType == typeof(DateTimeOffset?))
-                    p.SetValueConverter(new ValueConverter<DateTimeOffset, long>(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero)));
-            }
-        }
-        b.Entity<User>().Property(x => x.Email).HasMaxLength(254);
-        b.Entity<User>().Property(x => x.UserName).HasMaxLength(80);
-        b.Entity<TrainingRevision>().Property(x => x.Snapshot).HasMaxLength(20000);
-    }
+    /// <summary>
+    /// Áp dụng cấu hình bảng, quan hệ, kiểu dữ liệu, ràng buộc và index cho toàn bộ model SQL Server.
+    /// </summary>
+    /// <param name="model">Giá trị kiểu ModelBuilder dùng trong OnModelCreating.</param>
+    protected override void OnModelCreating(ModelBuilder model) => Configurations.ClubModelConfiguration.Configure(model);
 
+    /// <summary>
+    /// Tăng Version cho entity bị sửa trước khi lưu để phát hiện cập nhật đồng thời bằng optimistic concurrency.
+    /// </summary>
+    /// <param name="cancellationToken">Giá trị kiểu CancellationToken dùng trong SaveChangesAsync.</param>
+    /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        // Queue one minimal signal per notification in the same transaction as its business changes.
+        var notifications = ChangeTracker.Entries<Notification>().Where(x => x.State is EntityState.Added or EntityState.Modified)
+            .Select(x => new { Notification = x.Entity, IsNew = x.State == EntityState.Added }).ToList();
+        var queued = ChangeTracker.Entries<RealtimeOutboxMessage>().Select(x => (x.Entity.SourceId, x.Entity.SourceVersion)).ToHashSet();
+        foreach (var entry in notifications)
+        {
+            var notification = entry.Notification;
+            var version = entry.IsNew ? notification.Version : notification.Version + 1;
+            if (queued.Add((notification.Id, version)))
+                RealtimeOutboxMessages.Add(new RealtimeOutboxMessage { RecipientId = notification.RecipientId, SourceId = notification.Id,
+                    SourceVersion = version, EventType = entry.IsNew ? "NotificationCreated" : "NotificationsChanged" });
+        }
         foreach (var entry in ChangeTracker.Entries<Entity>())
             if (entry.State == EntityState.Modified) entry.Entity.Version++;
         return base.SaveChangesAsync(cancellationToken);

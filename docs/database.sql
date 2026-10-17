@@ -1,4 +1,4 @@
-﻿IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
 BEGIN
     CREATE TABLE [__EFMigrationsHistory] (
         [MigrationId] nvarchar(150) NOT NULL,
@@ -989,3 +989,1141 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    ALTER TABLE [EmailMessages] ADD [ChallengeId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    ALTER TABLE [EmailMessages] ADD [DiscardedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    ALTER TABLE [EmailMessages] ADD [ExpiresAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    CREATE INDEX [IX_Notifications_ReferenceId_Type] ON [Notifications] ([ReferenceId], [Type]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    CREATE INDEX [IX_EmailMessages_ChallengeId] ON [EmailMessages] ([ChallengeId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    CREATE INDEX [IX_EmailMessages_SentAt_DiscardedAt_NextAttemptAt] ON [EmailMessages] ([SentAt], [DiscardedAt], [NextAttemptAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    ALTER TABLE [EmailMessages] ADD CONSTRAINT [FK_EmailMessages_Challenges_ChallengeId] FOREIGN KEY ([ChallengeId]) REFERENCES [Challenges] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261004130807_WorkerDeliveryReliability'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261004130807_WorkerDeliveryReliability', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var nvarchar(max);
+    SELECT @var = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'WeightKg');
+    IF @var IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [WeightKg] decimal(18,3) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var1 nvarchar(max);
+    SELECT @var1 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'Sire');
+    IF @var1 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var1 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [Sire] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var2 nvarchar(max);
+    SELECT @var2 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'Name');
+    IF @var2 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var2 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [Name] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var3 nvarchar(max);
+    SELECT @var3 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'MeasurementDate');
+    IF @var3 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var3 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [MeasurementDate] date NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var4 nvarchar(max);
+    SELECT @var4 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'HeightCm');
+    IF @var4 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var4 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [HeightCm] decimal(18,3) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var5 nvarchar(max);
+    SELECT @var5 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'HealthNotes');
+    IF @var5 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var5 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [HealthNotes] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var6 nvarchar(max);
+    SELECT @var6 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'Gender');
+    IF @var6 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var6 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [Gender] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var7 nvarchar(max);
+    SELECT @var7 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'DeclaredHealth');
+    IF @var7 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var7 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [DeclaredHealth] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var8 nvarchar(max);
+    SELECT @var8 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'DateOfBirth');
+    IF @var8 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var8 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [DateOfBirth] date NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var9 nvarchar(max);
+    SELECT @var9 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'Dam');
+    IF @var9 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var9 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [Dam] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var10 nvarchar(max);
+    SELECT @var10 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'Breed');
+    IF @var10 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var10 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [Breed] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    DECLARE @var11 nvarchar(max);
+    SELECT @var11 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Registrations]') AND [c].[name] = N'BoardingStart');
+    IF @var11 IS NOT NULL EXEC(N'ALTER TABLE [Registrations] DROP CONSTRAINT ' + @var11 + ';');
+    ALTER TABLE [Registrations] ALTER COLUMN [BoardingStart] date NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261005060507_PartialRegistrationDraft'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261005060507_PartialRegistrationDraft', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_TrainingRevisions_PlanId] ON [TrainingRevisions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_StockMovements_ItemId] ON [StockMovements];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_HorseId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_PlanId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Sessions_RiderId] ON [Sessions];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Registrations_OwnerId] ON [Registrations];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Plans_HorseId] ON [Plans];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Measurements_HorseId] ON [Measurements];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_Horses_OwnerId] ON [Horses];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    DROP INDEX [IX_CareTasks_HorseId] ON [CareTasks];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_TrainingRevisions_PlanId_CreatedAt] ON [TrainingRevisions] ([PlanId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_StockMovements_ItemId_CreatedAt] ON [StockMovements] ([ItemId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_HorseId_Status_ScheduledAt] ON [Sessions] ([HorseId], [Status], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_PlanId_ScheduledAt] ON [Sessions] ([PlanId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Sessions_RiderId_Status_ScheduledAt] ON [Sessions] ([RiderId], [Status], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Registrations_OwnerId_Status_CreatedAt] ON [Registrations] ([OwnerId], [Status], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Plans_HorseId_Status] ON [Plans] ([HorseId], [Status]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Notifications_RecipientId_Read_CreatedAt] ON [Notifications] ([RecipientId], [Read], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Measurements_HorseId_Date] ON [Measurements] ([HorseId], [Date]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Horses_OwnerId_Archived] ON [Horses] ([OwnerId], [Archived]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_CareTasks_GroomId_ScheduledAt] ON [CareTasks] ([GroomId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_CareTasks_HorseId_ScheduledAt] ON [CareTasks] ([HorseId], [ScheduledAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Audit_ReferenceId_CreatedAt] ON [Audit] ([ReferenceId], [CreatedAt]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    CREATE INDEX [IX_Assignments_StaffId_Active_HorseId] ON [Assignments] ([StaffId], [Active], [HorseId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261007115208_QueryPerformanceIndexes'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261007115208_QueryPerformanceIndexes', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE TABLE [RealtimeOutboxMessages] (
+        [Id] uniqueidentifier NOT NULL,
+        [RecipientId] uniqueidentifier NOT NULL,
+        [NotificationId] uniqueidentifier NOT NULL,
+        [Attempts] int NOT NULL,
+        [NextAttemptAt] bigint NULL,
+        [LockedUntil] bigint NULL,
+        [LeaseOwner] uniqueidentifier NULL,
+        [SentAt] bigint NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_RealtimeOutboxMessages] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages] ([NotificationId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    CREATE INDEX [IX_RealtimeOutboxMessages_SentAt_NextAttemptAt_LockedUntil] ON [RealtimeOutboxMessages] ([SentAt], [NextAttemptAt], [LockedUntil]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008031610_RealtimeNotificationOutbox'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008031610_RealtimeNotificationOutbox', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    DROP INDEX [IX_RealtimeOutboxMessages_NotificationId] ON [RealtimeOutboxMessages];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [EventType] nvarchar(4000) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    ALTER TABLE [RealtimeOutboxMessages] ADD [NotificationVersion] bigint NOT NULL DEFAULT CAST(0 AS bigint);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_RealtimeOutboxMessages_NotificationId_NotificationVersion] ON [RealtimeOutboxMessages] ([NotificationId], [NotificationVersion]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033133_RealtimeNotificationReadSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033133_RealtimeNotificationReadSignals', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationVersion]', N'SourceVersion', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[NotificationId]', N'SourceId', 'COLUMN';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    EXEC sp_rename N'[RealtimeOutboxMessages].[IX_RealtimeOutboxMessages_NotificationId_NotificationVersion]', N'IX_RealtimeOutboxMessages_SourceId_SourceVersion', 'INDEX';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261008033516_RealtimeResourceSignals'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261008033516_RealtimeResourceSignals', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    CREATE TABLE [WebsiteSettings] (
+        [Id] uniqueidentifier NOT NULL,
+        [ContentJson] nvarchar(max) NOT NULL,
+        [LogoName] nvarchar(4000) NULL,
+        [LogoType] nvarchar(4000) NULL,
+        [HeroName] nvarchar(4000) NULL,
+        [HeroType] nvarchar(4000) NULL,
+        [BackgroundName] nvarchar(4000) NULL,
+        [BackgroundType] nvarchar(4000) NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_WebsiteSettings] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261009025334_WebsiteManagement'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261009025334_WebsiteManagement', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD [ReplenishmentRequestId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [DurationMinutes] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [ScheduledEndAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReceivedQuantity] decimal(18,3) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewNotes] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Replenishments] ADD [ReviewedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [Resolution] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Incidents] ADD [ResolvedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveCategory] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchiveReason] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedAt] bigint NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [Horses] ADD [ArchivedBy] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    CREATE INDEX [IX_StockMovements_ReplenishmentRequestId] ON [StockMovements] ([ReplenishmentRequestId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    ALTER TABLE [StockMovements] ADD CONSTRAINT [FK_StockMovements_Replenishments_ReplenishmentRequestId] FOREIGN KEY ([ReplenishmentRequestId]) REFERENCES [Replenishments] ([Id]) ON DELETE NO ACTION;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261011120226_BusinessRuleLifecycle'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261011120226_BusinessRuleLifecycle', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    ALTER TABLE [Assignments] ADD [RequiredTrainingType] int NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [StaffTimeOff] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [Start] bigint NOT NULL,
+        [End] bigint NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_StaffTimeOff] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_StaffTimeOff_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [StaffWorkingHours] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [DayOfWeek] int NOT NULL,
+        [StartMinute] int NOT NULL,
+        [EndMinute] int NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_StaffWorkingHours] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_StaffWorkingHours_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE TABLE [TrainerExpertise] (
+        [Id] uniqueidentifier NOT NULL,
+        [StaffId] uniqueidentifier NOT NULL,
+        [TrainingType] int NOT NULL,
+        [Level] int NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_TrainerExpertise] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_TrainerExpertise_Users_StaffId] FOREIGN KEY ([StaffId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE INDEX [IX_StaffTimeOff_StaffId_Start_End] ON [StaffTimeOff] ([StaffId], [Start], [End]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_StaffWorkingHours_StaffId_DayOfWeek_StartMinute] ON [StaffWorkingHours] ([StaffId], [DayOfWeek], [StartMinute]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_TrainerExpertise_StaffId_TrainingType] ON [TrainerExpertise] ([StaffId], [TrainingType]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013044927_TrainerExpertiseAndAvailability'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013044927_TrainerExpertiseAndAvailability', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013062223_PublicReferenceData'
+)
+BEGIN
+    CREATE TABLE [PublicReferenceRecords] (
+        [Id] uniqueidentifier NOT NULL,
+        [ExternalKey] nvarchar(300) NOT NULL,
+        [Kind] nvarchar(40) NOT NULL,
+        [DisplayName] nvarchar(4000) NOT NULL,
+        [SourceUrl] nvarchar(4000) NOT NULL,
+        [CollectedOn] date NOT NULL,
+        [SourceAsOf] date NULL,
+        [SourceMetadataJson] nvarchar(4000) NOT NULL,
+        [PayloadJson] nvarchar(4000) NOT NULL,
+        [ContentSha256] nvarchar(64) NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_PublicReferenceRecords] PRIMARY KEY ([Id])
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013062223_PublicReferenceData'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_PublicReferenceRecords_ExternalKey] ON [PublicReferenceRecords] ([ExternalKey]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013062223_PublicReferenceData'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013062223_PublicReferenceData', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    DROP INDEX [IX_MedicalRecords_HorseId] ON [MedicalRecords];
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [MedicalRecords] ADD [CaseRootId] uniqueidentifier NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [MedicalRecords] ADD [InitialSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [FollowUps] ADD [CurrentSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    ALTER TABLE [FollowUps] ADD [PreviousSnapshotJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    CREATE INDEX [IX_MedicalRecords_HorseId_CaseRootId] ON [MedicalRecords] ([HorseId], [CaseRootId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013105448_MedicalCaseHistory'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013105448_MedicalCaseHistory', N'10.0.12');
+END;
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [CurriculumJson] nvarchar(max) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [IsSystemDefault] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [MinimumExpertiseLevel] int NOT NULL DEFAULT 1;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [RequiredTrainingTypesJson] nvarchar(4000) NOT NULL DEFAULT N'[]';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [SourceUrl] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Templates] ADD [SystemKey] nvarchar(100) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [TemplateExerciseKey] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Sessions] ADD [UseCustomExercise] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Plans] ADD [TemplatePlanOptionKey] nvarchar(4000) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    ALTER TABLE [Plans] ADD [UseCustomPlan] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    CREATE TABLE [TrainerTemplateAssignments] (
+        [Id] uniqueidentifier NOT NULL,
+        [TemplateId] uniqueidentifier NOT NULL,
+        [TrainerId] uniqueidentifier NOT NULL,
+        [AssignedBy] uniqueidentifier NOT NULL,
+        [Active] bit NOT NULL,
+        [CreatedAt] bigint NOT NULL,
+        [Version] bigint NOT NULL,
+        CONSTRAINT [PK_TrainerTemplateAssignments] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_TrainerTemplateAssignments_Templates_TemplateId] FOREIGN KEY ([TemplateId]) REFERENCES [Templates] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_TrainerTemplateAssignments_Users_AssignedBy] FOREIGN KEY ([AssignedBy]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_TrainerTemplateAssignments_Users_TrainerId] FOREIGN KEY ([TrainerId]) REFERENCES [Users] ([Id]) ON DELETE NO ACTION
+    );
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    IF EXISTS (SELECT * FROM [sys].[identity_columns] WHERE [name] IN (N'Id', N'Archived', N'CreatedAt', N'CurriculumJson', N'DistanceMetres', N'FrequencyPerWeek', N'Goal', N'Intensity', N'IsSystemDefault', N'MinimumExpertiseLevel', N'Name', N'Notes', N'Phase', N'RequiredTrainingTypesJson', N'SourceUrl', N'Surface', N'SystemKey', N'Version') AND [object_id] = OBJECT_ID(N'[Templates]'))
+        SET IDENTITY_INSERT [Templates] ON;
+    EXEC(N'INSERT INTO [Templates] ([Id], [Archived], [CreatedAt], [CurriculumJson], [DistanceMetres], [FrequencyPerWeek], [Goal], [Intensity], [IsSystemDefault], [MinimumExpertiseLevel], [Name], [Notes], [Phase], [RequiredTrainingTypesJson], [SourceUrl], [Surface], [SystemKey], [Version])
+    VALUES (''9b590cbd-cc33-4f4d-8f03-000000000001'', CAST(0 AS bit), CAST(639274464000000000 AS bigint), N''{"planOptions":[{"key":"standard","label":"X\u00E2y d\u1EF1ng th\u1EC3 l\u1EF1c n\u1EC1n t\u1EA3ng","goal":"X\u00E2y th\u1EC3 l\u1EF1c v\u00E0 l\u00E0m quen nh\u1ECBp v\u1EADn \u0111\u1ED9ng t\u1EEBng b\u01B0\u1EDBc.","phase":"Base"}],"sessionOptions":[{"key":"walk-easy","label":"\u0110i b\u1ED9 nh\u1EB9","trainingType":"Walk","distanceMetres":400,"intensity":"Light","surface":"C\u00E1t","durationMinutes":15,"target":"Gi\u1EEF b\u01B0\u1EDBc \u0111i \u0111\u1EC1u v\u00E0 ph\u1EA3n h\u1ED3i \u1ED5n \u0111\u1ECBnh v\u1EDBi ng\u01B0\u1EDDi c\u01B0\u1EE1i."},{"key":"trot-base","label":"N\u01B0\u1EDBc ki\u1EC7u n\u1EC1n t\u1EA3ng","trainingType":"Trot","distanceMetres":800,"intensity":"Light","surface":"C\u00E1t","durationMinutes":20,"target":"Duy tr\u00EC nh\u1ECBp n\u01B0\u1EDBc ki\u1EC7u nh\u1EB9 v\u00E0 theo d\u00F5i h\u1ED3i ph\u1EE5c."}]}'', 800.0, 3, N''Xây thể lực và làm quen nhịp vận động từng bước.'', 0, CAST(1 AS bit), 1, N''Xây dựng thể lực nền tảng'', N''Khung tham khảo. Các lựa chọn quãng đường, thời lượng và cường độ là thông số minh họa của câu lạc bộ; điều chỉnh theo từng ngựa và chỉ định chuyên môn trước khi áp dụng.'', N''Base'', N''["Walk","Trot"]'', N''https://www.greatbritishracing.com/features/the-equine-fitness-plan-how-racehorses-get-fit/'', N''Cát'', N''foundation'', CAST(0 AS bigint)),
+    (''9b590cbd-cc33-4f4d-8f03-000000000002'', CAST(0 AS bit), CAST(639274464000000000 AS bigint), N''{"planOptions":[{"key":"standard","label":"Duy tr\u00EC nh\u1ECBp ch\u1EA1y \u1ED5n \u0111\u1ECBnh","goal":"Ph\u00E1t tri\u1EC3n s\u1EE9c b\u1EC1n v\u00E0 kh\u1EA3 n\u0103ng gi\u1EEF nh\u1ECBp canter.","phase":"Build"}],"sessionOptions":[{"key":"canter-light","label":"Canter nh\u1EB9","trainingType":"Canter","distanceMetres":800,"intensity":"Light","surface":"C\u00E1t","durationMinutes":20,"target":"Duy tr\u00EC nh\u1ECBp ch\u1EA1y \u1ED5n \u0111\u1ECBnh v\u00E0 ki\u1EC3m so\u00E1t h\u01B0\u1EDBng v\u1EADn \u0111\u1ED9ng."},{"key":"canter-steady","label":"Canter \u0111\u1EC1u","trainingType":"Canter","distanceMetres":1200,"intensity":"Moderate","surface":"C\u00E1t","durationMinutes":25,"target":"Gi\u1EEF nh\u1ECBp canter \u0111\u1EC1u, kh\u1EDFi \u0111\u1ED9ng v\u00E0 th\u1EA3 l\u1ECFng \u0111\u1EA7y \u0111\u1EE7."}]}'', 1200.0, 3, N''Phát triển sức bền và khả năng giữ nhịp canter.'', 0, CAST(1 AS bit), 2, N''Duy trì nhịp chạy ổn định'', N''Khung tham khảo. Các lựa chọn quãng đường, thời lượng và cường độ là thông số minh họa của câu lạc bộ; điều chỉnh theo từng ngựa và chỉ định chuyên môn trước khi áp dụng.'', N''Build'', N''["Canter"]'', N''https://www.greatbritishracing.com/features/the-equine-fitness-plan-how-racehorses-get-fit/'', N''Cát'', N''steady-canter'', CAST(0 AS bigint)),
+    (''9b590cbd-cc33-4f4d-8f03-000000000003'', CAST(0 AS bit), CAST(639274464000000000 AS bigint), N''{"planOptions":[{"key":"standard","label":"Ph\u00E1t tri\u1EC3n t\u1ED1c \u0111\u1ED9 theo t\u1EEBng \u0111o\u1EA1n","goal":"R\u00E8n kh\u1EA3 n\u0103ng t\u0103ng t\u1ED1c c\u00F3 ki\u1EC3m so\u00E1t xen k\u1EBD h\u1ED3i ph\u1EE5c.","phase":"Peak"}],"sessionOptions":[{"key":"gallop-interval","label":"\u0110o\u1EA1n gallop ki\u1EC3m so\u00E1t","trainingType":"Gallop","distanceMetres":600,"intensity":"Moderate","surface":"C\u00E1t","durationMinutes":20,"target":"V\u1EADn \u0111\u1ED9ng theo t\u1EEBng \u0111o\u1EA1n, xen k\u1EBD h\u1ED3i ph\u1EE5c v\u00E0 quan s\u00E1t ph\u1EA3n \u1EE9ng."},{"key":"sprint-short","label":"\u0110o\u1EA1n t\u0103ng t\u1ED1c ng\u1EAFn","trainingType":"Sprint","distanceMetres":300,"intensity":"Heavy","surface":"C\u00E1t","durationMinutes":15,"target":"T\u0103ng t\u1ED1c ng\u1EAFn theo h\u01B0\u1EDBng d\u1EABn chuy\u00EAn m\u00F4n, kh\u00F4ng \u00E1p d\u1EE5ng khi c\u00F3 h\u1EA1n ch\u1EBF s\u1EE9c kh\u1ECFe."}]}'', 600.0, 3, N''Rèn khả năng tăng tốc có kiểm soát xen kẽ hồi phục.'', 0, CAST(1 AS bit), 3, N''Phát triển tốc độ theo từng đoạn'', N''Khung tham khảo. Các lựa chọn quãng đường, thời lượng và cường độ là thông số minh họa của câu lạc bộ; điều chỉnh theo từng ngựa và chỉ định chuyên môn trước khi áp dụng.'', N''Peak'', N''["Gallop","Sprint"]'', N''https://www.greatbritishracing.com/features/the-equine-fitness-plan-how-racehorses-get-fit/'', N''Cát'', N''speed-intervals'', CAST(0 AS bigint)),
+    (''9b590cbd-cc33-4f4d-8f03-000000000004'', CAST(0 AS bit), CAST(639274464000000000 AS bigint), N''{"planOptions":[{"key":"standard","label":"L\u00E0m quen c\u1ED5ng xu\u1EA5t ph\u00E1t","goal":"X\u00E2y s\u1EF1 b\u00ECnh t\u0129nh v\u00E0 ph\u1EA3n h\u1ED3i khi v\u00E0o, ra c\u1ED5ng xu\u1EA5t ph\u00E1t.","phase":"Technique"}],"sessionOptions":[{"key":"gate-familiar","label":"L\u00E0m quen c\u1ED5ng","trainingType":"StartingGate","distanceMetres":100,"intensity":"Light","surface":"C\u00E1t","durationMinutes":15,"target":"L\u00E0m quen khu v\u1EF1c c\u1ED5ng v\u00E0 gi\u1EEF ph\u1EA3n h\u1ED3i b\u00ECnh t\u0129nh."},{"key":"gate-exit","label":"Ph\u1EA3n h\u1ED3i ra c\u1ED5ng","trainingType":"StartingGate","distanceMetres":200,"intensity":"Light","surface":"C\u00E1t","durationMinutes":20,"target":"Th\u1EF1c h\u00E0nh v\u00E0o v\u00E0 ra c\u1ED5ng theo t\u00EDn hi\u1EC7u c\u1EE7a ng\u01B0\u1EDDi h\u01B0\u1EDBng d\u1EABn."}]}'', 100.0, 3, N''Xây sự bình tĩnh và phản hồi khi vào, ra cổng xuất phát.'', 0, CAST(1 AS bit), 2, N''Làm quen cổng xuất phát'', N''Khung tham khảo. Các lựa chọn quãng đường, thời lượng và cường độ là thông số minh họa của câu lạc bộ; điều chỉnh theo từng ngựa và chỉ định chuyên môn trước khi áp dụng.'', N''Technique'', N''["StartingGate"]'', N''https://www.greatbritishracing.com/features/the-equine-fitness-plan-how-racehorses-get-fit/'', N''Cát'', N''starting-gate'', CAST(0 AS bigint)),
+    (''9b590cbd-cc33-4f4d-8f03-000000000005'', CAST(0 AS bit), CAST(639274464000000000 AS bigint), N''{"planOptions":[{"key":"standard","label":"V\u1EADn \u0111\u1ED9ng nh\u1EB9 gi\u1EEFa c\u00E1c bu\u1ED5i n\u1EB7ng","goal":"C\u00E2n b\u1EB1ng kh\u1ED1i l\u01B0\u1EE3ng hu\u1EA5n luy\u1EC7n b\u1EB1ng v\u1EADn \u0111\u1ED9ng nh\u1EB9.","phase":"Recovery"}],"sessionOptions":[{"key":"recovery-easy","label":"V\u1EADn \u0111\u1ED9ng nh\u1EB9","trainingType":"Recovery","distanceMetres":300,"intensity":"Light","surface":"C\u00E1t","durationMinutes":15,"target":"Theo d\u00F5i v\u1EADn \u0111\u1ED9ng nh\u1EB9 theo \u0111\u00E1nh gi\u00E1 c\u1EE7a Trainer v\u00E0 b\u00E1c s\u0129."},{"key":"walk-recovery","label":"\u0110i b\u1ED9 th\u1EA3 l\u1ECFng","trainingType":"Walk","distanceMetres":500,"intensity":"Light","surface":"C\u00E1t","durationMinutes":20,"target":"\u0110i b\u1ED9 \u0111\u1EC1u \u0111\u1EC3 th\u1EA3 l\u1ECFng, ghi nh\u1EADn ph\u1EA3n \u1EE9ng sau bu\u1ED5i t\u1EADp."}]}'', 300.0, 3, N''Cân bằng khối lượng huấn luyện bằng vận động nhẹ.'', 0, CAST(1 AS bit), 1, N''Vận động nhẹ giữa các buổi nặng'', N''Khung tham khảo. Các lựa chọn quãng đường, thời lượng và cường độ là thông số minh họa của câu lạc bộ; điều chỉnh theo từng ngựa và chỉ định chuyên môn trước khi áp dụng.'', N''Recovery'', N''["Walk","Recovery"]'', N''https://www.greatbritishracing.com/features/the-equine-fitness-plan-how-racehorses-get-fit/'', N''Cát'', N''light-recovery'', CAST(0 AS bigint))');
+    IF EXISTS (SELECT * FROM [sys].[identity_columns] WHERE [name] IN (N'Id', N'Archived', N'CreatedAt', N'CurriculumJson', N'DistanceMetres', N'FrequencyPerWeek', N'Goal', N'Intensity', N'IsSystemDefault', N'MinimumExpertiseLevel', N'Name', N'Notes', N'Phase', N'RequiredTrainingTypesJson', N'SourceUrl', N'Surface', N'SystemKey', N'Version') AND [object_id] = OBJECT_ID(N'[Templates]'))
+        SET IDENTITY_INSERT [Templates] OFF;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_Templates_SystemKey] ON [Templates] ([SystemKey]) WHERE [SystemKey] IS NOT NULL');
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    CREATE INDEX [IX_TrainerTemplateAssignments_AssignedBy] ON [TrainerTemplateAssignments] ([AssignedBy]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_TrainerTemplateAssignments_TemplateId_TrainerId] ON [TrainerTemplateAssignments] ([TemplateId], [TrainerId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    CREATE INDEX [IX_TrainerTemplateAssignments_TrainerId] ON [TrainerTemplateAssignments] ([TrainerId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261013143607_DefaultTrainingCurricula'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261013143607_DefaultTrainingCurricula', N'10.0.12');
+END;
+
+COMMIT;
+GO

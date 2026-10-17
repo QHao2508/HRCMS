@@ -1,0 +1,7 @@
+[
+  { "email": "be02.owner@example.test", "userName": "be02.owner", "role": "HorseOwner" },
+  { "email": "be02.manager@example.test", "userName": "be02.manager", "role": "ClubManager" },
+  { "email": "be02.headtrainer@example.test", "userName": "be02.headtrainer", "role": "HeadTrainer" },
+  { "email": "be02.trainer@example.test", "userName": "be02.trainer", "role": "Trainer" },
+  { "email": "be02.rider@example.test", "userName": "be02.rider", "role": "WorkRider" }
+]

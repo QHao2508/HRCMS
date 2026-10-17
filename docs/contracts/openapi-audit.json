@@ -1,0 +1,21 @@
+{
+  "Source": "Backend Development OpenAPI; metadata audit, not workflow test",
+  "PathCount": 73,
+  "OperationCount": 96,
+  "SchemaCount": 53,
+  "OperationsDeclaringOnly200": 96,
+  "OperationsWithEmptyResponseSchema": 94,
+  "OperationsWithoutResponseContent": 2,
+  "OperationsWithSecurityRequirement": 0,
+  "SecuritySchemeCount": 0,
+  "UploadOperationsWithoutMultipart": [
+    {
+      "Method": "POST",
+      "Path": "/api/care/incidents/{incidentId}/photos"
+    },
+    {
+      "Method": "POST",
+      "Path": "/api/registrations/{registrationId}/attachments"
+    }
+  ]
+}

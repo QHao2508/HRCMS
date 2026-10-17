@@ -13,4 +13,5 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4"><PrivateAssets>all</PrivateAssets></PackageReference>
   </ItemGroup>
   <ItemGroup><ProjectReference Include="../../Horse_BackEnd/Horse_BackEnd.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../tools/HorseClub.ReferenceImport/HorseClub.ReferenceImport.csproj" /></ItemGroup>
 </Project>

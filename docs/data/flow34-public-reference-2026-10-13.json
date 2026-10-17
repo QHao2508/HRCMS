@@ -1,0 +1,35 @@
+{
+  "collectedOn": "2026-10-13",
+  "purpose": "Public external reference; not this club's operational records",
+  "importIntoOperationalTables": false,
+  "sources": {
+    "hkjcVet": { "url": "https://racing.hkjc.com/en-us/local/information/ovedatabase", "snapshotAsOf": "2026-10-10", "note": "Search index and opened page showed different as-of dates. This extraction follows the opened page dated October 10. Summaries are Vietnamese paraphrases. Public access does not establish a bulk redistribution license." },
+    "conghua": { "url": "https://crc.hkjc.com/-/media/Sites/CRC/PDF/HKJCConghuaInfographicEng", "note": "Official facility infographic; publication date not established" },
+    "purina": { "url": "https://www.purinamills.com/horse-feed/products/detail/purina-strategy-healthy-edge-horse-feed" },
+    "standlee": { "url": "https://www.standleeforage.com/products/alfalfa-pellets/" },
+    "zoetisCore": { "url": "https://www.zoetisequine.com/products/vaccines/core-eq-innovator" },
+    "zoetisFluvac": { "url": "https://www.zoetisequine.com/products/vaccines/fluvac-innovator" }
+  },
+  "veterinaryObservations": [
+    { "horseCode": "D241", "horseName": "SUPER HONG KONG", "observedDate": "2026-01-19", "summaryVi": "Ăn kém.", "sourcePassedOnDate": "2026-02-03", "source": "hkjcVet" },
+    { "horseCode": "E175", "horseName": "HARMONY FIRE", "observedDate": "2026-09-23", "summaryVi": "Khập khiễng chân trước phải sau đua.", "sourcePassedOnDate": null, "source": "hkjcVet" },
+    { "horseCode": "E356", "horseName": "LUCKY WITH YOU", "observedDate": "2026-02-14", "summaryVi": "Nhịp tim bất thường sau đua.", "sourcePassedOnDate": "2026-03-26", "source": "hkjcVet" },
+    { "horseCode": "E471", "horseName": "LESLIE", "observedDate": "2026-04-20", "summaryVi": "Khập khiễng nhiều chân ngày sau đua.", "sourcePassedOnDate": "2026-06-02", "source": "hkjcVet" },
+    { "horseCode": "G180", "horseName": "LUCKY SWEYNESSE", "observedDate": "2026-04-27", "summaryVi": "Chân trước phải khập khiễng; cập nhật tổn thương dây chằng treo hai chân trước.", "sourcePassedOnDate": null, "source": "hkjcVet" },
+    { "horseCode": "G277", "horseName": "TO INFINITY", "observedDate": "2025-11-02", "summaryVi": "Vết rách chân trước trái.", "sourcePassedOnDate": "2025-12-31", "source": "hkjcVet" },
+    { "horseCode": "G368", "horseName": "VIVA CHALEUR", "observedDate": "2025-12-11", "summaryVi": "Phẫu thuật giải phóng nắp thanh quản bị kẹt.", "sourcePassedOnDate": "2026-01-13", "source": "hkjcVet" },
+    { "horseCode": "H011", "horseName": "COOL BLUE", "observedDate": "2026-08-04", "summaryVi": "Tổn thương vùng chậu trái.", "sourcePassedOnDate": null, "source": "hkjcVet" }
+  ],
+  "veterinaryMapping": { "examinationAt": null, "veterinarianId": null, "healthStatus": null, "treatmentInstructions": null, "medication": null, "note": "Source contains date-only public observations, not full clinical assessments. Passed On is retained as a source field; not converted into project clearance or recovery status. Missing dates are unknown, not evidence of current illness." },
+  "productCatalog": [
+    { "name": "Purina Strategy Healthy Edge Horse Feed", "manufacturer": "Purina", "category": "ConcentrateFeed", "form": "Pelleted and extruded", "crudeProteinMinPercent": 12.5, "crudeFatMinPercent": 8, "packageWeightKg": null, "source": "purina", "stock": null, "minimumStock": null, "priceVnd": null },
+    { "name": "Standlee Premium Alfalfa Pellets", "manufacturer": "Standlee", "category": "Forage", "packageWeightLb": 40, "packageWeightKgAsPublished": 18.14, "source": "standlee", "stock": null, "minimumStock": null, "priceVnd": null },
+    { "name": "Core EQ Innovator", "manufacturer": "Zoetis", "category": "Vaccine", "source": "zoetisCore", "stock": null, "minimumStock": null, "priceVnd": null, "dose": null },
+    { "name": "Fluvac Innovator EHV-4/1", "manufacturer": "Zoetis", "category": "Vaccine", "source": "zoetisFluvac", "stock": null, "minimumStock": null, "priceVnd": null, "dose": null }
+  ],
+  "facilities": [
+    { "name": "Conghua Racecourse", "singleStoreyStableBlocks": 8, "stallsPerSingleStoreyBlock": 68, "doubleStoreyStableBlocks": 1, "stallsPerDoubleStoreyBlock": 120, "derivedTotalStalls": 664, "derivedFormula": "8 * 68 + 120", "hospitalFloorAreaSquareMetres": 4928, "source": "conghua", "stallNames": null, "occupancies": null, "cleaningLogs": null }
+  ],
+  "unavailableClubData": ["Groom task assignments and execution", "Full medical records and prescriptions", "Individual stall occupancy and cleaning logs", "Inventory counts and minimum thresholds", "Purchase orders and receipts", "Stock movements and audit events"],
+  "clinicalUse": "Reference only. No automatic prescribing or clinical task generation. Manufacturer data is not evidence of Vietnam registration or local availability."
+}

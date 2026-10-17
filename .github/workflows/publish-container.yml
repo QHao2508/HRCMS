@@ -1,0 +1,88 @@
+name: Publish backend image to GHCR
+
+# Mỗi lần push lên main: build Docker image, đẩy lên GHCR và cập nhật Azure Container App hrcms-api.
+# Chạy tay được bằng "Run workflow" (ví dụ để deploy lại bản main hiện tại).
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'tests/**'
+      - 'tools/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: g2-HRCMS
+  AZURE_CONTAINER_APP: hrcms-api
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/hrcms-api" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
+            ${{ steps.image.outputs.name }}:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # Đăng nhập Azure bằng OIDC (managed identity hrcms-github-deploy), không lưu mật khẩu.
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy new image to Container App
+        shell: bash
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          az containerapp update \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$AZURE_CONTAINER_APP" \
+            --image "${{ steps.image.outputs.name }}:sha-${{ github.sha }}" \
+            --output none
+      - name: Wait for new revision and /health
+        shell: bash
+        run: |
+          app=(--resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_APP")
+          fqdn=$(az containerapp show "${app[@]}" --query properties.configuration.ingress.fqdn -o tsv)
+          for i in $(seq 1 36); do
+            latest=$(az containerapp show "${app[@]}" --query properties.latestRevisionName -o tsv || true)
+            ready=$(az containerapp show "${app[@]}" --query properties.latestReadyRevisionName -o tsv || true)
+            if [ -n "$latest" ] && [ "$latest" = "$ready" ] && curl -fsS "https://$fqdn/health"; then
+              echo; echo "Revision $latest is ready: https://$fqdn (image sha-${{ github.sha }})"; exit 0
+            fi
+            echo "Waiting for revision $latest (ready: $ready) ($i/36)..."; sleep 10
+          done
+          echo "::error::New revision was not ready within 6 minutes. Check Container App > Revisions and Log stream."; exit 1

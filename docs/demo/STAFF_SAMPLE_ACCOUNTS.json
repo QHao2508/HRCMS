@@ -1,0 +1,17 @@
+[
+  { "email":"demo.vet01@example.test", "userName":"demo.vet01", "role":"Veterinarian", "firstName":"Nguyễn Minh", "lastName":"Anh", "phone":"0900000101", "address":"Khu mẫu A, TP. Hồ Chí Minh" },
+  { "email":"demo.vet02@example.test", "userName":"demo.vet02", "role":"Veterinarian", "firstName":"Trần Thanh", "lastName":"Bình", "phone":"0900000102", "address":"Khu mẫu B, TP. Hồ Chí Minh" },
+  { "email":"demo.vet03@example.test", "userName":"demo.vet03", "role":"Veterinarian", "firstName":"Lê Hoàng", "lastName":"Châu", "phone":"0900000103", "address":"Khu mẫu C, TP. Hồ Chí Minh" },
+  { "email":"demo.headtrainer01@example.test", "userName":"demo.headtrainer01", "role":"HeadTrainer", "firstName":"Phạm Quốc", "lastName":"Dũng", "phone":"0900000201", "address":"Khu mẫu A, Đồng Nai" },
+  { "email":"demo.headtrainer02@example.test", "userName":"demo.headtrainer02", "role":"HeadTrainer", "firstName":"Võ Ngọc", "lastName":"Hà", "phone":"0900000202", "address":"Khu mẫu B, Đồng Nai" },
+  { "email":"demo.headtrainer03@example.test", "userName":"demo.headtrainer03", "role":"HeadTrainer", "firstName":"Đặng Minh", "lastName":"Khang", "phone":"0900000203", "address":"Khu mẫu C, Đồng Nai" },
+  { "email":"demo.trainer01@example.test", "userName":"demo.trainer01", "role":"Trainer", "firstName":"Bùi Anh", "lastName":"Tuấn", "phone":"0900000301", "address":"Khu mẫu A, Bình Dương" },
+  { "email":"demo.trainer02@example.test", "userName":"demo.trainer02", "role":"Trainer", "firstName":"Nguyễn Thảo", "lastName":"Linh", "phone":"0900000302", "address":"Khu mẫu B, Bình Dương" },
+  { "email":"demo.trainer03@example.test", "userName":"demo.trainer03", "role":"Trainer", "firstName":"Trần Đức", "lastName":"Nam", "phone":"0900000303", "address":"Khu mẫu C, Bình Dương" },
+  { "email":"demo.rider01@example.test", "userName":"demo.rider01", "role":"WorkRider", "firstName":"Lê Hữu", "lastName":"Phúc", "phone":"0900000401", "address":"Khu mẫu A, Long An" },
+  { "email":"demo.rider02@example.test", "userName":"demo.rider02", "role":"WorkRider", "firstName":"Phạm Gia", "lastName":"Huy", "phone":"0900000402", "address":"Khu mẫu B, Long An" },
+  { "email":"demo.rider03@example.test", "userName":"demo.rider03", "role":"WorkRider", "firstName":"Võ Thanh", "lastName":"Tâm", "phone":"0900000403", "address":"Khu mẫu C, Long An" },
+  { "email":"demo.groom01@example.test", "userName":"demo.groom01", "role":"Groom", "firstName":"Đặng Văn", "lastName":"Sơn", "phone":"0900000501", "address":"Khu mẫu A, Tây Ninh" },
+  { "email":"demo.groom02@example.test", "userName":"demo.groom02", "role":"Groom", "firstName":"Bùi Ngọc", "lastName":"Mai", "phone":"0900000502", "address":"Khu mẫu B, Tây Ninh" },
+  { "email":"demo.groom03@example.test", "userName":"demo.groom03", "role":"Groom", "firstName":"Nguyễn Hoài", "lastName":"Bảo", "phone":"0900000503", "address":"Khu mẫu C, Tây Ninh" }
+]

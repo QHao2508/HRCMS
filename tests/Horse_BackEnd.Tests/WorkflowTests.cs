@@ -2,11 +2,16 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+<<<<<<< HEAD
 using Horse_BackEnd.Contracts;
 using Horse_BackEnd.Data;
 using Horse_BackEnd.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+=======
+using HorseClub.BLL.Contracts;
+using HorseClub.DAL.Enums;
+>>>>>>> main
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
@@ -21,13 +26,16 @@ public sealed class WorkflowTests
         await ClubFactory.Post(anonymous, "/api/auth/register", registration);
         var loginBefore = await anonymous.PostAsJsonAsync("/api/auth/login", new { email, password = ClubFactory.Password }); Assert.Equal(HttpStatusCode.Unauthorized, loginBefore.StatusCode);
         var code = await f.Code(email, "Verify");
+        Assert.Matches("^[0-9]{6}$", code);
         var verify = await ClubFactory.Post(anonymous, "/api/auth/verify-email", new { email, code }); Assert.True(verify.GetProperty("verified").GetBoolean());
         var repeated = await ClubFactory.Post(anonymous, "/api/auth/verify-email", new { email, code }); Assert.False(repeated.GetProperty("verified").GetBoolean());
         var login = await ClubFactory.Post(anonymous, "/api/auth/login", new { email, password = ClubFactory.Password });
         anonymous.DefaultRequestHeaders.Authorization = new("Bearer", login.GetProperty("accessToken").GetString());
         await ClubFactory.Post(anonymous, "/api/auth/forgot-password", new { email });
         var resetCode = await f.Code(email, "Reset");
+        Assert.Matches("^[0-9]{6}$", resetCode);
         var reset = await ClubFactory.Post(anonymous, "/api/auth/reset-password", new { email, code = resetCode, password = "NewPassword123!", confirmPassword = "NewPassword123!" }); Assert.True(reset.GetProperty("changed").GetBoolean());
+        var resetAgain = await ClubFactory.Post(anonymous, "/api/auth/reset-password", new { email, code = resetCode, password = "NewPassword456!", confirmPassword = "NewPassword456!" }); Assert.False(resetAgain.GetProperty("changed").GetBoolean());
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/auth/me")).StatusCode);
     }
 
@@ -52,10 +60,53 @@ public sealed class WorkflowTests
         Assert.Equal(HttpStatusCode.Forbidden, (await owner.PostAsJsonAsync("/api/staff", staff, ClubFactory.Json)).StatusCode);
         await ClubFactory.Post(manager, "/api/staff", staff);
         var anonymous = f.CreateClient(); var code = await f.Code(staff.Email, "Invite");
+        Assert.Matches("^[0-9]{6}$", code);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/api/auth/login", new { email = staff.UserName, password = ClubFactory.Password })).StatusCode);
+        await WorkerTests.Read(f, async db =>
+        {
+            var message = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleAsync(db.EmailMessages, x => x.Recipient == staff.Email);
+            Assert.Contains("Tên đăng nhập: vet", message.Body);
+            Assert.DoesNotContain("http", message.Body);
+        });
         var accepted = await ClubFactory.Post(anonymous, "/api/auth/accept-invitation", new { email = staff.Email, code, password = ClubFactory.Password, confirmPassword = ClubFactory.Password });
         Assert.True(accepted.GetProperty("changed").GetBoolean());
+        var again = await ClubFactory.Post(anonymous, "/api/auth/accept-invitation", new { email = staff.Email, code, password = ClubFactory.Password, confirmPassword = ClubFactory.Password });
+        Assert.False(again.GetProperty("changed").GetBoolean());
+        var usernameLogin = await anonymous.PostAsJsonAsync("/api/auth/login", new { email = " VET ", password = ClubFactory.Password });
+        Assert.Equal(HttpStatusCode.OK, usernameLogin.StatusCode);
         var injected = await anonymous.PostAsJsonAsync("/api/auth/register", new { email = "bad@example.test", userName = "bad", firstName = "A", lastName = "B", phone = "0900", address = "Here", password = ClubFactory.Password, confirmPassword = ClubFactory.Password, role = "ClubManager" });
         Assert.Equal(HttpStatusCode.BadRequest, injected.StatusCode);
+    }
+
+    [Fact]
+    public async Task StaffDirectory_IsAvailableToAuthenticatedRolesWithoutContactDetails_ManagementIsManagerOnly()
+    {
+        await using var f = new ClubFactory();
+        var manager = await f.Client();
+        var trainer = await f.User(Role.Trainer, "private-trainer@example.test");
+        await f.User(Role.Veterinarian, "private-vet@example.test");
+
+        foreach (var role in Enum.GetValues<Role>())
+        {
+            var client = role == Role.ClubManager ? manager : await f.Client(await f.User(role));
+            var directoryResponse = await client.GetAsync("/api/staff/directory?page=1&pageSize=20");
+            Assert.Equal(HttpStatusCode.OK, directoryResponse.StatusCode);
+            var directory = await directoryResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var directoryJson = directory.GetProperty("items").GetRawText();
+            Assert.Contains(trainer.FirstName, directoryJson);
+            Assert.DoesNotContain("private-trainer@example.test", directoryJson);
+            Assert.DoesNotContain("private-vet@example.test", directoryJson);
+
+            var staffListResponse = await client.GetAsync("/api/staff?page=1&pageSize=20");
+            Assert.Equal(role == Role.ClubManager ? HttpStatusCode.OK : HttpStatusCode.Forbidden, staffListResponse.StatusCode);
+
+            if (role != Role.ClubManager)
+            {
+                var activateResponse = await client.PutAsJsonAsync(
+                    $"/api/staff/{trainer.Id}/active", new ActiveRequest(true), ClubFactory.Json);
+                Assert.Equal(HttpStatusCode.Forbidden, activateResponse.StatusCode);
+            }
+        }
     }
 
     [Fact]
@@ -275,10 +326,10 @@ public sealed class WorkflowTests
         var plan = await ClubFactory.Post(tc, "/api/training/plans", new PlanRequest(horse.Id, template.GetProperty("id").GetGuid(), "Goal", "Phase", today, today.AddDays(7), ""));
         var sid = (await ClubFactory.Post(tc, $"/api/training/plans/{plan.GetProperty("id").GetGuid()}/sessions", new SessionRequest(DateTimeOffset.UtcNow.AddMinutes(10), TrainingType.Sprint, 1000, Intensity.Heavy, "Sand", "Target", "", rider.Id))).GetProperty("id").GetGuid();
         var medical = await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/records", new MedicalRequest(DateTimeOffset.UtcNow.AddMinutes(-1), "Check", "Symptoms", "Findings", "Private diagnosis", HealthStatus.Monitoring, "Private notes")); var medicalId = medical.GetProperty("id").GetGuid();
-        await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/restrictions", new RestrictionRequest(medicalId, true, false, Intensity.Light, 500, true, DateTimeOffset.UtcNow.AddMinutes(-1), null, "Light training only"));
+        var restriction = await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/restrictions", new RestrictionRequest(medicalId, true, false, Intensity.Light, 500, true, DateTimeOffset.UtcNow.AddMinutes(-1), null, "Light training only"));
         Assert.Equal(HttpStatusCode.Conflict, (await rc.PostAsJsonAsync($"/api/training/sessions/{sid}/start", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await tc.GetAsync($"/api/horses/{horse.Id}/medical/records")).StatusCode);
-        var followup = new FollowUpRequest(medicalId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Cleared", HealthStatus.Fit, ""), true, "Recovered");
+        var followup = new FollowUpRequest(medicalId, new MedicalRequest(DateTimeOffset.UtcNow.AddSeconds(-1), "Review", "Normal", "Recovered", "Cleared", HealthStatus.Fit, ""), true, "Recovered", RestrictionIds: [restriction.GetProperty("id").GetGuid()]);
         Assert.Equal(HttpStatusCode.Forbidden, (await tc.PostAsJsonAsync($"/api/horses/{horse.Id}/medical/follow-ups", followup, ClubFactory.Json)).StatusCode);
         await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/follow-ups", followup);
         await ClubFactory.Post(rc, $"/api/training/sessions/{sid}/start", new { });
