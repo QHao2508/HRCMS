@@ -154,6 +154,13 @@ public enum MessageKey
     ASessionWasSkipped = 150,
     OnlyResultsCanBeEvaluated = 151,
     EvaluationAlreadyExists = 152,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+    FinishActiveHorseWorkBeforeArchiving = 153,
+}
+=======
+>>>>>>> 5db325c (task 22-23)
     RegistrationMissingFields = 153,
     ManagerMayOnlyEditAdministrativeRegistrationFields = 154,
     HorseMeasurementsOutsideConfiguredLimits = 155,
@@ -196,3 +203,7 @@ public enum MessageKey
     ManagerTrainerAssignmentReasonRequired = 192,
 
     ChooseTemplatePlanOption,     ChooseTemplateSessionOption,     DefaultTemplateReadOnly,     InvalidTemplateCurriculum,     TemplateMustBeAssignedToQualifiedTrainer,}
+<<<<<<< HEAD
+=======
+>>>>>>> main
+>>>>>>> 5db325c (task 22-23)
