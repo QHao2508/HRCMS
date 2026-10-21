@@ -22,17 +22,6 @@ public static class HorseEndpoints
         r.MapPost("/{id:guid}/cancel", async (Guid id, IHorseRegistrationService moduleService) => (await moduleService.CancelRegistration(id)).ToHttpResult()).Produces(204);
 
         var h = api.MapGroup("/horses").WithTags("Horses").RequireAuthorization();
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-        h.MapGet("", async (ClubAccess access, string? search, HealthStatus? healthStatus, int? page, int? pageSize, PageReader pager) => await HorseWorkflow.GetList2(access, search, healthStatus, page, pageSize, pager));
-        h.MapGet("/{id:guid}", async (Guid id, ClubAccess access, ClubDbContext db) => await HorseWorkflow.GetById2(id, access, db));
-        h.MapPost("/{id:guid}/assignments", async (Guid id, AssignmentRequest request, HorseService s) => await HorseWorkflow.PostByIdAssignments(id, request, s));
-        h.MapGet("/{id:guid}/measurements", async (Guid id, ClubAccess access, ClubDbContext db, int? page, int? pageSize, PageReader pager) => await HorseWorkflow.GetByIdMeasurements(id, access, db, page, pageSize, pager));
-        h.MapPost("/{id:guid}/measurements", async (Guid id, MeasurementRequest request, ClubAccess access, CurrentUser current, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await HorseWorkflow.PostByIdMeasurements(id, request, access, current, db, events, clock, calendar));
-        h.MapPost("/{id:guid}/archive", async (Guid id, ReasonRequest request, CurrentUser current, ClubAccess access, ClubDbContext db, ClubEvents events, TimeProvider clock, ClubCalendar calendar) => await HorseWorkflow.PostByIdArchive(id, request, current, access, db, events, clock, calendar));
-=======
->>>>>>> 5db325c (task 22-23)
         h.MapGet("", async (string? search, HealthStatus? healthStatus, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListHorses(search, healthStatus, page, pageSize)).Produces<PageResponse<Horse>>(200);
         h.MapGet("/{id:guid}", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetHorse(id)).Produces<HorseDetailResponse>(200);
         h.MapGet("/{id:guid}/assignment-history", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetAssignmentHistory(id)).Produces<HorseAssignmentHistoryResponse>(200);
@@ -40,9 +29,5 @@ public static class HorseEndpoints
         h.MapGet("/{id:guid}/measurements", async (Guid id, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListMeasurements(id, page, pageSize)).Produces<PageResponse<Measurement>>(200);
         h.MapPost("/{id:guid}/measurements", async (Guid id, MeasurementRequest request, IHorseProfileService moduleService) => await moduleService.AddMeasurement(id, request)).Produces<Measurement>(200);
         h.MapPost("/{id:guid}/archive", async (Guid id, HorseArchiveRequest r, IHorseProfileService moduleService) => (await moduleService.ArchiveHorse(id, r)).ToHttpResult()).Produces(204);
-<<<<<<< HEAD
-=======
->>>>>>> main
->>>>>>> 5db325c (task 22-23)
     }
 }

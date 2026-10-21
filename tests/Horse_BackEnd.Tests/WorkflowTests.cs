@@ -2,21 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-<<<<<<< HEAD
 using HorseClub.BLL.Contracts;
 using HorseClub.DAL.Enums;
-=======
-<<<<<<< HEAD
-using Horse_BackEnd.Contracts;
-using Horse_BackEnd.Data;
-using Horse_BackEnd.Domain;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-=======
-using HorseClub.BLL.Contracts;
-using HorseClub.DAL.Enums;
->>>>>>> main
->>>>>>> 5db325c (task 22-23)
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
