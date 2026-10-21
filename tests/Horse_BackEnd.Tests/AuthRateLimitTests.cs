@@ -10,13 +10,14 @@ public sealed class AuthRateLimitTests
     [Fact]
     public async Task SessionChecksAreNotRateLimitedButCredentialEndpointsStillAre()
     {
-        await using var factory = new ClubFactory(new Dictionary<string, string?> { ["Security:AuthRequestsPerMinute"] = "3" });
+        // The limiter reads Security:AuthRequestsPerMinute (default 30) before test settings apply, so exceed the default.
+        await using var factory = new ClubFactory();
         using var client = await factory.Client();
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < 40; i++)
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/auth/me")).StatusCode);
         using var anonymous = factory.CreateClient();
         var statuses = new List<HttpStatusCode>();
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 35; i++)
             statuses.Add((await anonymous.PostAsJsonAsync("/api/auth/forgot-password", new { email = "nobody@example.test" })).StatusCode);
         Assert.Contains(HttpStatusCode.TooManyRequests, statuses);
     }
