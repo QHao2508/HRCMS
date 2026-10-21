@@ -106,4 +106,23 @@ public sealed class MedicalCaseHistoryTests
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(url, new MergeMedicalCaseRequest([b], "Merge"), ClubFactory.Json)).StatusCode);
         await WorkerTests.Read(factory, async db => Assert.All(await db.MedicalRecords.Where(x => x.HorseId == horse.Id).ToListAsync(), record => Assert.Null(record.CaseRootId)));
     }
+
+    [Fact]
+    public async Task MergeRejectsSelfAndRecordsAlreadyInTheSameCaseWithoutChangingLinks()
+    {
+        await using var factory = new ClubFactory(); var owner = await factory.User(Role.HorseOwner); var vet = await factory.User(Role.Veterinarian);
+        var horse = await factory.Horse(owner, vet);
+        using var client = await factory.Client(vet);
+        var at = DateTimeOffset.UtcNow.AddHours(-4); var path = $"/api/horses/{horse.Id}/medical";
+        var a = (await ClubFactory.Post(client, path + "/records", Exam(at, "First entry"))).GetProperty("id").GetGuid();
+        var b = (await ClubFactory.Post(client, path + "/records", Exam(at.AddHours(1), "Duplicate entry"))).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(path + $"/records/{a}/merge", new MergeMedicalCaseRequest([a], "Self merge"), ClubFactory.Json)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(path + $"/records/{a}/merge", new MergeMedicalCaseRequest([a, b], "Includes self"), ClubFactory.Json)).StatusCode);
+        await WorkerTests.Read(factory, async db => Assert.All(await db.MedicalRecords.Where(x => x.HorseId == horse.Id).ToListAsync(), record => Assert.Null(record.CaseRootId)));
+        await ClubFactory.Post(client, path + $"/records/{a}/merge", new MergeMedicalCaseRequest([b], "Same episode"));
+        var linked = new Dictionary<Guid, Guid?>();
+        await WorkerTests.Read(factory, async db => { foreach (var r in await db.MedicalRecords.Where(x => x.HorseId == horse.Id).ToListAsync()) linked[r.Id] = r.CaseRootId; });
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(path + $"/records/{b}/merge", new MergeMedicalCaseRequest([a], "Already merged"), ClubFactory.Json)).StatusCode);
+        await WorkerTests.Read(factory, async db => Assert.All(await db.MedicalRecords.Where(x => x.HorseId == horse.Id).ToListAsync(), record => Assert.Equal(linked[record.Id], record.CaseRootId)));
+    }
 }

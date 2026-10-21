@@ -57,6 +57,24 @@ public sealed class SqlServerConcurrencyTests
         Assert.Equal(1, await db.Notifications.CountAsync(x => x.ReferenceId == id && x.Type == NotificationType.InventoryLowStock));
     }
 
+    // CARE-008: the same groom completes one care task from two tabs/hosts at once.
+    [SqlServerFact]
+    public async Task SeparateHosts_ConcurrentCareCompletionRecordsTaskOnce()
+    {
+        await using var f = new ClubFactory(); using var manager = await f.Client();
+        var groom = await f.User(Role.Groom); var owner = await f.User(Role.HorseOwner); var horse = await f.Horse(owner, groom);
+        var task = (await ClubFactory.Post(manager, "/api/care/tasks", new CareRequest(horse.Id, groom.Id, null, CareType.Feeding, DateTimeOffset.UtcNow, "Feed", 1))).GetProperty("id").GetGuid();
+        using var first = await f.Client(groom);
+        await using var replica = f.Replica(); using var second = await replica.Client(groom); AssertIndependentHosts(f, replica);
+        AssertOneWinner(await Task.WhenAll(
+            first.PostAsJsonAsync($"/api/care/tasks/{task}/record", new CareCompletionRequest(CareStatus.Completed, 1m, "Tab one"), ClubFactory.Json),
+            second.PostAsJsonAsync($"/api/care/tasks/{task}/record", new CareCompletionRequest(CareStatus.Completed, 1.5m, "Tab two"), ClubFactory.Json)));
+        using var scope = f.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+        var saved = (await db.CareTasks.FindAsync(task))!;
+        Assert.Equal(CareStatus.Completed, saved.Status); Assert.NotNull(saved.CompletedAt);
+        Assert.Equal(1, await db.Audit.CountAsync(x => x.ReferenceId == task && x.Action == AuditAction.CareTaskRecorded));
+    }
+
     [SqlServerFact]
     public async Task SeparateHosts_ReassignmentLeavesOneActiveTrainerAndCompleteHistory()
     {

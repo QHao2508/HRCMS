@@ -31,6 +31,9 @@ public sealed partial class MedicalService
         Ensure.That(request.RecordIds.All(recordId => records.Any(x => x.Id == recordId)), Messages.Get(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
         var followUps = await repository.GetFollowUpsAsync(horseId);
         var ids = CaseIds(target.Id, records, followUps);
+        // A merge must join at least one record from another case: self-merge or records already in this case are rejected
+        // so they cannot rewrite CaseRootId, history or audit without a real change (P14-BUG-001).
+        Ensure.That(request.RecordIds.All(recordId => !ids.Contains(recordId)), Messages.Get(MessageKey.InvalidRequestBody));
         var resolved = followUps.Any(x => x.Clearance && (ids.Contains(x.PreviousRecordId) || ids.Contains(x.CurrentRecordId)));
         foreach (var other in request.RecordIds)
         {

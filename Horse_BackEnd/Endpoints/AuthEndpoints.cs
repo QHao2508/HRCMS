@@ -23,8 +23,10 @@ public static class AuthEndpoints
         MapPassword(auth, "/accept-invitation", ChallengePurpose.Invite);
         auth.MapPost("/invitation/verify",async (VerifyRequest r,IAuthenticationService service)=>await service.VerifyInvitation(r)).Produces<InvitationVerificationResponse>(200);
         auth.MapPost("/invitation/password",async (InvitationPasswordRequest r,IAuthenticationService service)=>await service.CompleteInvitation(r)).Produces<PasswordChangedResponse>(200);
-        auth.MapGet("/me", async (IAuthenticationService moduleService) => await moduleService.GetProfile()).RequireAuthorization().Produces<UserResponse>(200);
-        auth.MapPost("/logout", async (IAuthenticationService moduleService) => (await moduleService.Logout()).ToHttpResult()).RequireAuthorization().Produces(204);
+        auth.MapGet("/me", async (IAuthenticationService moduleService) => await moduleService.GetProfile()).RequireAuthorization()
+            // Authenticated session checks run on every page load; the strict per-IP limiter is for anonymous credential endpoints only (P6-BUG-001).
+            .DisableRateLimiting().Produces<UserResponse>(200);
+        auth.MapPost("/logout", async (IAuthenticationService moduleService) => (await moduleService.Logout()).ToHttpResult()).RequireAuthorization().DisableRateLimiting().Produces(204);
 
         var staff = api.MapGroup("/staff").WithTags("Staff").RequireAuthorization();
         staff.MapGet("/{id:guid}/training-profile", async (Guid id, ITrainingSchedulingService service) => await service.GetProfile(id)).Produces<StaffTrainingProfileResponse>(200);
