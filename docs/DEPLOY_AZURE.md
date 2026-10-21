@@ -16,6 +16,7 @@ Bản triển khai thực tế đơn giản hơn các mục bên dưới; các m
 | Data Protection | `KeyEncryption=None`, `RequireEncryptedKeys=false`, `Path=/tmp/hrcms-keys`: không dùng Azure Files/certificate; restart BE thì người dùng phải đăng nhập lại |
 | Probes | Startup/Liveness/Readiness đều TCP 8080 (HTTP probe bị AllowedHosts trả 400) |
 | Scale | min 0 / max 1, HTTP rule 10 concurrent requests: không có truy cập ~5 phút thì về 0 replica, worker ngừng truy vấn nên SQL tự pause sau 1 giờ; lần mở đầu tiên chờ 30–60 giây (cold start BE + SQL resume) |
+| Worker | Email/Reminder/AccountCleanup chỉ truy vấn SQL khi có request người dùng trong `Workers:IdleAfterMinutes` (mặc định 10 phút; `/health` không tính). Hết khoảng đó worker ngừng chạm SQL nên SQL tự pause sau 1 giờ dù backend còn chạy (kể cả `dotnet run` ở máy dev) |
 | Database | `HRCMS-free` (Free offer, serverless 0.5–1 vCore, auto-pause 1 giờ, hết hạn mức thì Auto-pause tới tháng sau). `HRCMS` cũ hết free amount tháng 10/2026, giữ dữ liệu cũ, chạy lại từ 01/11 |
 | Secrets | `sql-connection`, `smtp-password`, secret password GHCR do Portal tạo |
 

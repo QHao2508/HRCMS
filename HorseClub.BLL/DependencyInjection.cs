@@ -9,6 +9,7 @@ public static class DependencyInjection
     public static IServiceCollection AddClubBusiness(this IServiceCollection services)
     {
         services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<AppActivity>();
         services.AddScoped<CurrentUser>();
         services.AddScoped<ClubAccess>();
         services.AddScoped<ClubEvents>();

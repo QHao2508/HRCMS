@@ -14,4 +14,6 @@ public sealed class WorkerOptions
     [Range(1, 100)] public int EmailBatchSize { get; set; } = 10;
     [Range(1, 300)] public int EmailSendTimeoutSeconds { get; set; } = 30;
     [Range(1, 1000)] public int ReminderBatchSize { get; set; } = 100;
+    /// <summary>Worker ngừng truy vấn SQL sau số phút không có request người dùng; 0 = luôn chạy.</summary>
+    [Range(0, 1440)] public int IdleAfterMinutes { get; set; } = 10;
 }

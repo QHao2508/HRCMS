@@ -80,6 +80,8 @@ using (var scope = app.Services.CreateScope())
 }
 app.UseMiddleware<ErrorMiddleware>();
 app.Use(async (context, next) => { context.Response.Headers.XContentTypeOptions = "nosniff"; await next(); });
+// Health checks (probes, uptime monitors) do not count as usage, so background workers can let Azure SQL auto-pause.
+app.Use(async (context, next) => { if (!context.Request.Path.StartsWithSegments("/health")) context.RequestServices.GetRequiredService<AppActivity>().Touch(); await next(); });
 if (!app.Environment.IsDevelopment()) { app.UseHsts(); app.UseHttpsRedirection(); }
 app.Use(RealtimeRegistration.ValidateOrigin);
 app.UseCors(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter();

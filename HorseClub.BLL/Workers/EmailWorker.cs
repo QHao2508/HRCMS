@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
 
-public sealed class EmailWorker(IServiceScopeFactory scopes, ILogger<EmailWorker> logger, TimeProvider clock, IOptions<WorkerOptions> options) : BackgroundService
+public sealed class EmailWorker(IServiceScopeFactory scopes, ILogger<EmailWorker> logger, TimeProvider clock, IOptions<WorkerOptions> options, AppActivity? activity = null) : BackgroundService
 {
     /// <summary>
     /// Lấy lô email dưới khóa SQL, bỏ mã hết hạn/đã dùng, gửi với timeout và lưu trạng thái từng thư; lên lịch retry khi lỗi, không log OTP/credential.
@@ -67,7 +67,7 @@ public sealed class EmailWorker(IServiceScopeFactory scopes, ILogger<EmailWorker
             var delay = options.Value.EmailPollSeconds;
             try
             {
-                await RunOnce(stoppingToken);
+                if (activity?.IsRecent(TimeSpan.FromMinutes(options.Value.IdleAfterMinutes)) ?? true) await RunOnce(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception e) { logger.LogError(e, "Email worker failed"); delay = 10; }

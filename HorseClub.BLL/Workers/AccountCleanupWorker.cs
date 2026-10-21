@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
 
-public sealed class AccountCleanupWorker(IServiceScopeFactory scopes, TimeProvider clock, ILogger<AccountCleanupWorker> logger, IOptions<WorkerOptions> options) : BackgroundService
+public sealed class AccountCleanupWorker(IServiceScopeFactory scopes, TimeProvider clock, ILogger<AccountCleanupWorker> logger, IOptions<WorkerOptions> options, AppActivity? activity = null) : BackgroundService
 {
     /// <summary>
     /// Khóa lượt dọn trong SQL Server, xóa một lô tài khoản tự đăng ký chưa xác thực quá hạn và commit độc lập.
@@ -32,7 +32,7 @@ public sealed class AccountCleanupWorker(IServiceScopeFactory scopes, TimeProvid
         if (!options.Value.Enabled) return;
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await RunOnce(stoppingToken); }
+            try { if (activity?.IsRecent(TimeSpan.FromMinutes(options.Value.IdleAfterMinutes)) ?? true) await RunOnce(stoppingToken); }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception error) { logger.LogError(error, "Pending registration cleanup failed"); }
             try { await Task.Delay(TimeSpan.FromSeconds(options.Value.AccountCleanupPollSeconds), clock, stoppingToken); }

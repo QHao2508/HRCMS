@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace HorseClub.BLL.Workers;
 
-public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clock, ILogger<ReminderWorker> logger, IOptions<WorkerOptions> options, IOptions<BusinessOptions> business) : BackgroundService
+public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clock, ILogger<ReminderWorker> logger, IOptions<WorkerOptions> options, IOptions<BusinessOptions> business, AppActivity? activity = null) : BackgroundService
 {
     /// <summary>
     /// Quét công việc phòng bệnh, buổi tập quá hạn và follow-up y tế; gửi thông báo đúng nhân viên hiện được phân công, tránh tạo trùng.
@@ -71,7 +71,7 @@ public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clo
             var delay = options.Value.ReminderPollSeconds;
             try
             {
-                await RunOnce(stoppingToken);
+                if (activity?.IsRecent(TimeSpan.FromMinutes(options.Value.IdleAfterMinutes)) ?? true) await RunOnce(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception e) { logger.LogError(e, "Reminder worker failed"); delay = 10; }
