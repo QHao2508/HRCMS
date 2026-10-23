@@ -55,6 +55,9 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
             && specialties.Select(x => x.TrainingType).Distinct().Count() == specialties.Count
             && hours.Count <= 21 && hours.All(x => x is not null && Enum.IsDefined(x.DayOfWeek) && x.StartMinute >= 0 && x.EndMinute <= 1440 && x.EndMinute > x.StartMinute)
             && timeOff.Count <= 100 && timeOff.All(x => x is not null && x.Start < x.End), Messages.Get(MessageKey.InvalidRequestBody));
+        var proposedExpertise = specialties.Select(x => new TrainerExpertise { StaffId = staffId, TrainingType = x.TrainingType, Level = x.Level }).ToList();
+        foreach (var template in await training.TemplatesForTrainerAsync(staffId))
+            Check(TemplateCurriculumPolicy.Matches(template, proposedExpertise), "trainer_specialty_mismatch");
         foreach (var day in hours.GroupBy(x => x.DayOfWeek))
         {
             var ordered = day.OrderBy(x => x.StartMinute).ToList();

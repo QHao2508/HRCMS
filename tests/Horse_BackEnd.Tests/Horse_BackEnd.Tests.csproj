@@ -14,4 +14,5 @@
   </ItemGroup>
   <ItemGroup><ProjectReference Include="../../Horse_BackEnd/Horse_BackEnd.csproj" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../../tools/HorseClub.ReferenceImport/HorseClub.ReferenceImport.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../tools/HorseClub.OperationalData/HorseClub.OperationalData.csproj" /></ItemGroup>
 </Project>

@@ -1,0 +1,16 @@
+{
+  "items": [
+    { "name": "Cỏ khô Timothy", "category": "Thức ăn thô", "unit": "kg", "sourceUrl": "https://extension.umn.edu/agriculture/animals-and-livestock/horse/hay-in-horse-diets" },
+    { "name": "Cỏ khô Alfalfa", "category": "Thức ăn thô", "unit": "kg", "sourceUrl": "https://extension.umn.edu/agriculture/animals-and-livestock/horse/selecting-and-storing-horse-hay" },
+    { "name": "Yến mạch hạt cho ngựa", "category": "Thức ăn tinh", "unit": "kg", "sourceUrl": "https://horses.extension.org/nutrients-and-common-feed-sources-for-horses/" },
+    { "name": "Bã củ cải đường khô", "category": "Thức ăn bổ sung chất xơ", "unit": "kg", "sourceUrl": "https://horses.extension.org/nutrients-and-common-feed-sources-for-horses/" },
+    { "name": "Vắc xin ProteqFlu-Te cho ngựa", "category": "Vắc xin cúm ngựa và uốn ván", "unit": "lọ", "sourceUrl": "https://www.ircp.anmv.anses.fr/fiche.aspx?NomMedicament=PROTEQFLU-TE+SUSPENSION+INJECTABLE+POUR+CHEVAUX" },
+    { "name": "Eqvalan Ivermectin 18,7 mg/g dạng uống cho ngựa", "category": "Thuốc thú y dạng uống", "unit": "tuýp", "sourceUrl": "https://www.vmd.defra.gov.uk/productinformationdatabase/product/A003145" }
+  ],
+  "stables": [
+    { "name": "Khu chuồng A", "stalls": ["A01", "A02", "A03", "A04", "A05", "A06"] },
+    { "name": "Khu chuồng B", "stalls": ["B01", "B02", "B03", "B04", "B05", "B06"] },
+    { "name": "Khu theo dõi sức khỏe", "stalls": ["TD01", "TD02"] }
+  ],
+  "renames": []
+}

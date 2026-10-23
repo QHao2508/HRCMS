@@ -11,6 +11,9 @@ public sealed class RegistrationRepository(ClubDbContext db) : IRegistrationRepo
     { db.Horses.Add(horse); db.Measurements.Add(measurement); }
     public Task<bool> HasAttachmentAsync(Guid registrationId, AttachmentType type)
         => db.Attachments.AnyAsync(x => x.RegistrationId == registrationId && x.Type == type);
+    public Task<Dictionary<Guid, string>> OwnerNamesAsync(IEnumerable<Guid> ownerIds)
+        => db.Users.AsNoTracking().Where(u => ownerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => (u.FirstName + " " + u.LastName).Trim());
     public async Task<DataPage<HorseRegistration>> ListAsync(Guid? ownerId, RegistrationStatus? status, int page, int size)
     {
         var query = db.Registrations.AsNoTracking();

@@ -3,6 +3,9 @@ namespace HorseClub.DAL.Entities;
 public sealed class HorseRegistration : Entity
 {
     public Guid OwnerId { get; set; }
+    // Response enrichment only; owner names remain authoritative on Users.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? OwnerName { get; set; }
     public string? Name { get; set; }
     public string? Sire { get; set; }
     public string? Dam { get; set; }
