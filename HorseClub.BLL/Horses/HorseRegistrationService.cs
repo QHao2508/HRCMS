@@ -194,6 +194,8 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
         var u = await current.Get(); Ensure.Role(u, Role.HorseOwner, Role.ClubManager);
         var (p, size) = pager.Read(page, pageSize);
         var data = await repository.ListAsync(u.Role == Role.HorseOwner ? u.Id : null, status, p, size);
+        var names = await repository.OwnerNamesAsync(data.Items.Select(r => r.OwnerId).Distinct());
+        foreach (var registration in data.Items) registration.OwnerName = names.GetValueOrDefault(registration.OwnerId);
         return new(data.Items, p, size, data.Total);
     }
 
@@ -203,7 +205,11 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     /// <param name="id">ID đối tượng được thao tác; quyền/phạm vi được kiểm trước khi đọc hoặc ghi.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<HorseRegistration> GetRegistration(Guid id)
-    { return await access.Registration(id); }
+    {
+        var record = await access.Registration(id);
+        record.OwnerName = (await repository.OwnerNamesAsync([record.OwnerId])).GetValueOrDefault(record.OwnerId);
+        return record;
+    }
 
     /// <summary>
     /// Cập nhật bản nháp trong HorseRegistrationService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.

@@ -6,4 +6,5 @@ public interface IRegistrationRepository
     void AddApprovedHorse(Horse horse, Measurement measurement);
     Task<bool> HasAttachmentAsync(Guid registrationId, AttachmentType type);
     Task<DataPage<HorseRegistration>> ListAsync(Guid? ownerId, RegistrationStatus? status, int page, int size);
+    Task<Dictionary<Guid, string>> OwnerNamesAsync(IEnumerable<Guid> ownerIds);
 }

@@ -71,7 +71,7 @@ public sealed class WorkflowTests
     }
 
     [Fact]
-    public async Task StaffDirectory_IsAvailableToAuthenticatedRolesWithoutContactDetails_ManagementIsManagerOnly()
+    public async Task StaffDirectoryRespectsOwnerRoleFilterAndHidesContactDetailsManagementIsManagerOnly()
     {
         await using var f = new ClubFactory();
         var manager = await f.Client();
@@ -81,7 +81,12 @@ public sealed class WorkflowTests
         foreach (var role in Enum.GetValues<Role>())
         {
             var client = role == Role.ClubManager ? manager : await f.Client(await f.User(role));
-            var directoryResponse = await client.GetAsync("/api/staff/directory?page=1&pageSize=20");
+            if (role == Role.HorseOwner)
+            {
+                Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/directory")).StatusCode);
+                Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/staff/directory?role=Trainer")).StatusCode);
+            }
+            var directoryResponse = await client.GetAsync("/api/staff/directory?page=1&pageSize=20" + (role == Role.HorseOwner ? "&role=Veterinarian" : ""));
             Assert.Equal(HttpStatusCode.OK, directoryResponse.StatusCode);
             var directory = await directoryResponse.Content.ReadFromJsonAsync<JsonElement>();
             var directoryJson = directory.GetProperty("items").GetRawText();

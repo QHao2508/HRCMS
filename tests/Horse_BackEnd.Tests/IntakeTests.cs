@@ -129,13 +129,13 @@ public sealed class IntakeTests
     }
 
     [Fact]
-    public async Task AssignedHeadTrainerOrManagerWithReasonChoosesActiveTrainerAndManagerConfirmsAdministrativeStaff()
+    public async Task OnlyAssignedHeadTrainerChoosesTrainerAndManagerConfirmsAdministrativeStaff()
     {
         await using var f = new ClubFactory(); var owner = await f.User(Role.HorseOwner); var head = await f.User(Role.HeadTrainer);
         var otherHead = await f.User(Role.HeadTrainer); var trainer = await f.User(Role.Trainer); var vet = await f.User(Role.Veterinarian); var groom = await f.User(Role.Groom);
         var horse = await f.Horse(owner); using var manager = await f.Client(); using var ownerClient = await f.Client(owner);
         var trainerRequest = new AssignmentRequest(trainer.Id, Role.Trainer, Today(f), "Official");
-        Assert.Equal(HttpStatusCode.BadRequest, (await manager.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", trainerRequest with { Notes = "" }, ClubFactory.Json)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", trainerRequest with { Notes = "" }, ClubFactory.Json)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await ownerClient.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", trainerRequest, ClubFactory.Json)).StatusCode);
         await ClubFactory.Post(manager, $"/api/horses/{horse.Id}/assignments", new AssignmentRequest(head.Id, Role.HeadTrainer, Today(f), "Official"));
         using var otherHeadClient = await f.Client(otherHead); using var headClient = await f.Client(head);
@@ -144,7 +144,8 @@ public sealed class IntakeTests
         await WorkerTests.Read(f, async db => { (await db.Users.FindAsync(trainer.Id))!.Active = false; await db.SaveChangesAsync(); });
         Assert.Equal(HttpStatusCode.BadRequest, (await headClient.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", trainerRequest, ClubFactory.Json)).StatusCode);
         await WorkerTests.Read(f, async db => { (await db.Users.FindAsync(trainer.Id))!.Active = true; await db.SaveChangesAsync(); });
-        await ClubFactory.Post(manager, $"/api/horses/{horse.Id}/assignments", trainerRequest with { Notes = "HeadTrainer unavailable" });
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.PostAsJsonAsync($"/api/horses/{horse.Id}/assignments", trainerRequest with { Notes = "HeadTrainer unavailable" }, ClubFactory.Json)).StatusCode);
+        await ClubFactory.Post(headClient, $"/api/horses/{horse.Id}/assignments", trainerRequest);
         await ClubFactory.Post(manager, $"/api/horses/{horse.Id}/assignments", new AssignmentRequest(vet.Id, Role.Veterinarian, Today(f), "Official"));
         await ClubFactory.Post(manager, $"/api/horses/{horse.Id}/assignments", new AssignmentRequest(groom.Id, Role.Groom, Today(f), "Official"));
         await WorkerTests.Read(f, async db => Assert.Equal(4, await db.Assignments.CountAsync(x => x.HorseId == horse.Id && x.Active)));

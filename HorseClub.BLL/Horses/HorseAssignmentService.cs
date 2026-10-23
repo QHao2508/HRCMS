@@ -22,13 +22,8 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         if (r.Role == Role.Trainer)
         {
             // Manager được phân công Trainer thay HeadTrainer (ví dụ HeadTrainer vắng) nhưng bắt buộc ghi lý do vào ghi chú.
-            if (u.Role == Role.ClubManager)
-                Ensure.That(!string.IsNullOrWhiteSpace(r.Notes), Messages.Get(MessageKey.ManagerTrainerAssignmentReasonRequired));
-            else
-            {
-                Ensure.Role(u, Role.HeadTrainer);
-                Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
-            }
+            Ensure.Role(u, Role.HeadTrainer);
+            Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
         }
         else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Get(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
         await access.Staff(r.StaffId, r.Role);

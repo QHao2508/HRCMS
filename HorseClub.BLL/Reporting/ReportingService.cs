@@ -18,7 +18,9 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
     public async Task<PageResponse<Notification>> ListNotifications(bool? unread, int? page, int? pageSize)
     {
         var id = (await current.Get()).Id;
-        return await pager.Page(page, pageSize, (p, size) => queries.ListNotificationsAsync(id, unread == true, p, size));
+        var data = await pager.Page(page, pageSize, (p, size) => queries.ListNotificationsAsync(id, unread == true, p, size));
+        foreach (var notification in data.Items) NotificationPresentation.Enrich(notification);
+        return data;
     }
 
     /// <summary>

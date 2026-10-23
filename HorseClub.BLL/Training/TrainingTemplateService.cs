@@ -36,10 +36,16 @@ public sealed class TrainingTemplateService(CurrentUser current, ITrainingReposi
         var trainers = await profiles.TrainersAsync();
         var skills = await profiles.ExpertiseAsync(trainers.Select(t => t.User.Id).ToArray());
         var assignments = await repository.TemplateAssignmentsAsync(id);
-        return trainers.Select(t => new TemplateTrainerCandidate(t.User.Id, (t.User.FirstName + " " + t.User.LastName).Trim(),
-            TemplateCurriculumPolicy.RequiredTypes(template).Count > 0 && TemplateCurriculumPolicy.Matches(template, skills.Where(s => s.StaffId == t.User.Id)),
-            skills.Where(s => s.StaffId == t.User.Id).Select(s => new ExpertiseInput(s.TrainingType, s.Level)).ToList(),
-            assignments.Any(a => a.TrainerId == t.User.Id))).OrderByDescending(t => t.Matches).ThenBy(t => t.Name).ToList();
+        var required = TemplateCurriculumPolicy.RequiredTypes(template);
+        return trainers.Select(t =>
+        {
+            var specialties = skills.Where(s => s.StaffId == t.User.Id).Select(s => new ExpertiseInput(s.TrainingType, s.Level)).ToList();
+            var missing = required.Where(type => !specialties.Any(s => s.TrainingType == type)).ToList();
+            var below = required.Where(type => specialties.Any(s => s.TrainingType == type && s.Level < template.MinimumExpertiseLevel)).ToList();
+            var eligibility = required.Count == 0 ? "RequirementsMissing" : missing.Count > 0 ? "MissingSpecialty" : below.Count > 0 ? "BelowMinimumLevel" : "Eligible";
+            return new TemplateTrainerCandidate(t.User.Id, (t.User.FirstName + " " + t.User.LastName).Trim(), eligibility == "Eligible",
+                specialties, assignments.Any(a => a.TrainerId == t.User.Id), required, template.MinimumExpertiseLevel, missing, below, eligibility);
+        }).OrderByDescending(t => t.Matches).ThenBy(t => t.Name).ToList();
     }
     public async Task<OperationResult> AssignTrainer(Guid id, TemplateTrainerRequest request)
     {
