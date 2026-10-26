@@ -32,7 +32,7 @@ public sealed class TrainingTemplateService(CurrentUser current, ITrainingReposi
     {
         Ensure.Role(await current.Get(), Role.HeadTrainer, Role.ClubManager);
         var template = Ensure.Found(await repository.FindTemplateAsync(id));
-        Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived));
+        Ensure.That(!template.Archived, Messages.Text(MessageKey.TemplateIsArchived));
         var trainers = await profiles.TrainersAsync();
         var skills = await profiles.ExpertiseAsync(trainers.Select(t => t.User.Id).ToArray());
         var assignments = await repository.TemplateAssignmentsAsync(id);
@@ -51,12 +51,12 @@ public sealed class TrainingTemplateService(CurrentUser current, ITrainingReposi
     {
         var actor = await current.Get(); Ensure.Role(actor, Role.HeadTrainer);
         var template = Ensure.Found(await repository.FindTemplateAsync(id));
-        Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived));
+        Ensure.That(!template.Archived, Messages.Text(MessageKey.TemplateIsArchived));
         var trainer = Ensure.Found(await profiles.FindStaffAsync(request.TrainerId));
-        Ensure.That(trainer.Role == Role.Trainer && trainer.Active && trainer.EmailVerified, Messages.Get(MessageKey.TemplateMustBeAssignedToQualifiedTrainer));
+        Ensure.That(trainer.Role == Role.Trainer && trainer.Active && trainer.EmailVerified, Messages.Text(MessageKey.TemplateMustBeAssignedToQualifiedTrainer));
         if (request.Assigned)
         {
-            Ensure.That(TemplateCurriculumPolicy.RequiredTypes(template).Count > 0, Messages.Get(MessageKey.InvalidTemplateCurriculum));
+            Ensure.That(TemplateCurriculumPolicy.RequiredTypes(template).Count > 0, Messages.Text(MessageKey.InvalidTemplateCurriculum));
             await ValidateTrainer(id, trainer.Id, requireAssignment: false);
         }
         var assignment = await repository.FindTemplateAssignmentAsync(id, trainer.Id);
@@ -77,7 +77,7 @@ public sealed class TrainingTemplateService(CurrentUser current, ITrainingReposi
         var skills = await profiles.ExpertiseAsync([trainerId]);
         var assignment = requireAssignment ? await repository.FindTemplateAssignmentAsync(templateId, trainerId) : null;
         Ensure.That(TemplateCurriculumPolicy.Matches(template, skills) && (!requireAssignment || assignment is { Active: true }),
-            Messages.Get(MessageKey.TemplateMustBeAssignedToQualifiedTrainer), 409, "template_trainer_mismatch");
+            Messages.Text(MessageKey.TemplateMustBeAssignedToQualifiedTrainer), 409, "template_trainer_mismatch");
     }
     public async Task<OperationResult> CreateTemplate(TemplateRequest r)
     {
@@ -89,15 +89,15 @@ public sealed class TrainingTemplateService(CurrentUser current, ITrainingReposi
     public async Task<TrainingTemplate> UpdateTemplate(Guid id, TemplateRequest r)
     {
         Ensure.Role(await current.Get(), Role.HeadTrainer); var template = Ensure.Found(await repository.FindTemplateAsync(id));
-        Ensure.That(!template.IsSystemDefault, Messages.Get(MessageKey.DefaultTemplateReadOnly), 409, "default_template_read_only");
-        Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived)); Apply(template, r);
+        Ensure.That(!template.IsSystemDefault, Messages.Text(MessageKey.DefaultTemplateReadOnly), 409, "default_template_read_only");
+        Ensure.That(!template.Archived, Messages.Text(MessageKey.TemplateIsArchived)); Apply(template, r);
         await events.Audit(AuditAction.TrainingTemplateEdited, id); await events.RefreshRoles(Role.ClubManager, Role.HeadTrainer, Role.Trainer);
         await unitOfWork.SaveChangesAsync(); return template;
     }
     public async Task<OperationResult> ArchiveTemplate(Guid id)
     {
         Ensure.Role(await current.Get(), Role.HeadTrainer); var template = Ensure.Found(await repository.FindTemplateAsync(id));
-        Ensure.That(!template.IsSystemDefault, Messages.Get(MessageKey.DefaultTemplateReadOnly), 409, "default_template_read_only");
+        Ensure.That(!template.IsSystemDefault, Messages.Text(MessageKey.DefaultTemplateReadOnly), 409, "default_template_read_only");
         template.Archived = true; await events.Audit(AuditAction.TrainingTemplateArchived, id);
         await events.RefreshRoles(Role.ClubManager, Role.HeadTrainer, Role.Trainer); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }

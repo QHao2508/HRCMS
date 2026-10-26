@@ -38,13 +38,13 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
         var u = await current.Get(); await access.Horse(r.HorseId);
         Ensure.Role(u, Role.ClubManager, Role.Veterinarian);
         if (r.Type is CareType.Treatment or CareType.IceBath) Ensure.Role(u, Role.Veterinarian);
-        if (u.Role == Role.Veterinarian) Ensure.That(r.Type is CareType.Treatment or CareType.IceBath, Messages.Get(MessageKey.VeterinarianAssignsTreatmentOrIceBathTasks));
+        if (u.Role == Role.Veterinarian) Ensure.That(r.Type is CareType.Treatment or CareType.IceBath, Messages.Text(MessageKey.VeterinarianAssignsTreatmentOrIceBathTasks));
         await access.Staff(r.GroomId, Role.Groom);
-        Ensure.That(await repository.HasGroomAsync(r.HorseId, r.GroomId), Messages.Get(MessageKey.GroomMustBeAssignedToThisHorse));
-        Ensure.That(r.ScheduledAt != default, Messages.Get(MessageKey.ScheduleTimeIsRequired));
-        if (r.TreatmentPlanId.HasValue) Ensure.That(await repository.HasTreatmentAsync(r.TreatmentPlanId, r.HorseId), Messages.Get(MessageKey.TreatmentMustBeActiveAndBelongToThisHorse));
-        if (r.Type == CareType.Treatment) Ensure.That(r.TreatmentPlanId.HasValue, Messages.Get(MessageKey.TreatmentTasksNeedATreatmentPlan));
-        if (r.Type == CareType.Feeding) Ensure.That(r.ApprovedPortionKg.HasValue, Messages.Get(MessageKey.FeedingNeedsAnApprovedPortionInKg));
+        Ensure.That(await repository.HasGroomAsync(r.HorseId, r.GroomId), Messages.Text(MessageKey.GroomMustBeAssignedToThisHorse));
+        Ensure.That(r.ScheduledAt != default, Messages.Text(MessageKey.ScheduleTimeIsRequired));
+        if (r.TreatmentPlanId.HasValue) Ensure.That(await repository.HasTreatmentAsync(r.TreatmentPlanId, r.HorseId), Messages.Text(MessageKey.TreatmentMustBeActiveAndBelongToThisHorse));
+        if (r.Type == CareType.Treatment) Ensure.That(r.TreatmentPlanId.HasValue, Messages.Text(MessageKey.TreatmentTasksNeedATreatmentPlan));
+        if (r.Type == CareType.Feeding) Ensure.That(r.ApprovedPortionKg.HasValue, Messages.Text(MessageKey.FeedingNeedsAnApprovedPortionInKg));
         var task = new CareTask { HorseId = r.HorseId, GroomId = r.GroomId, TreatmentPlanId = r.TreatmentPlanId, Type = r.Type, ScheduledAt = r.ScheduledAt.ToUniversalTime(), Instructions = r.Instructions, ApprovedPortionKg = r.ApprovedPortionKg };
         repository.AddCareTask(task); events.Notify(r.GroomId, NotificationType.CareAssigned, MessageKey.ACareTaskWasAssignedToYou, task.Id);
         await events.Audit(AuditAction.CareTaskCreated, task.Id); await events.RefreshHorse(r.HorseId); await unitOfWork.SaveChangesAsync(); return task;
@@ -59,10 +59,10 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<CareTask> RecordTask(Guid id, CareCompletionRequest r)
     {
         var u = await current.Get(); Ensure.Role(u, Role.Groom); var t = Ensure.Found(await repository.FindCareTaskAsync(id));
-        Ensure.That(t.GroomId == u.Id, Messages.Get(MessageKey.TaskIsNotAssignedToYou), 403, "forbidden"); await access.Horse(t.HorseId);
-        Ensure.That(t.Status is CareStatus.Pending or CareStatus.InProgress, Messages.Get(MessageKey.TaskIsAlreadyFinal), 409, "invalid_state");
-        Ensure.That(r.Status is CareStatus.InProgress or CareStatus.Completed or CareStatus.Skipped or CareStatus.IssueReported, Messages.Get(MessageKey.UnsupportedStatus));
-        if (t.Type == CareType.Feeding && r.Status == CareStatus.Completed) Ensure.That(r.ActualPortionKg.HasValue, Messages.Get(MessageKey.RecordActualFeedingPortion));
+        Ensure.That(t.GroomId == u.Id, Messages.Text(MessageKey.TaskIsNotAssignedToYou), 403, "forbidden"); await access.Horse(t.HorseId);
+        Ensure.That(t.Status is CareStatus.Pending or CareStatus.InProgress, Messages.Text(MessageKey.TaskIsAlreadyFinal), 409, "invalid_state");
+        Ensure.That(r.Status is CareStatus.InProgress or CareStatus.Completed or CareStatus.Skipped or CareStatus.IssueReported, Messages.Text(MessageKey.UnsupportedStatus));
+        if (t.Type == CareType.Feeding && r.Status == CareStatus.Completed) Ensure.That(r.ActualPortionKg.HasValue, Messages.Text(MessageKey.RecordActualFeedingPortion));
         t.Status = r.Status; t.ActualPortionKg = r.ActualPortionKg; t.Notes = r.Notes;
         if (r.Status != CareStatus.InProgress) t.CompletedAt = clock.GetUtcNow();
         if (r.Status == CareStatus.IssueReported)
@@ -100,8 +100,8 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<Incident> ReportIncident(IncidentRequest r)
     {
         var u = await current.Get(); Ensure.Role(u, RolePolicy.IncidentReporters);
-        await access.Horse(r.HorseId); Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Get(MessageKey.RouteIncidentToTrainerOrVeterinarian));
-        Ensure.That(r.OccurredAt != default && r.OccurredAt <= DateTimeOffset.UtcNow, Messages.Get(MessageKey.IncidentTimeCannotBeInTheFuture));
+        await access.Horse(r.HorseId); Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Text(MessageKey.RouteIncidentToTrainerOrVeterinarian));
+        Ensure.That(r.OccurredAt != default && r.OccurredAt <= DateTimeOffset.UtcNow, Messages.Text(MessageKey.IncidentTimeCannotBeInTheFuture));
         var incident = new Incident { HorseId = r.HorseId, ReporterId = u.Id, OccurredAt = r.OccurredAt, Type = r.Type, Description = r.Description, Severity = r.Severity, RoutedTo = r.RoutedTo };
         repository.AddIncident(incident); await events.HorseStaff(r.HorseId, NotificationType.IncidentReported, MessageKey.ANewIncidentRequiresReview, r.RoutedTo);
         await events.Audit(AuditAction.IncidentCreated, incident.Id); await events.RefreshHorse(r.HorseId); await unitOfWork.SaveChangesAsync(); return incident;
@@ -115,9 +115,9 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<OperationResult> ResolveIncident(Guid id, IncidentResolutionRequest? r = null)
     {
         var u = await current.Get(); var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId);
-        Ensure.That(RolePolicy.CanResolveIncident(u.Role, incident.RoutedTo), Messages.Get(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
-        Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
-        Ensure.That(r is not null && !string.IsNullOrWhiteSpace(r.Resolution) && r.Resolution.Trim().Length <= 2000, Messages.Get(MessageKey.ResolutionRequired));
+        Ensure.That(RolePolicy.CanResolveIncident(u.Role, incident.RoutedTo), Messages.Text(MessageKey.OnlyTheRoutedDecisionRoleCanResolveThisIncident), 403, "forbidden");
+        Ensure.That(!incident.Resolved, Messages.Text(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
+        Ensure.That(r is not null && !string.IsNullOrWhiteSpace(r.Resolution) && r.Resolution.Trim().Length <= 2000, Messages.Text(MessageKey.ResolutionRequired));
         incident.Resolved = true; incident.Resolution = r!.Resolution.Trim(); incident.ResolvedBy = u.Id; incident.ResolvedAt = clock.GetUtcNow();
         await events.Audit(AuditAction.IncidentResolved, id); await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
@@ -131,8 +131,8 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
         var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId);
-        Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Get(MessageKey.RouteIncidentToTrainerOrVeterinarian));
-        Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
+        Ensure.That(r.RoutedTo is Role.Trainer or Role.Veterinarian, Messages.Text(MessageKey.RouteIncidentToTrainerOrVeterinarian));
+        Ensure.That(!incident.Resolved, Messages.Text(MessageKey.IncidentAlreadyResolved), 409, "invalid_state");
         if (incident.RoutedTo == r.RoutedTo) return incident;
         var from = incident.RoutedTo; incident.RoutedTo = r.RoutedTo;
         await events.HorseStaff(incident.HorseId, NotificationType.IncidentReported, MessageKey.ANewIncidentRequiresReview, r.RoutedTo);
@@ -207,7 +207,7 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     public async Task<StallOccupancy> OccupyStall(Guid id, OccupancyRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); Ensure.Found(await repository.FindStallAsync(id)); await access.Horse(r.HorseId);
-        Ensure.That(!await repository.IsOccupiedAsync(id), Messages.Get(MessageKey.StallIsOccupiedVacateItFirst), 409, "stall_occupied");
+        Ensure.That(!await repository.IsOccupiedAsync(id), Messages.Text(MessageKey.StallIsOccupiedVacateItFirst), 409, "stall_occupied");
         foreach (var old in await repository.GetHorseOccupanciesAsync(r.HorseId))
         {
             old.EndedAt = clock.GetUtcNow();
@@ -254,7 +254,7 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
     /// <param name="request">Trạng thái vệ sinh mới.</param>
     public async Task<OperationResult> SetStallCleaning(Guid id, StallCleaningRequest request)
     {
-        Ensure.That(Enum.IsDefined(request.Status), Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(Enum.IsDefined(request.Status), Messages.Text(MessageKey.InvalidRequestBody));
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom); var stall = Ensure.Found(await repository.FindStallAsync(id));
         if (u.Role == Role.Groom)
         {

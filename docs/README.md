@@ -6,7 +6,7 @@ Cập nhật 13/10/2026. Tài liệu hiện hành nằm bên dưới; kế hoạ
 
 - [Kế hoạch hoàn thiện toàn bộ dự án: ưu tiên, giai đoạn và tiêu chí nghiệm thu](KE_HOACH_HOAN_THIEN_DU_AN.md).
 - [Bảng cấu trúc, luồng nghiệp vụ và trả lời vấn đáp](BAO_CAO_CAU_TRUC_VA_LUONG_NGHIEP_VU.md).
-- [Kiến trúc ba layer](ARCHITECTURE.md), [chức năng các folder](FOLDERS.md), [layer và message](THREE_LAYER_AND_MESSAGES.md).
+- [Kiến trúc ba layer](ARCHITECTURE.md), [chức năng các folder](FOLDERS.md), [layer và message](THREE_LAYER_AND_MESSAGES.md), [mã thông điệp BE ↔ FE](MESSAGE_CODES.md).
 - [Interface, repository, Unit of Work và SignalR: triển khai và kiểm thử](REPOSITORY_SIGNALR_IMPLEMENTATION.md).
 
 ## Cấu hình và kiểm thử

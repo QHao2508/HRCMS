@@ -2127,3 +2127,416 @@ END;
 
 COMMIT;
 GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    ALTER TABLE [Notifications] ADD [MessageCode] nvarchar(4000) NOT NULL DEFAULT N'';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''HorseIsArchived'' WHERE [MessageCode] = N'''' AND [Message] = N''Horse is archived.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AHorseRegistrationRequiresReview'' WHERE [MessageCode] = N'''' AND [Message] = N''A horse registration requires review.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourHorseRegistrationRequiresRevision'' WHERE [MessageCode] = N'''' AND [Message] = N''Your horse registration requires revision.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourHorseRegistrationWasApproved'' WHERE [MessageCode] = N'''' AND [Message] = N''Your horse registration was approved.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YouHaveBeenAssignedToAHorse'' WHERE [MessageCode] = N'''' AND [Message] = N''You have been assigned to a horse.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''OfficialHorseStaffAssignmentChanged'' WHERE [MessageCode] = N'''' AND [Message] = N''Official horse staff assignment changed.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingSessionWasAssignedToYou'' WHERE [MessageCode] = N'''' AND [Message] = N''A training session was assigned to you.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingAssignmentWasRemoved'' WHERE [MessageCode] = N'''' AND [Message] = N''A training assignment was removed.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ARiderSubmittedASessionResult'' WHERE [MessageCode] = N'''' AND [Message] = N''A rider submitted a session result.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingObservationRequiresReview'' WHERE [MessageCode] = N'''' AND [Message] = N''A training observation requires review.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ANewIncidentRequiresReview'' WHERE [MessageCode] = N'''' AND [Message] = N''A new incident requires review.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ASessionWasSkipped'' WHERE [MessageCode] = N'''' AND [Message] = N''A session was skipped.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''HorseHealthStatusChangedReviewCurrentTrainingLimits'' WHERE [MessageCode] = N'''' AND [Message] = N''Horse health status changed. Review current training limits.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''TrainingRestrictionsChangedReviewPlannedSessions'' WHERE [MessageCode] = N'''' AND [Message] = N''Training restrictions changed. Review planned sessions.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AMedicalRestrictionChangedDuringYourSessionStopIncompatible'' WHERE [MessageCode] = N'''' AND [Message] = N''A medical restriction changed during your session. Stop incompatible activity and contact the Veterinarian.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''MedicalClearanceIssuedReviewTheTrainingPlanBeforeResuming'' WHERE [MessageCode] = N'''' AND [Message] = N''Medical clearance issued. Review the training plan before resuming.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''MedicalFollowUpCompletedReviewCurrentRestrictions'' WHERE [MessageCode] = N'''' AND [Message] = N''Medical follow-up completed. Review current restrictions.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''PreventiveCareIsDue'' WHERE [MessageCode] = N'''' AND [Message] = N''Preventive care is due.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingSessionIsOverdue'' WHERE [MessageCode] = N'''' AND [Message] = N''A training session is overdue.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''MedicalFollowUpIsDue'' WHERE [MessageCode] = N'''' AND [Message] = N''Medical follow-up is due.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ACareTaskWasAssignedToYou'' WHERE [MessageCode] = N'''' AND [Message] = N''A care task was assigned to you.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ACareTaskRequiresReview'' WHERE [MessageCode] = N'''' AND [Message] = N''A care task requires review.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AnInventoryItemReachedItsMinimumStock'' WHERE [MessageCode] = N'''' AND [Message] = N''An inventory item reached its minimum stock.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AReplenishmentRequestNeedsReview'' WHERE [MessageCode] = N'''' AND [Message] = N''A replenishment request needs review.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourReplenishmentRequestWasReviewed'' WHERE [MessageCode] = N'''' AND [Message] = N''Your replenishment request was reviewed.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''TreatmentTaskCompletedReviewPlan'' WHERE [MessageCode] = N'''' AND [Message] = N''A groom completed a treatment care task. Review the treatment plan status.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ThePlanWasArchivedAndThisSessionWasCancelled'' WHERE [MessageCode] = N'''' AND [Message] = N''The plan was archived and this session was cancelled.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''StaffDisabledWithOpenWork'' WHERE [MessageCode] = N'''' AND [Message] = N''A staff account was disabled with open work requiring reassignment.'';')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AHorseRegistrationRequiresReview'' WHERE [MessageCode] = N'''' AND [Type] = 0;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourHorseRegistrationRequiresRevision'' WHERE [MessageCode] = N'''' AND [Type] = 1;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourHorseRegistrationWasApproved'' WHERE [MessageCode] = N'''' AND [Type] = 2;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''OfficialHorseStaffAssignmentChanged'' WHERE [MessageCode] = N'''' AND [Type] = 3;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingSessionWasAssignedToYou'' WHERE [MessageCode] = N'''' AND [Type] = 4;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingAssignmentWasRemoved'' WHERE [MessageCode] = N'''' AND [Type] = 5;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ARiderSubmittedASessionResult'' WHERE [MessageCode] = N'''' AND [Type] = 6;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ANewIncidentRequiresReview'' WHERE [MessageCode] = N'''' AND [Type] = 7;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ASessionWasSkipped'' WHERE [MessageCode] = N'''' AND [Type] = 8;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''HorseHealthStatusChangedReviewCurrentTrainingLimits'' WHERE [MessageCode] = N'''' AND [Type] = 9;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''TrainingRestrictionsChangedReviewPlannedSessions'' WHERE [MessageCode] = N'''' AND [Type] = 10;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''MedicalFollowUpCompletedReviewCurrentRestrictions'' WHERE [MessageCode] = N'''' AND [Type] = 11;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''PreventiveCareIsDue'' WHERE [MessageCode] = N'''' AND [Type] = 12;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ATrainingSessionIsOverdue'' WHERE [MessageCode] = N'''' AND [Type] = 13;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''MedicalFollowUpIsDue'' WHERE [MessageCode] = N'''' AND [Type] = 14;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ACareTaskWasAssignedToYou'' WHERE [MessageCode] = N'''' AND [Type] = 15;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''ACareTaskRequiresReview'' WHERE [MessageCode] = N'''' AND [Type] = 16;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AnInventoryItemReachedItsMinimumStock'' WHERE [MessageCode] = N'''' AND [Type] = 17;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''AReplenishmentRequestNeedsReview'' WHERE [MessageCode] = N'''' AND [Type] = 18;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''YourReplenishmentRequestWasReviewed'' WHERE [MessageCode] = N'''' AND [Type] = 19;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    EXEC(N'UPDATE [Notifications] SET [MessageCode] = N''TreatmentTaskCompletedReviewPlan'' WHERE [MessageCode] = N'''' AND [Type] = 20;')
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261026020000_NotificationMessageCodes'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261026020000_NotificationMessageCodes', N'10.0.12');
+END;
+
+COMMIT;
+GO

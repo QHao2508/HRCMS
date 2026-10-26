@@ -57,7 +57,16 @@ public sealed class ClubEvents(IEventRepository repository, CurrentUser current)
     /// <param name="message">Giá trị kiểu MessageKey dùng trong Notify.</param>
     /// <param name="reference">Giá trị kiểu Guid? dùng trong Notify.</param>
     public void Notify(Guid recipient, NotificationType type, MessageKey message, Guid? reference = null)
-        => repository.AddNotification(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
+        => repository.AddNotification(Create(recipient, type, message, reference));
+    /// <summary>
+    /// Tạo thông báo lưu mã MessageKey để client dịch; Message tiếng Anh chỉ giữ cho log/tra cứu.
+    /// </summary>
+    /// <param name="recipient">Người nhận.</param>
+    /// <param name="type">Loại thông báo, dùng để client chọn màn hình liên quan.</param>
+    /// <param name="message">Mã nội dung thông báo.</param>
+    /// <param name="reference">ID đối tượng liên quan.</param>
+    public static Notification Create(Guid recipient, NotificationType type, MessageKey message, Guid? reference = null)
+        => new() { RecipientId = recipient, Type = type, MessageCode = message.ToString(), Message = Messages.Get(message), ReferenceId = reference };
     /// <summary>
     /// Lấy người quản lý hoạt động để định tuyến các yêu cầu cần duyệt.
     /// </summary>

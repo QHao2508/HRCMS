@@ -37,7 +37,7 @@ public sealed class DemoAccountSeeder(IAuthRepository repository, IUnitOfWork un
                 Ensure.That(existing.Email == email && existing.UserName == name && existing.Role == account.Role
                     && existing.Active && existing.EmailVerified
                     && (resetDemoPassword || hasher.VerifyHashedPassword(existing, existing.PasswordHash, password) != PasswordVerificationResult.Failed),
-                    Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
+                    Messages.Text(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
                 if (resetDemoPassword)
                 {
                     existing.PasswordHash = hasher.HashPassword(existing, password);

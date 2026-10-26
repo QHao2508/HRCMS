@@ -53,10 +53,10 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     public async Task<StockMovementResponse> RecordMovement(Guid id, MovementRequest r)
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager, Role.Groom);
-        Ensure.That(r.Quantity != 0 && Math.Abs(r.Quantity) <= 1000000, Messages.Get(MessageKey.MovementQuantityMustBeNonzeroAndWithinLimits));
+        Ensure.That(r.Quantity != 0 && Math.Abs(r.Quantity) <= 1000000, Messages.Text(MessageKey.MovementQuantityMustBeNonzeroAndWithinLimits));
         if (r.Quantity > 0) Ensure.Role(u, Role.ClubManager);
-        var item = Ensure.Found(await repository.FindItemAsync(id)); Ensure.That(!item.Archived, Messages.Get(MessageKey.ItemIsArchived));
-        Ensure.That(item.Stock + r.Quantity >= 0, Messages.Get(MessageKey.InsufficientStock), 409, "insufficient_stock");
+        var item = Ensure.Found(await repository.FindItemAsync(id)); Ensure.That(!item.Archived, Messages.Text(MessageKey.ItemIsArchived));
+        Ensure.That(item.Stock + r.Quantity >= 0, Messages.Text(MessageKey.InsufficientStock), 409, "insufficient_stock");
         var oldStock = item.Stock; item.Stock += r.Quantity;
         var movement = new StockMovement { ItemId = id, ActorId = u.Id, Quantity = r.Quantity, Reason = r.Reason }; repository.AddMovement(movement);
         if (oldStock > item.MinimumStock && item.Stock <= item.MinimumStock) await events.Managers(NotificationType.InventoryLowStock, MessageKey.AnInventoryItemReachedItsMinimumStock, id);
@@ -71,8 +71,8 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     public async Task<OperationResult> ArchiveItem(Guid id)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var item = Ensure.Found(await repository.FindItemAsync(id));
-        Ensure.That(item.Stock == 0, Messages.Get(MessageKey.ConsumeAdjustRemainingStockBeforeArchiving));
-        Ensure.That(!await repository.HasOpenReplenishmentsAsync(id), Messages.Get(MessageKey.ItemHasOpenReplenishments), 409, "open_replenishment"); item.Archived = true;
+        Ensure.That(item.Stock == 0, Messages.Text(MessageKey.ConsumeAdjustRemainingStockBeforeArchiving));
+        Ensure.That(!await repository.HasOpenReplenishmentsAsync(id), Messages.Text(MessageKey.ItemHasOpenReplenishments), 409, "open_replenishment"); item.Archived = true;
         await events.Audit(AuditAction.InventoryArchived, id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
@@ -98,7 +98,7 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<ReplenishmentRequest> RequestReplenishment(ReplenishmentRequestDto r)
     {
-        var u = await current.Get(); Ensure.Role(u, Role.Groom, Role.ClubManager); var item = Ensure.Found(await repository.FindItemAsync(r.ItemId)); Ensure.That(!item.Archived, Messages.Get(MessageKey.ItemIsArchived));
+        var u = await current.Get(); Ensure.Role(u, Role.Groom, Role.ClubManager); var item = Ensure.Found(await repository.FindItemAsync(r.ItemId)); Ensure.That(!item.Archived, Messages.Text(MessageKey.ItemIsArchived));
         var request = new ReplenishmentRequest { ItemId = r.ItemId, RequestedBy = u.Id, Quantity = r.Quantity, Notes = r.Notes };
         repository.AddReplenishment(request); await events.Managers(NotificationType.InventoryReplenishment, MessageKey.AReplenishmentRequestNeedsReview, request.Id);
         await events.Audit(AuditAction.InventoryReplenishmentRequested, request.Id); await events.RefreshRoles(Role.ClubManager, Role.Groom); await unitOfWork.SaveChangesAsync(); return request;
@@ -113,7 +113,7 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     public async Task<ReplenishmentRequest> ReviewReplenishment(Guid id, ReplenishmentReviewRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var request = Ensure.Found(await repository.FindReplenishmentAsync(id));
-        Ensure.That(request.Status == ReplenishmentStatus.Pending, Messages.Get(MessageKey.RequestIsAlreadyReviewed), 409, "invalid_state");
+        Ensure.That(request.Status == ReplenishmentStatus.Pending, Messages.Text(MessageKey.RequestIsAlreadyReviewed), 409, "invalid_state");
         request.Status = r.Approve ? ReplenishmentStatus.Approved : ReplenishmentStatus.Rejected; request.ReviewNotes = r.Notes; request.ReviewedBy = (await current.Get()).Id; request.ReviewedAt = clock.GetUtcNow();
         // Approval authorizes procurement; stock only increases after an actual receipt/movement.
         events.Notify(request.RequestedBy, NotificationType.InventoryReplenishmentReviewed, MessageKey.YourReplenishmentRequestWasReviewed, id);
@@ -124,10 +124,10 @@ public sealed class InventoryService(CurrentUser current, IInventoryRepository r
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
         var request = Ensure.Found(await repository.FindReplenishmentAsync(id));
-        Ensure.That(request.Status is ReplenishmentStatus.Approved or ReplenishmentStatus.PartiallyReceived, Messages.Get(MessageKey.ReplenishmentNotApproved), 409, "invalid_state");
-        Ensure.That(r.Quantity > 0 && r.Quantity <= request.Quantity - request.ReceivedQuantity && decimal.Round(r.Quantity,3) == r.Quantity, Messages.Get(MessageKey.InvalidReceiptQuantity));
-        Ensure.That(!string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.InvalidRequestBody));
-        var item = Ensure.Found(await repository.FindItemAsync(request.ItemId)); Ensure.That(!item.Archived, Messages.Get(MessageKey.ItemIsArchived));
+        Ensure.That(request.Status is ReplenishmentStatus.Approved or ReplenishmentStatus.PartiallyReceived, Messages.Text(MessageKey.ReplenishmentNotApproved), 409, "invalid_state");
+        Ensure.That(r.Quantity > 0 && r.Quantity <= request.Quantity - request.ReceivedQuantity && decimal.Round(r.Quantity,3) == r.Quantity, Messages.Text(MessageKey.InvalidReceiptQuantity));
+        Ensure.That(!string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Text(MessageKey.InvalidRequestBody));
+        var item = Ensure.Found(await repository.FindItemAsync(request.ItemId)); Ensure.That(!item.Archived, Messages.Text(MessageKey.ItemIsArchived));
         item.Stock += r.Quantity;
         var movement = new StockMovement { ItemId = item.Id, ActorId = u.Id, Quantity = r.Quantity, Reason = r.Reason.Trim(), ReplenishmentRequestId = id };
         repository.AddMovement(movement);

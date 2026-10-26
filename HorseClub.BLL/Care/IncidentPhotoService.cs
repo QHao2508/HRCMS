@@ -28,16 +28,16 @@ public sealed class IncidentPhotoService(IFileRepository repository, IUnitOfWork
     public async Task<OperationResult> UploadPhoto(Guid incidentId, UploadRequest request)
     {
         var incident = await Check(incidentId, repository, access, current);
-        var user = await current.Get(); Ensure.That(incident.ReporterId == user.Id, Messages.Get(MessageKey.OnlyTheIncidentReporterMayUploadPhotos), 403, "forbidden");
-        Ensure.That(!incident.Resolved, Messages.Get(MessageKey.IncidentIsResolved), 409, "invalid_state"); Ensure.That(request.HasFormContentType, Messages.Get(MessageKey.MultipartFormDataRequired));
+        var user = await current.Get(); Ensure.That(incident.ReporterId == user.Id, Messages.Text(MessageKey.OnlyTheIncidentReporterMayUploadPhotos), 403, "forbidden");
+        Ensure.That(!incident.Resolved, Messages.Text(MessageKey.IncidentIsResolved), 409, "invalid_state"); Ensure.That(request.HasFormContentType, Messages.Text(MessageKey.MultipartFormDataRequired));
         var form = await request.ReadFormAsync(); var file = form.Files.GetFile("file");
-        Ensure.That(file is not null && file.Length > 0 && file.Length <= limits.Value.MaxFileBytes, Messages.Get(MessageKey.InvalidFileOrSizeLimitExceeded));
-        Ensure.That(await repository.CountPhotosAsync(incidentId) < limits.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
+        Ensure.That(file is not null && file.Length > 0 && file.Length <= limits.Value.MaxFileBytes, Messages.Text(MessageKey.InvalidFileOrSizeLimitExceeded));
+        Ensure.That(await repository.CountPhotosAsync(incidentId) < limits.Value.MaxAttachmentsPerRecord, Messages.Text(MessageKey.AttachmentLimitReached));
         var bytes = new byte[file!.Length]; await using (var stream = file.OpenReadStream()) await stream.ReadExactlyAsync(bytes);
         var contentType = AttachmentService.Detect(bytes); var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        Ensure.That(contentType == "image/png" && extension == ".png" || contentType == "image/jpeg" && extension is ".jpg" or ".jpeg", Messages.Get(MessageKey.UploadAPNGOrJPEGImage));
+        Ensure.That(contentType == "image/png" && extension == ".png" || contentType == "image/jpeg" && extension is ".jpg" or ".jpeg", Messages.Text(MessageKey.UploadAPNGOrJPEGImage));
         var photo = new IncidentPhoto { IncidentId = incidentId, UploadedBy = user.Id, FileName = Path.GetFileName(file.FileName), StorageName = Guid.NewGuid().ToString("N"), ContentType = contentType!, Length = file.Length };
-        Ensure.That(photo.FileName.Length <= 200, Messages.Get(MessageKey.FilenameIsTooLong));
+        Ensure.That(photo.FileName.Length <= 200, Messages.Text(MessageKey.FilenameIsTooLong));
         await storage.Write(photo.StorageName, bytes, request.CancellationToken);
         repository.AddPhoto(photo); await events.Audit(AuditAction.AttachmentUploaded, photo.Id); await events.RefreshHorse(incident.HorseId); await unitOfWork.SaveChangesAsync();
         return OperationResult.Created($"/api/care/incidents/{incidentId}/photos/{photo.Id}", new IncidentPhotoCreatedResponse(photo.Id, photo.FileName, photo.Length));
@@ -65,7 +65,7 @@ public sealed class IncidentPhotoService(IFileRepository repository, IUnitOfWork
     public static async Task<Incident> Check(Guid id, IFileRepository repository, ClubAccess access, CurrentUser current)
     {
         var incident = Ensure.Found(await repository.FindIncidentAsync(id)); await access.Horse(incident.HorseId); var user = await current.Get();
-        Ensure.That(RolePolicy.CanViewIncidentPhotos(user.Role) || user.Id == incident.ReporterId || user.Role == incident.RoutedTo, Messages.Get(MessageKey.IncidentIsOutsideYourScope), 403, "forbidden");
+        Ensure.That(RolePolicy.CanViewIncidentPhotos(user.Role) || user.Id == incident.ReporterId || user.Role == incident.RoutedTo, Messages.Text(MessageKey.IncidentIsOutsideYourScope), 403, "forbidden");
         return incident;
     }
 

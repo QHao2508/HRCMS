@@ -17,7 +17,7 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         Ensure.Role(await current.Get(), Role.ClubManager, Role.HeadTrainer, Role.Trainer);
         return PublicRacingReference.Read();
     }
-    private static void Check(bool condition, string code) => Ensure.That(condition, Messages.Get(code switch
+    private static void Check(bool condition, string code) => Ensure.That(condition, Messages.Text(code switch
     {
         "trainer_schedule_overlap" => MessageKey.TrainerScheduleOverlap,
         "trainer_specialty_mismatch" => MessageKey.TrainerSpecialtyMismatch,
@@ -48,20 +48,20 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         Ensure.Role(await current.Get(), Role.ClubManager);
         var staff = Ensure.Found(await repository.FindStaffAsync(staffId));
         Check(staff.Role is Role.Trainer or Role.WorkRider, "training_staff_required");
-        Ensure.That(request.Specialties is not null && request.WorkingHours is not null && request.TimeOff is not null, Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(request.Specialties is not null && request.WorkingHours is not null && request.TimeOff is not null, Messages.Text(MessageKey.InvalidRequestBody));
         var specialties = request.Specialties!; var hours = request.WorkingHours!; var timeOff = request.TimeOff!;
         Ensure.That(specialties.Count <= Enum.GetValues<TrainingType>().Length && (staff.Role == Role.Trainer || specialties.Count == 0)
             && specialties.All(x => x is not null && Enum.IsDefined(x.TrainingType) && x.Level is >= 1 and <= 3)
             && specialties.Select(x => x.TrainingType).Distinct().Count() == specialties.Count
             && hours.Count <= 21 && hours.All(x => x is not null && Enum.IsDefined(x.DayOfWeek) && x.StartMinute >= 0 && x.EndMinute <= 1440 && x.EndMinute > x.StartMinute)
-            && timeOff.Count <= 100 && timeOff.All(x => x is not null && x.Start < x.End), Messages.Get(MessageKey.InvalidRequestBody));
+            && timeOff.Count <= 100 && timeOff.All(x => x is not null && x.Start < x.End), Messages.Text(MessageKey.InvalidRequestBody));
         var proposedExpertise = specialties.Select(x => new TrainerExpertise { StaffId = staffId, TrainingType = x.TrainingType, Level = x.Level }).ToList();
         foreach (var template in await training.TemplatesForTrainerAsync(staffId))
             Check(TemplateCurriculumPolicy.Matches(template, proposedExpertise), "trainer_specialty_mismatch");
         foreach (var day in hours.GroupBy(x => x.DayOfWeek))
         {
             var ordered = day.OrderBy(x => x.StartMinute).ToList();
-            Ensure.That(!ordered.Zip(ordered.Skip(1)).Any(x => x.First.EndMinute > x.Second.StartMinute), Messages.Get(MessageKey.InvalidRequestBody));
+            Ensure.That(!ordered.Zip(ordered.Skip(1)).Any(x => x.First.EndMinute > x.Second.StartMinute), Messages.Text(MessageKey.InvalidRequestBody));
         }
         // Refuse profile edits that would invalidate booked future sessions or active work.
         foreach (var requiredType in await repository.RequiredTypesAsync(staffId))
@@ -89,7 +89,7 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         await access.Horse(horseId);
         Check(Enum.IsDefined(trainingType), "invalid_training_type");
         if (user.Role == Role.HeadTrainer)
-            Ensure.That(await repository.IsHeadTrainerAsync(horseId, user.Id), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
+            Ensure.That(await repository.IsHeadTrainerAsync(horseId, user.Id), Messages.Text(MessageKey.PermissionDenied), 403, "forbidden");
         var trainers = await repository.TrainersAsync();
         var expertise = await repository.ExpertiseAsync(trainers.Select(x => x.User.Id).ToArray());
         return trainers.Select(x =>
@@ -106,11 +106,11 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         Ensure.Role(await current.Get(), Role.ClubManager, Role.HeadTrainer, Role.Trainer);
         var horse = await access.Horse(horseId);
         Ensure.That(date != default && date < DateOnly.MaxValue && durationMinutes is >= 1 and <= 480 && Enum.IsDefined(trainingType) && Enum.IsDefined(intensity)
-            && distanceMetres is > 0 and <= 100000, Messages.Get(MessageKey.InvalidRequestBody));
+            && distanceMetres is > 0 and <= 100000, Messages.Text(MessageKey.InvalidRequestBody));
         if (exceptSessionId.HasValue)
         {
             var session = Ensure.Found(await training.FindSessionAsync(exceptSessionId.Value));
-            Ensure.That(session.HorseId == horseId && session.Status is SessionStatus.Planned or SessionStatus.Assigned, Messages.Get(MessageKey.InvalidRequestBody));
+            Ensure.That(session.HorseId == horseId && session.Status is SessionStatus.Planned or SessionStatus.Assigned, Messages.Text(MessageKey.InvalidRequestBody));
         }
         var start = calendar.At(date, 0); var end = calendar.At(date.AddDays(1), 0);
         var now = clock.GetUtcNow();

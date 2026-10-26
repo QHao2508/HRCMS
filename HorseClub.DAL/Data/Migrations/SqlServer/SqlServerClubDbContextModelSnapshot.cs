@@ -867,6 +867,11 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<string>("MessageCode")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
                     b.Property<bool>("Read")
                         .HasColumnType("bit");
 

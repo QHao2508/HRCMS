@@ -9,7 +9,7 @@ namespace HorseClub.BLL.Abstractions.Services;
 /// <summary>Application operations implemented by ReportingService.</summary>
 public interface IReportingService
 {
-    Task<PageResponse<Notification>> ListNotifications(bool? unread, int? page, int? pageSize);
+    Task<PageResponse<NotificationResponse>> ListNotifications(bool? unread, int? page, int? pageSize);
     Task<OperationResult> MarkNotificationRead(Guid id);
     Task<PageResponse<AuditEvent>> ListAudit(Guid? referenceId, int? page, int? pageSize);
     Task<DashboardResponse> GetDashboard();

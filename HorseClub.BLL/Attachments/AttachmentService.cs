@@ -44,23 +44,23 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
     public async Task<OperationResult> UploadAttachment(Guid registrationId, UploadRequest request)
     {
         var reg = await access.Registration(registrationId); var u = await current.Get();
-        Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired || u.Role == Role.ClubManager && reg.Status == RegistrationStatus.PendingReview, Messages.Get(MessageKey.CannotAddDocumentsInThisState), 409, "invalid_state");
-        Ensure.That(request.HasFormContentType, Messages.Get(MessageKey.MultipartFormDataRequired));
+        Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired || u.Role == Role.ClubManager && reg.Status == RegistrationStatus.PendingReview, Messages.Text(MessageKey.CannotAddDocumentsInThisState), 409, "invalid_state");
+        Ensure.That(request.HasFormContentType, Messages.Text(MessageKey.MultipartFormDataRequired));
         var form = await request.ReadFormAsync(); var file = form.Files.GetFile("file");
-        Ensure.That(file is not null && file.Length > 0 && file.Length <= options.Value.MaxFileBytes, Messages.Get(MessageKey.UploadOneFileUpToBytes, options.Value.MaxFileBytes));
+        Ensure.That(file is not null && file.Length > 0 && file.Length <= options.Value.MaxFileBytes, Messages.Text(MessageKey.UploadOneFileUpToBytes, options.Value.MaxFileBytes));
         var rawType = form["type"].ToString();
-        Ensure.That(Enum.TryParse<AttachmentType>(rawType, false, out var type) && Enum.IsDefined(type) && !int.TryParse(rawType, out _) && type != AttachmentType.IncidentPhoto, Messages.Get(MessageKey.InvalidAttachmentType));
+        Ensure.That(Enum.TryParse<AttachmentType>(rawType, false, out var type) && Enum.IsDefined(type) && !int.TryParse(rawType, out _) && type != AttachmentType.IncidentPhoto, Messages.Text(MessageKey.InvalidAttachmentType));
         // Ảnh nhận diện ngựa chỉ giữ một bản: ảnh mới thay ảnh cũ, ảnh cũ bị xóa khỏi DB và storage sau khi commit.
         List<Attachment> replacedPhotos = type == AttachmentType.HorsePhoto ? await repository.ListHorsePhotosForReplaceAsync(registrationId) : new List<Attachment>();
-        Ensure.That(await repository.CountAttachmentsAsync(registrationId) - replacedPhotos.Count < options.Value.MaxAttachmentsPerRecord, Messages.Get(MessageKey.AttachmentLimitReached));
+        Ensure.That(await repository.CountAttachmentsAsync(registrationId) - replacedPhotos.Count < options.Value.MaxAttachmentsPerRecord, Messages.Text(MessageKey.AttachmentLimitReached));
         var bytes = new byte[file!.Length];
         await using (var stream = file.OpenReadStream()) await stream.ReadExactlyAsync(bytes);
         var contentType = Detect(bytes);
-        Ensure.That(contentType is not null && (type != AttachmentType.HorsePhoto || contentType.StartsWith("image/")), Messages.Get(MessageKey.OnlyValidPNGJPEGOrPDFFilesAreAccepted));
+        Ensure.That(contentType is not null && (type != AttachmentType.HorsePhoto || contentType.StartsWith("image/")), Messages.Text(MessageKey.OnlyValidPNGJPEGOrPDFFilesAreAccepted));
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        Ensure.That(contentType switch { "image/png" => extension == ".png", "image/jpeg" => extension is ".jpg" or ".jpeg", "application/pdf" => extension == ".pdf", _ => false }, Messages.Get(MessageKey.FileExtensionMustMatchItsContent));
+        Ensure.That(contentType switch { "image/png" => extension == ".png", "image/jpeg" => extension is ".jpg" or ".jpeg", "application/pdf" => extension == ".pdf", _ => false }, Messages.Text(MessageKey.FileExtensionMustMatchItsContent));
         DateOnly? issue = ParseDate(form["issueDate"].ToString()); DateOnly? expiry = ParseDate(form["expiryDate"].ToString());
-        Ensure.That(!issue.HasValue || !expiry.HasValue || expiry >= issue, Messages.Get(MessageKey.CertificateDatesAreInvalid));
+        Ensure.That(!issue.HasValue || !expiry.HasValue || expiry >= issue, Messages.Text(MessageKey.CertificateDatesAreInvalid));
         var attachment = new Attachment
         {
             RegistrationId = registrationId,
@@ -74,7 +74,7 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
             IssueDate = issue,
             ExpiryDate = expiry
         };
-        Ensure.That(attachment.FileName.Length <= 200 && attachment.CertificateNumber.Length <= 100, Messages.Get(MessageKey.FilenameOrCertificateNumberIsTooLong));
+        Ensure.That(attachment.FileName.Length <= 200 && attachment.CertificateNumber.Length <= 100, Messages.Text(MessageKey.FilenameOrCertificateNumberIsTooLong));
 
         await storage.Write(attachment.StorageName, bytes, request.CancellationToken, contentType!);
         foreach (var old in replacedPhotos) { repository.RemoveAttachment(old); storage.DeleteAfterCommit(old.StorageName); }
@@ -102,7 +102,7 @@ public sealed class AttachmentService(ClubAccess access, IFileRepository reposit
     public static DateOnly? ParseDate(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
-        Ensure.That(DateOnly.TryParseExact(value, "yyyy-MM-dd", out var date), Messages.Get(MessageKey.DateMustBeYyyyMMDd)); return date;
+        Ensure.That(DateOnly.TryParseExact(value, "yyyy-MM-dd", out var date), Messages.Text(MessageKey.DateMustBeYyyyMMDd)); return date;
     }
     /// <summary>
     /// Nhận diện PNG/JPEG/PDF bằng chữ ký bytes; không tin tên file hoặc MIME client gửi.

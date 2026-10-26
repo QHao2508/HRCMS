@@ -8,11 +8,28 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
 {
     private static async Task<DataPage<T>> Page<T>(IQueryable<T> query, int page, int size) where T : class
         => await query.AsNoTracking().ToPageAsync(page, size);
-    public Task<DataPage<Notification>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size)
+    public Task<DataPage<NotificationListItem>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size)
     {
         var query = db.Notifications.Where(x => x.RecipientId == recipientId);
         if (unread) query = query.Where(x => !x.Read);
-        return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
+        // ReferenceId trỏ tới ngựa hoặc tới công việc thuộc một ngựa; suy ra ngựa khi đọc để thông báo cũ cũng có ngữ cảnh.
+        var withHorse = query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).Select(n => new
+        {
+            n,
+            HorseId = db.Horses.Where(h => h.Id == n.ReferenceId).Select(h => (Guid?)h.Id).FirstOrDefault()
+                ?? db.CareTasks.Where(t => t.Id == n.ReferenceId).Select(t => (Guid?)t.HorseId).FirstOrDefault()
+                ?? db.Sessions.Where(t => t.Id == n.ReferenceId).Select(t => (Guid?)t.HorseId).FirstOrDefault()
+                ?? db.Treatments.Where(t => t.Id == n.ReferenceId).Select(t => (Guid?)t.HorseId).FirstOrDefault()
+                ?? db.PreventiveCare.Where(t => t.Id == n.ReferenceId).Select(t => (Guid?)t.HorseId).FirstOrDefault()
+                ?? db.Incidents.Where(t => t.Id == n.ReferenceId).Select(t => (Guid?)t.HorseId).FirstOrDefault()
+        });
+        var items = withHorse.Select(x => new NotificationListItem(x.n.Id, x.n.Type, x.n.MessageCode, x.n.ReferenceId, x.HorseId,
+            db.Horses.Where(h => h.Id == x.HorseId).Select(h => h.Name).FirstOrDefault(),
+            db.Registrations.Where(r => r.Id == x.n.ReferenceId).Select(r => r.Name).FirstOrDefault()
+                ?? db.Inventory.Where(i => i.Id == x.n.ReferenceId).Select(i => i.Name).FirstOrDefault()
+                ?? db.Replenishments.Where(r => r.Id == x.n.ReferenceId).Join(db.Inventory, r => r.ItemId, i => i.Id, (r, i) => i.Name).FirstOrDefault(),
+            x.n.Read, x.n.CreatedAt));
+        return items.ToPageAsync(page, size);
     }
     public Task<Notification?> GetNotificationAsync(Guid recipientId, Guid id) => db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.RecipientId == recipientId);
     public Task<DataPage<AuditEvent>> ListAuditAsync(Guid? referenceId, int page, int size)

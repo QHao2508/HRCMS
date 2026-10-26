@@ -35,7 +35,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
         var reg = await access.Registration(id); var u = await current.Get();
         if (u.Role == Role.ClubManager)
         {
-            Ensure.That(reg.Status == RegistrationStatus.PendingReview, Messages.Get(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
+            Ensure.That(reg.Status == RegistrationStatus.PendingReview, Messages.Text(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
             Ensure.That((r.Sire is null || r.Sire == reg.Sire) && (r.Dam is null || r.Dam == reg.Dam)
                 && (!r.DateOfBirth.HasValue || r.DateOfBirth == reg.DateOfBirth) && (!r.Gender.HasValue || r.Gender == reg.Gender)
                 && (r.Breed is null || r.Breed == reg.Breed) && (!r.HeightCm.HasValue || r.HeightCm == reg.HeightCm)
@@ -44,7 +44,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
                 && (!r.PreferredHeadTrainerId.HasValue || r.PreferredHeadTrainerId == reg.PreferredHeadTrainerId)
                 && (!r.PreferredGroomId.HasValue || r.PreferredGroomId == reg.PreferredGroomId)
                 && (!r.PreferredVeterinarianId.HasValue || r.PreferredVeterinarianId == reg.PreferredVeterinarianId),
-                Messages.Get(MessageKey.ManagerMayOnlyEditAdministrativeRegistrationFields), 403, "forbidden");
+                Messages.Text(MessageKey.ManagerMayOnlyEditAdministrativeRegistrationFields), 403, "forbidden");
             var before = new { reg.Name, reg.RegistrationNumber, reg.BoardingStart, reg.BoardingEnd };
             var administrative = Draft(reg) with
             {
@@ -61,7 +61,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
         else
         {
             Ensure.Role(u, Role.HorseOwner);
-            Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
+            Ensure.That(reg.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Text(MessageKey.RegistrationCannotBeEditedInThisState), 409, "invalid_state");
             await Apply(reg, r); await events.Audit(AuditAction.RegistrationEdited, reg.Id);
         }
         await events.RefreshRegistration(reg); await unitOfWork.SaveChangesAsync(); return reg;
@@ -75,7 +75,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     {
         Ensure.Role(await current.Get(), Role.HorseOwner);
         var r = await access.Registration(id);
-        Ensure.That(r.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.OnlyDraftsOrRevisionsMayBeSubmitted), 409, "invalid_state");
+        Ensure.That(r.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Text(MessageKey.OnlyDraftsOrRevisionsMayBeSubmitted), 409, "invalid_state");
         await ValidateReady(r);
         r.Status = RegistrationStatus.PendingReview; r.ReviewReason = null;
         await events.Managers(NotificationType.RegistrationReview, MessageKey.AHorseRegistrationRequiresReview, id);
@@ -92,11 +92,11 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     {
         var u = await current.Get(); Ensure.Role(u, Role.ClubManager);
         var r = await access.Registration(id);
-        Ensure.That(r.Status == RegistrationStatus.PendingReview, Messages.Get(MessageKey.RegistrationIsNotPendingReview), 409, "invalid_state");
+        Ensure.That(r.Status == RegistrationStatus.PendingReview, Messages.Text(MessageKey.RegistrationIsNotPendingReview), 409, "invalid_state");
         r.ReviewedBy = u.Id;
         if (!request.Approve)
         {
-            Ensure.That(!string.IsNullOrWhiteSpace(request.Reason), Messages.Get(MessageKey.ARevisionReasonIsRequired));
+            Ensure.That(!string.IsNullOrWhiteSpace(request.Reason), Messages.Text(MessageKey.ARevisionReasonIsRequired));
             r.Status = RegistrationStatus.RevisionRequired; r.ReviewReason = request.Reason;
             events.Notify(r.OwnerId, NotificationType.RegistrationRevision, MessageKey.YourHorseRegistrationRequiresRevision, id);
             await events.Audit(AuditAction.RegistrationRevisionRequested, id);
@@ -133,11 +133,11 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     {
         Ensure.Validate(r);
         var today = calendar.Today(clock);
-        Ensure.That(!r.DateOfBirth.HasValue || (r.DateOfBirth.Value != default && r.DateOfBirth <= today), Messages.Get(MessageKey.DateOfBirthMustBeValidAndNotIn));
-        Ensure.That(!r.MeasurementDate.HasValue || (r.MeasurementDate.Value != default && r.MeasurementDate <= today && (!r.DateOfBirth.HasValue || r.MeasurementDate >= r.DateOfBirth)), Messages.Get(MessageKey.MeasurementDateIsInvalid));
-        Ensure.That((!r.BoardingStart.HasValue || r.BoardingStart.Value != default) && (!r.BoardingEnd.HasValue || (r.BoardingEnd.Value != default && (!r.BoardingStart.HasValue || r.BoardingEnd >= r.BoardingStart))), Messages.Get(MessageKey.BoardingDatesAreInvalid));
+        Ensure.That(!r.DateOfBirth.HasValue || (r.DateOfBirth.Value != default && r.DateOfBirth <= today), Messages.Text(MessageKey.DateOfBirthMustBeValidAndNotIn));
+        Ensure.That(!r.MeasurementDate.HasValue || (r.MeasurementDate.Value != default && r.MeasurementDate <= today && (!r.DateOfBirth.HasValue || r.MeasurementDate >= r.DateOfBirth)), Messages.Text(MessageKey.MeasurementDateIsInvalid));
+        Ensure.That((!r.BoardingStart.HasValue || r.BoardingStart.Value != default) && (!r.BoardingEnd.HasValue || (r.BoardingEnd.Value != default && (!r.BoardingStart.HasValue || r.BoardingEnd >= r.BoardingStart))), Messages.Text(MessageKey.BoardingDatesAreInvalid));
         Ensure.That((!r.HeightCm.HasValue || r.HeightCm >= options.Value.MinHorseHeightCm && r.HeightCm <= options.Value.MaxHorseHeightCm)
-            && (!r.WeightKg.HasValue || r.WeightKg >= options.Value.MinHorseWeightKg && r.WeightKg <= options.Value.MaxHorseWeightKg), Messages.Get(MessageKey.HorseMeasurementsOutsideConfiguredLimits));
+            && (!r.WeightKg.HasValue || r.WeightKg >= options.Value.MinHorseWeightKg && r.WeightKg <= options.Value.MaxHorseWeightKg), Messages.Text(MessageKey.HorseMeasurementsOutsideConfiguredLimits));
         if (r.PreferredHeadTrainerId is Guid head) await access.Staff(head, Role.HeadTrainer);
         if (r.PreferredGroomId is Guid groom) await access.Staff(groom, Role.Groom);
         if (r.PreferredVeterinarianId is Guid vet) await access.Staff(vet, Role.Veterinarian);
@@ -162,10 +162,10 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
         foreach (var field in new (string Name, object? Value)[] { (nameof(r.DateOfBirth), r.DateOfBirth), (nameof(r.Gender), r.Gender),
             (nameof(r.HeightCm), r.HeightCm), (nameof(r.WeightKg), r.WeightKg), (nameof(r.MeasurementDate), r.MeasurementDate), (nameof(r.BoardingStart), r.BoardingStart) })
             if (field.Value is null) missing.Add(field.Name);
-        Ensure.That(missing.Count == 0, Messages.Get(MessageKey.RegistrationMissingFields, string.Join(", ", missing)));
+        Ensure.That(missing.Count == 0, Messages.Text(MessageKey.RegistrationMissingFields, string.Join(", ", missing)));
         await Apply(r, Draft(r));
-        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.HorsePhoto), Messages.Get(MessageKey.AddAHorsePhotoBeforeSubmission));
-        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.Certificate), Messages.Get(MessageKey.AddACertificateBeforeSubmission));
+        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.HorsePhoto), Messages.Text(MessageKey.AddAHorsePhotoBeforeSubmission));
+        Ensure.That(await repository.HasAttachmentAsync(r.Id, AttachmentType.Certificate), Messages.Text(MessageKey.AddACertificateBeforeSubmission));
     }
 
     /// <summary>
@@ -243,7 +243,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     {
         Ensure.Role(await current.Get(), Role.HorseOwner);
         var record = await access.Registration(id);
-        Ensure.That(record.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Get(MessageKey.OnlyDraftRevisionRegistrationsMayBeCancelled), 409, "invalid_state");
+        Ensure.That(record.Status is RegistrationStatus.Draft or RegistrationStatus.RevisionRequired, Messages.Text(MessageKey.OnlyDraftRevisionRegistrationsMayBeCancelled), 409, "invalid_state");
         record.Status = RegistrationStatus.Cancelled; await events.Audit(AuditAction.RegistrationCancelled, id);
         await events.RefreshRegistration(record); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }

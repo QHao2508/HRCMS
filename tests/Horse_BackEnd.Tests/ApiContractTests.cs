@@ -101,7 +101,8 @@ public sealed class ApiContractTests
         var invalidPage = await client.GetAsync("/api/staff?page=0");
         Assert.Equal(HttpStatusCode.BadRequest, invalidPage.StatusCode);
         var error = await invalidPage.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(new[] { "detail", "referenceId", "status", "title", "traceId", "type" }, error.EnumerateObject().Select(x => x.Name).Order().ToArray());
+        Assert.Equal(new[] { "args", "detail", "messageKey", "referenceId", "status", "title", "traceId", "type" }, error.EnumerateObject().Select(x => x.Name).Order().ToArray());
+        Assert.Equal("PageMustBePositiveAndPageSizeBetween1And", error.GetProperty("messageKey").GetString());
         Assert.Equal(400, error.GetProperty("status").GetInt32());
         Assert.False(string.IsNullOrWhiteSpace(error.GetProperty("traceId").GetString()));
         var invalidLogin = await factory.CreateClient().PostAsJsonAsync("/api/auth/login", new { email = "missing@example.test", password = "invalid" });

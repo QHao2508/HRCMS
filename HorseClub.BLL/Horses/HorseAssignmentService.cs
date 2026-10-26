@@ -17,17 +17,17 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
     public async Task<StaffAssignment> Assign(Guid horseId, AssignmentRequest r)
     {
         var u = await current.Get(); var horse = await access.Horse(horseId);
-        Ensure.That(r.StartDate != default && r.StartDate <= calendar.Today(clock), Messages.Get(MessageKey.AssignmentsStartTodayOrEarlierFutureSchedulingIsNot));
-        Ensure.That(r.EndDate is null || r.EndDate >= r.StartDate, Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(r.StartDate != default && r.StartDate <= calendar.Today(clock), Messages.Text(MessageKey.AssignmentsStartTodayOrEarlierFutureSchedulingIsNot));
+        Ensure.That(r.EndDate is null || r.EndDate >= r.StartDate, Messages.Text(MessageKey.InvalidRequestBody));
         if (r.Role == Role.Trainer)
         {
             // Manager được phân công Trainer thay HeadTrainer (ví dụ HeadTrainer vắng) nhưng bắt buộc ghi lý do vào ghi chú.
             Ensure.Role(u, Role.HeadTrainer);
-            Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Get(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
+            Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Text(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
         }
-        else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Get(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
+        else { Ensure.Role(u, Role.ClubManager); Ensure.That(r.Role is Role.HeadTrainer or Role.Groom or Role.Veterinarian, Messages.Text(MessageKey.UnsupportedAdministrativeAssignmentRole)); }
         await access.Staff(r.StaffId, r.Role);
-        Ensure.That(r.Role == Role.Trainer || r.RequiredTrainingType is null, Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(r.Role == Role.Trainer || r.RequiredTrainingType is null, Messages.Text(MessageKey.InvalidRequestBody));
         var requiredType = r.RequiredTrainingType;
         if (r.Role == Role.Trainer)
         {
@@ -36,11 +36,11 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         }
         foreach (var old in await repository.GetActiveAsync(horseId, r.Role))
         {
-            Ensure.That(r.StartDate >= old.StartDate, Messages.Get(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
+            Ensure.That(r.StartDate >= old.StartDate, Messages.Text(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
             if (r.Role == Role.Groom && old.StaffId != r.StaffId)
             {
                 var inProgress = await repository.GetInProgressCareAsync(horseId, old.StaffId);
-                Ensure.That(inProgress.Count == 0 || r.TakeOverInProgress && !string.IsNullOrWhiteSpace(r.TakeOverReason) && r.TakeOverReason.Trim().Length <= 2000, Messages.Get(MessageKey.FinishCareBeforeReassignment), 409, "care_in_progress");
+                Ensure.That(inProgress.Count == 0 || r.TakeOverInProgress && !string.IsNullOrWhiteSpace(r.TakeOverReason) && r.TakeOverReason.Trim().Length <= 2000, Messages.Text(MessageKey.FinishCareBeforeReassignment), 409, "care_in_progress");
                 foreach (var task in inProgress)
                 {
                     task.GroomId = r.StaffId;
