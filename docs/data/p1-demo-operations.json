@@ -1,0 +1,28 @@
+{
+  "batchKey": "P1-DEMO-20261026",
+  "templateSystemKey": "steady-canter",
+  "trainers": [
+    { "userName": "trainer.an", "expectedEligibility": "MissingSpecialty", "specialties": [{ "trainingType": "Walk", "level": 3 }, { "trainingType": "Trot", "level": 3 }, { "trainingType": "Recovery", "level": 2 }] },
+    { "userName": "trainer.bao", "expectedEligibility": "Eligible", "specialties": [{ "trainingType": "Canter", "level": 3 }, { "trainingType": "Gallop", "level": 3 }, { "trainingType": "Sprint", "level": 3 }, { "trainingType": "StartingGate", "level": 2 }] },
+    { "userName": "trainer.son", "expectedEligibility": "BelowMinimumLevel", "specialties": [{ "trainingType": "Walk", "level": 2 }, { "trainingType": "Trot", "level": 2 }, { "trainingType": "Canter", "level": 1 }, { "trainingType": "Recovery", "level": 3 }] }
+  ],
+  "receipts": [
+    { "name": "Cỏ khô Timothy", "unit": "kg", "quantity": 200 },
+    { "name": "Cỏ khô Alfalfa", "unit": "kg", "quantity": 150 },
+    { "name": "Yến mạch hạt cho ngựa", "unit": "kg", "quantity": 100 },
+    { "name": "Bã củ cải đường khô", "unit": "kg", "quantity": 50 },
+    { "name": "Vắc xin ProteqFlu-Te cho ngựa", "unit": "lọ", "quantity": 10 },
+    { "name": "Eqvalan Ivermectin 18,7 mg/g dạng uống cho ngựa", "unit": "tuýp", "quantity": 20 },
+    { "name": "Flunixin meglumine dạng tiêm cho ngựa", "unit": "lọ", "quantity": 10 },
+    { "name": "Phenylbutazone dạng tiêm cho ngựa", "unit": "lọ", "quantity": 10 },
+    { "name": "Penicillin G procaine dạng tiêm cho ngựa", "unit": "lọ", "quantity": 10 },
+    { "name": "Hỗn hợp vitamin và khoáng cho ngựa", "unit": "kg", "quantity": 25 },
+    { "name": "Bột điện giải dành cho ngựa", "unit": "kg", "quantity": 15 },
+    { "name": "Kim tiêm thú y vô trùng", "unit": "cái", "quantity": 100 },
+    { "name": "Ống tiêm thú y dùng một lần", "unit": "cái", "quantity": 100 },
+    { "name": "Gạc vô trùng chăm sóc vết thương", "unit": "gói", "quantity": 50 },
+    { "name": "Dung dịch sát khuẩn povidone-iodine", "unit": "chai", "quantity": 10 },
+    { "name": "Mùn cưa gỗ thông lót chuồng", "unit": "kg", "quantity": 300 },
+    { "name": "Đá muối khoáng cho ngựa", "unit": "viên", "quantity": 20 }
+  ]
+}

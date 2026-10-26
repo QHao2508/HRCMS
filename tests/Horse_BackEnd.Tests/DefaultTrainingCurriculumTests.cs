@@ -5,12 +5,45 @@ using HorseClub.DAL.Entities;
 using HorseClub.DAL.Enums;
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Xunit;
 
 namespace Horse_BackEnd.Tests;
 
 public sealed class DefaultTrainingCurriculumTests
 {
+    [Fact]
+    public async Task LocalizationMigrationPreservesKeysPersonalCopiesAndExistingTrainingHistory()
+    {
+        await using var factory = new ClubFactory();
+        var owner = await factory.User(Role.HorseOwner); var trainer = await factory.User(Role.Trainer);
+        var horse = await factory.Horse(owner, trainer);
+        await WorkerTests.Read(factory, async db =>
+        {
+            var migrator = db.GetService<IMigrator>();
+            await migrator.MigrateAsync("20261026020000_NotificationMessageCodes");
+            db.ChangeTracker.Clear();
+            var shared = await db.Templates.SingleAsync(t => t.SystemKey == "steady-canter");
+            var oldGoal = shared.Goal; var oldJson = shared.CurriculumJson;
+            var keys = TemplateCurriculumPolicy.Read(shared)!.SessionOptions.Select(o => o.Key).ToArray();
+            var personal = new TrainingTemplate { Name = "Giáo án cá nhân", Goal = oldGoal, CurriculumJson = oldJson, MinimumExpertiseLevel = 2, RequiredTrainingTypesJson = shared.RequiredTrainingTypesJson };
+            var plan = new TrainingPlan { HorseId = horse.Id, TrainerId = trainer.Id, TemplateId = shared.Id, Goal = oldGoal, TemplatePlanOptionKey = "standard", StartDate = new(2026, 10, 26), EndDate = new(2026, 11, 2) };
+            var session = new TrainingSession { HorseId = horse.Id, PlanId = plan.Id, TrainingType = TrainingType.Canter, TemplateExerciseKey = "canter-light", Target = "Giữ nhịp canter đều.", ScheduledAt = DateTimeOffset.UtcNow };
+            db.Templates.Add(personal); db.Plans.Add(plan); db.Sessions.Add(session); await db.SaveChangesAsync();
+            await migrator.MigrateAsync(); db.ChangeTracker.Clear();
+            var localized = await db.Templates.SingleAsync(t => t.Id == shared.Id);
+            Assert.Contains("nước đại chậm", localized.Goal);
+            Assert.Equal(keys, TemplateCurriculumPolicy.Read(localized)!.SessionOptions.Select(o => o.Key));
+            Assert.All(TemplateCurriculumPolicy.Read(localized)!.SessionOptions, o => Assert.DoesNotContain("canter", o.Label, StringComparison.OrdinalIgnoreCase));
+            Assert.Equal(oldJson, (await db.Templates.FindAsync(personal.Id))!.CurriculumJson);
+            Assert.Equal(oldGoal, (await db.Plans.FindAsync(plan.Id))!.Goal);
+            var saved = (await db.Sessions.FindAsync(session.Id))!;
+            Assert.Equal("canter-light", saved.TemplateExerciseKey); Assert.Equal("Giữ nhịp canter đều.", saved.Target);
+        });
+    }
+
     [Fact]
     public void DefaultsHaveUniqueStableIdsAndValidatedIllustrativeChoices()
     {

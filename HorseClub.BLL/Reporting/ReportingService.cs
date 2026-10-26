@@ -33,6 +33,16 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
         notification.Read = true; await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
+    /// <summary>Đánh dấu toàn bộ thông báo chưa đọc của người hiện tại, không phụ thuộc trang đang xem.</summary>
+    public async Task<OperationResult> MarkAllNotificationsRead()
+    {
+        var user = await current.Get();
+        foreach (var notification in await queries.ListUnreadNotificationsAsync(user.Id)) notification.Read = true;
+        // Save through the unit of work so read signals and version updates share the request transaction.
+        await unitOfWork.SaveChangesAsync();
+        return OperationResult.NoContent();
+    }
+
     /// <summary>
     /// Đọc danh sách có lọc/phân trang nhật ký thao tác trong ReportingService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
     /// </summary>

@@ -7,9 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 var resetDemoPassword = args.Length == 3 && args[2] == "--reset-demo-password";
-if (args.Length != 2 && !resetDemoPassword)
+var p1Local = args.Length == 3 && args[2] == "--p1-local";
+if (args.Length != 2 && !resetDemoPassword && !p1Local)
 {
-    Console.Error.WriteLine("Usage: dotnet run --project tools/HorseClub.DemoSeed -- <repository-path> <existing-demo-database> [--reset-demo-password]");
+    Console.Error.WriteLine("Usage: dotnet run --project tools/HorseClub.DemoSeed -- <repository-path> <existing-demo-database> [--reset-demo-password | --p1-local]");
     return 2;
 }
 var root = args[0];
@@ -17,22 +18,24 @@ var expectedDatabase = args[1];
 try
 {
     root = Path.GetFullPath(root);
-    var config = new ConfigurationBuilder().AddJsonFile(Path.Combine(root, "Horse_BackEnd", "appsettings.json")).Build();
+    var config = new ConfigurationBuilder().AddJsonFile(Path.Combine(root, "Horse_BackEnd", "appsettings.json"))
+        .AddJsonFile(Path.Combine(root, "Horse_BackEnd", "appsettings.Development.json"), optional: true)
+        .AddUserSecrets("horseclub-backend").AddEnvironmentVariables().Build();
     var connection = new SqlConnectionStringBuilder(config.GetConnectionString("SqlServer"));
     // Explicit demo target and Windows authentication only; never migrate or create a database.
     if (connection.InitialCatalog != expectedDatabase || (expectedDatabase != "HRCMS" && !expectedDatabase.EndsWith("_Test", StringComparison.Ordinal))
         || !connection.IntegratedSecurity || connection.DataSource is not (@".\SQLEXPRESS" or @"localhost\SQLEXPRESS"))
-        throw new InvalidOperationException("Select local SQL Express HRCMS or a demo database ending in _Test. Target must match appsettings.json.");
+        throw new InvalidOperationException("Select local SQL Express HRCMS or a demo database ending in _Test. Target must match the effective Development configuration.");
     var json = new JsonSerializerOptions(JsonSerializerDefaults.Web)
     { WriteIndented = true, Converters = { new JsonStringEnumConverter(allowIntegerValues: false) } };
     var accounts = JsonSerializer.Deserialize<List<DemoAccountSeeder.Account>>(
-        await File.ReadAllTextAsync(Path.Combine(root, "docs", "demo", "BE02-accounts.json")), json)
+        await File.ReadAllTextAsync(Path.Combine(root, "docs", "demo", p1Local ? "P1-local-accounts.json" : "BE02-accounts.json")), json)
         ?? throw new InvalidOperationException("Demo accounts configuration missing.");
     if (accounts.Count == 0 || accounts.Select(a => a.Email).Distinct(StringComparer.OrdinalIgnoreCase).Count() != accounts.Count
         || accounts.Select(a => a.UserName).Distinct(StringComparer.OrdinalIgnoreCase).Count() != accounts.Count
         || accounts.Any(a => !a.Email.EndsWith("@example.test", StringComparison.OrdinalIgnoreCase)))
         throw new InvalidOperationException("Demo accounts must have unique names/emails in example.test.");
-    var credentialPath = Path.Combine(root, "TestResults", "BE02", "demo-credentials.json");
+    var credentialPath = Path.Combine(root, "TestResults", p1Local ? "P1-local" : "BE02", "demo-credentials.json");
     Directory.CreateDirectory(Path.GetDirectoryName(credentialPath)!);
     string password;
     if (resetDemoPassword)

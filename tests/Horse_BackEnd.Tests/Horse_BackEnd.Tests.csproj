@@ -15,4 +15,8 @@
   <ItemGroup><ProjectReference Include="../../Horse_BackEnd/Horse_BackEnd.csproj" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../../tools/HorseClub.ReferenceImport/HorseClub.ReferenceImport.csproj" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../../tools/HorseClub.OperationalData/HorseClub.OperationalData.csproj" /></ItemGroup>
+  <ItemGroup>
+    <None Include="../../docs/data/operational-catalog.proposed.json" Link="data/operational-catalog.proposed.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../docs/data/p1-demo-operations.json" Link="data/p1-demo-operations.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

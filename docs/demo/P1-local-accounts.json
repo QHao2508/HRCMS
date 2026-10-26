@@ -1,0 +1,11 @@
+[
+  { "email": "p1.manager@example.test", "userName": "p1.manager", "role": "ClubManager", "firstName": "Quản lý", "lastName": "Kiểm thử", "phone": "0900000001", "address": "Môi trường kiểm thử local" },
+  { "email": "p1.owner@example.test", "userName": "p1.owner", "role": "HorseOwner", "firstName": "Chủ ngựa", "lastName": "Kiểm thử", "phone": "0900000002", "address": "Môi trường kiểm thử local" },
+  { "email": "p1.head@example.test", "userName": "p1.head", "role": "HeadTrainer", "firstName": "Huấn luyện viên", "lastName": "Trưởng", "phone": "0900000003", "address": "Môi trường kiểm thử local" },
+  { "email": "trainer.an@example.test", "userName": "trainer.an", "role": "Trainer", "firstName": "Nguyễn Minh", "lastName": "An", "phone": "0900000004", "address": "Môi trường kiểm thử local" },
+  { "email": "trainer.bao@example.test", "userName": "trainer.bao", "role": "Trainer", "firstName": "Trần Gia", "lastName": "Bảo", "phone": "0900000005", "address": "Môi trường kiểm thử local" },
+  { "email": "trainer.son@example.test", "userName": "trainer.son", "role": "Trainer", "firstName": "Lê Hoàng", "lastName": "Sơn", "phone": "0900000006", "address": "Môi trường kiểm thử local" },
+  { "email": "p1.rider@example.test", "userName": "p1.rider", "role": "WorkRider", "firstName": "Kỵ sĩ", "lastName": "Kiểm thử", "phone": "0900000007", "address": "Môi trường kiểm thử local" },
+  { "email": "p1.vet@example.test", "userName": "p1.vet", "role": "Veterinarian", "firstName": "Bác sĩ", "lastName": "Thú y", "phone": "0900000008", "address": "Môi trường kiểm thử local" },
+  { "email": "p1.groom@example.test", "userName": "p1.groom", "role": "Groom", "firstName": "Nhân viên", "lastName": "Chăm sóc", "phone": "0900000009", "address": "Môi trường kiểm thử local" }
+]

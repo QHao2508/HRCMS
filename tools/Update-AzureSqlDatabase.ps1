@@ -44,7 +44,8 @@ SELECT DB_NAME() AS TargetDatabase, COUNT(*) AS ExistingTables FROM sys.tables W
 "@
     & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -b -l 30 -Q $preflight
     if ($LASTEXITCODE -ne 0) { throw 'Azure SQL preflight failed; no migration applied.' }
-    & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -I -b -l 30 -i $schemaPath
+    # The schema contains Vietnamese seed data; never let the Windows ANSI code page decode UTF-8 input.
+    & sqlcmd -S $connection.DataSource -d $connection.InitialCatalog -U $connection.UserID -N -I -b -f 65001 -l 30 -i $schemaPath
     if ($LASTEXITCODE -ne 0) { throw 'Migration failed. Review the SQL error before retrying.' }
     $verify = @"
 SET NOCOUNT ON;

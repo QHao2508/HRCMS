@@ -32,6 +32,8 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
         return items.ToPageAsync(page, size);
     }
     public Task<Notification?> GetNotificationAsync(Guid recipientId, Guid id) => db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.RecipientId == recipientId);
+    public Task<List<Notification>> ListUnreadNotificationsAsync(Guid recipientId)
+        => db.Notifications.Where(x => x.RecipientId == recipientId && !x.Read).ToListAsync();
     public Task<DataPage<AuditEvent>> ListAuditAsync(Guid? referenceId, int page, int size)
     {
         var query = db.Audit.AsQueryable();

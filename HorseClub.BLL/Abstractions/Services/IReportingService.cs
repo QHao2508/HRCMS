@@ -11,6 +11,7 @@ public interface IReportingService
 {
     Task<PageResponse<NotificationResponse>> ListNotifications(bool? unread, int? page, int? pageSize);
     Task<OperationResult> MarkNotificationRead(Guid id);
+    Task<OperationResult> MarkAllNotificationsRead();
     Task<PageResponse<AuditEvent>> ListAudit(Guid? referenceId, int? page, int? pageSize);
     Task<DashboardResponse> GetDashboard();
     Task<OperationResult> BuildReport(Guid? horseId, DateTimeOffset? from, DateTimeOffset? to, ReportGrouping? groupBy);

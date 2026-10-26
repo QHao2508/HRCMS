@@ -1,5 +1,7 @@
 # Bước 4 — Hợp đồng API backend
 
+**26/10/2026 — thông báo:** thêm `POST /api/notifications/read-all`, yêu cầu Bearer token, trả `204 No Content`. Server lấy recipient từ người đăng nhập và đánh dấu toàn bộ thông báo chưa đọc, không phụ thuộc trang hiện tại. Không nhận danh sách ID/recipient từ client. Gọi lại không tạo thay đổi khi không có thông báo mới; notification read signals được lưu cùng transaction. Không cần migration mới.
+
 **Cập nhật 10/10/2026:** hoàn thiện backend task Khoa #5–#10: archive và historical scope, selected medical clearance, timeline assessment/correction và kiểm chứng preventive care theo ngày Việt Nam. Training names/search theo current Trainer, detail có horseArchived. Snapshot current: 80 paths, 105 operations, 151 schemas, 91 secured operations. Xem [báo cáo và contract task #5–#10](KHOA_TASK_05_10_COMPLETION.md), gồm thay đổi bắt buộc chọn ID khi clearance.
 
 **Cập nhật 09/10/2026:** triển khai quản trị nhân sự/OTP hai bước, audit có tên và bộ lọc, cấu hình website và tìm kiếm training theo tên. Snapshot current có 79 paths, 104 operations, 150 schemas, 90 operations yêu cầu Bearer; không còn schema response rỗng và cả ba upload có multipart. Xem [hợp đồng và hướng dẫn cập nhật](MANAGER_AND_TRAINING_UPDATE.md). Các số liệu bên dưới là lịch sử các giai đoạn trước.

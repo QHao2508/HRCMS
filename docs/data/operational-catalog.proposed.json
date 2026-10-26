@@ -5,7 +5,18 @@
     { "name": "Yến mạch hạt cho ngựa", "category": "Thức ăn tinh", "unit": "kg", "sourceUrl": "https://horses.extension.org/nutrients-and-common-feed-sources-for-horses/" },
     { "name": "Bã củ cải đường khô", "category": "Thức ăn bổ sung chất xơ", "unit": "kg", "sourceUrl": "https://horses.extension.org/nutrients-and-common-feed-sources-for-horses/" },
     { "name": "Vắc xin ProteqFlu-Te cho ngựa", "category": "Vắc xin cúm ngựa và uốn ván", "unit": "lọ", "sourceUrl": "https://www.ircp.anmv.anses.fr/fiche.aspx?NomMedicament=PROTEQFLU-TE+SUSPENSION+INJECTABLE+POUR+CHEVAUX" },
-    { "name": "Eqvalan Ivermectin 18,7 mg/g dạng uống cho ngựa", "category": "Thuốc thú y dạng uống", "unit": "tuýp", "sourceUrl": "https://www.vmd.defra.gov.uk/productinformationdatabase/product/A003145" }
+    { "name": "Eqvalan Ivermectin 18,7 mg/g dạng uống cho ngựa", "category": "Thuốc thú y dạng uống", "unit": "tuýp", "sourceUrl": "https://www.vmd.defra.gov.uk/productinformationdatabase/product/A003145" },
+    { "name": "Flunixin meglumine dạng tiêm cho ngựa", "category": "Thuốc thú y kháng viêm", "unit": "lọ", "sourceUrl": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=d777cba5-fbcf-4a29-bf03-838b1c696fae" },
+    { "name": "Phenylbutazone dạng tiêm cho ngựa", "category": "Thuốc thú y kháng viêm", "unit": "lọ", "sourceUrl": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=1da30fb5-bc45-45fc-9389-55f55721afa3" },
+    { "name": "Penicillin G procaine dạng tiêm cho ngựa", "category": "Thuốc thú y kháng sinh", "unit": "lọ", "sourceUrl": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=4049a09f-422f-4220-99ef-8dd6b846945b" },
+    { "name": "Hỗn hợp vitamin và khoáng cho ngựa", "category": "Thức ăn bổ sung", "unit": "kg", "sourceUrl": "https://extension.umn.edu/agriculture/animals-and-livestock/horse/feeding-your-horse-a-ration-balancer" },
+    { "name": "Bột điện giải dành cho ngựa", "category": "Thức ăn bổ sung", "unit": "kg", "sourceUrl": "https://extension.umn.edu/agriculture/animals-and-livestock/horse/caring-for-horses-during-hot-weather" },
+    { "name": "Kim tiêm thú y vô trùng", "category": "Vật tư y tế", "unit": "cái", "sourceUrl": "https://aaep.org/wp-content/uploads/2024/03/EmergencyCoverage-ToolkitFINAL.pdf" },
+    { "name": "Ống tiêm thú y dùng một lần", "category": "Vật tư y tế", "unit": "cái", "sourceUrl": "https://aaep.org/wp-content/uploads/2024/03/EmergencyCoverage-ToolkitFINAL.pdf" },
+    { "name": "Gạc vô trùng chăm sóc vết thương", "category": "Vật tư y tế", "unit": "gói", "sourceUrl": "https://horses.extension.org/first-aid-on-the-trail-for-horse-and-rider/" },
+    { "name": "Dung dịch sát khuẩn povidone-iodine", "category": "Vật tư sát khuẩn", "unit": "chai", "sourceUrl": "https://www.merckvetmanual.com/pharmacology/antiseptics-and-disinfectants/oxidizing-agents-as-antiseptics-and-disinfectants-for-use-with-animals" },
+    { "name": "Mùn cưa gỗ thông lót chuồng", "category": "Vật tư chuồng trại", "unit": "kg", "sourceUrl": "https://extension.psu.edu/horse-stable-manure-management" },
+    { "name": "Đá muối khoáng cho ngựa", "category": "Thức ăn bổ sung", "unit": "viên", "sourceUrl": "https://www.merckvetmanual.com/management-and-nutrition/nutrition-horses/nutritional-requirements-of-horses-and-other-equids" }
   ],
   "stables": [
     { "name": "Khu chuồng A", "stalls": ["A01", "A02", "A03", "A04", "A05", "A06"] },
