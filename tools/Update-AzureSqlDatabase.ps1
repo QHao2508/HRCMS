@@ -1,7 +1,7 @@
 param(
     [string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'),
-    # Must match the database saved by Set-AzureSqlConnection.ps1; HRCMS_SQL_DATABASE overrides the default HRCMS.
-    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'HRCMS' })
+    # Must match the database saved by Set-AzureSqlConnection.ps1; HRCMS_SQL_DATABASE overrides the default hrcms2.
+    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'hrcms2' })
 )
 $ErrorActionPreference = 'Stop'
 $secretPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Microsoft/UserSecrets/horseclub-backend/secrets.json'

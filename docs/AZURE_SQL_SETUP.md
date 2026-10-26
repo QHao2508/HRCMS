@@ -1,6 +1,8 @@
-# Azure SQL — HRCMS
+# Azure SQL — hrcms2
 
-Server: `hrcms.database.windows.net:1433`. Database: `HRCMS`. SQL administrator login: `hrcms`.
+Server: `hrcms.database.windows.net:1433`. Database: `hrcms2`. SQL administrator login: `hrcms`.
+
+On 26/10/2026, all 39 tables and 520 rows were copied from local `.\SQLEXPRESS / HRCMS` into the empty `hrcms2` database. Every table passed a full-content SHA-256 comparison and all foreign key/check constraints were validated before committing. See [migration record](HRCMS2_MIGRATION_2026-10-26.md). Local development User Secrets continue to point to local SQL; Azure uses the Container App `sql-connection` secret.
 
 Backend uses SQL Server EF migrations. Frontend continues to call the backend at localhost:5299 through the Vite proxy; database credentials never belong in frontend configuration.
 
@@ -14,7 +16,7 @@ Run from the backend repository in your own PowerShell terminal:
 
 The script prompts for a hidden password and updates only the SQL connection/provider/migration settings. It keeps other existing secrets. It does not apply migrations, print credentials or write a password into the repository. User Secrets are local development storage; for deployment provide the connection via the hosting environment's secret configuration.
 
-Current schema (13/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all eleven migrations, including trainer expertise/availability and public reference data. It contains 37 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
+Current schema (26/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all fifteen migrations. It contains 38 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
 
 After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies the application table count from the EF model snapshot and the migrations present in DAL source. It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
 

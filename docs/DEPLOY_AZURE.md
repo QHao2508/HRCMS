@@ -4,7 +4,7 @@ Phương án hiện tại: FE Azure Static Web Apps Free, BE Docker trên Azure 
 image riêng tư trên GitHub Container Registry (GHCR), Azure SQL/Blob hiện có.
 Không tạo ACR hoặc App Service Plan B1. Chỉ chuẩn bị local; bạn tự tạo tài nguyên trên Portal.
 
-## 0. Cấu hình đang chạy (16/10/2026)
+## 0. Cấu hình đang chạy (26/10/2026)
 
 Bản triển khai thực tế đơn giản hơn các mục bên dưới; các mục 3+ là phương án đầy đủ để tham khảo.
 
@@ -17,7 +17,7 @@ Bản triển khai thực tế đơn giản hơn các mục bên dưới; các m
 | Probes | Startup/Liveness/Readiness đều TCP 8080 (HTTP probe bị AllowedHosts trả 400) |
 | Scale | min 0 / max 1, HTTP rule 10 concurrent requests: không có truy cập ~5 phút thì về 0 replica, worker ngừng truy vấn nên SQL tự pause sau 1 giờ; lần mở đầu tiên chờ 30–60 giây (cold start BE + SQL resume) |
 | Worker | Email/Reminder/AccountCleanup chỉ truy vấn SQL khi có request người dùng trong `Workers:IdleAfterMinutes` (mặc định 10 phút; `/health` không tính). Hết khoảng đó worker ngừng chạm SQL nên SQL tự pause sau 1 giờ dù backend còn chạy (kể cả `dotnet run` ở máy dev) |
-| Database | `HRCMS-free` (Free offer, serverless 0.5–1 vCore, auto-pause 1 giờ, hết hạn mức thì Auto-pause tới tháng sau). `HRCMS` cũ hết free amount tháng 10/2026, giữ dữ liệu cũ, chạy lại từ 01/11 |
+| Database | `hrcms2` trên `hrcms.database.windows.net`, do người dùng tạo ngày 26/10/2026. Đã sao chép toàn bộ 39 bảng / 520 dòng từ SQL local và kiểm tra nội dung từng bảng. Xem [biên bản chuyển dữ liệu](HRCMS2_MIGRATION_2026-10-26.md). `HRCMS-free` cũ hết quota tháng 10; giữ nguyên database cũ. |
 | Secrets | `sql-connection`, `smtp-password`, secret password GHCR do Portal tạo |
 
 Deploy tự động:
@@ -27,7 +27,7 @@ Deploy tự động:
   đăng nhập Azure bằng OIDC (managed identity `hrcms-github-deploy`, role Contributor trên `hrcms-api`),
   `az containerapp update --image` và chờ revision mới + `/health`. Secrets repo: `AZURE_CLIENT_ID`,
   `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`. Rollback: Run workflow trên commit cũ hoặc đổi image tag trên Portal.
-- Migration không tự chạy (`AutoMigrate=false`): đặt `$env:HRCMS_SQL_DATABASE = 'HRCMS-free'` rồi chạy `./tools/Update-AzureSqlDatabase.ps1` trước khi push code cần schema mới.
+- Migration không tự chạy (`AutoMigrate=false`): mặc định các công cụ Azure trỏ tới `hrcms2`; chạy `./tools/Set-AzureSqlConnection.ps1` để cấu hình kết nối Azure cho terminal đang dùng, rồi `./tools/Update-AzureSqlDatabase.ps1` trước khi push code cần schema mới. Nếu đang test bằng SQL local, giữ User Secrets local và thực hiện migration Azure trong môi trường kết nối riêng.
 - Tài khoản Quản lý đầu tiên tạo bởi `Bootstrap__ManagerEmail` + secret `Bootstrap__ManagerPassword` (bỏ qua nếu đã có Manager).
 - FE: ảnh/link tải từ BE phải dùng `apiUrl('/api/...')`, không viết `'/api/...'` trực tiếp.
 

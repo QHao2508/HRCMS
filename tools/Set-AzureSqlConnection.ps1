@@ -1,7 +1,7 @@
 param(
     [string]$UserName = 'hrcms',
-    # Database on hrcms.database.windows.net; HRCMS_SQL_DATABASE overrides the default HRCMS.
-    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'HRCMS' })
+    # Database on hrcms.database.windows.net; HRCMS_SQL_DATABASE overrides the default hrcms2.
+    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'hrcms2' })
 )
 
 $ErrorActionPreference = 'Stop'
