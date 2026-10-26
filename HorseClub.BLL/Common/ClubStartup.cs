@@ -22,7 +22,7 @@ public sealed class ClubStartup(IAuthRepository repository, IUnitOfWork unitOfWo
             throw new InvalidOperationException(Messages.Get(MessageKey.ConfigureBothBootstrapManagerEmailAndBootstrapManagerPasswordOrNeither));
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || await repository.HasManagerAsync(token)) return;
         AuthenticationService.CheckPassword(password, securityLimits);
-        Ensure.That(new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email), Messages.Get(MessageKey.BootstrapManagerEmailIsInvalid));
+        Ensure.That(new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(email), Messages.Text(MessageKey.BootstrapManagerEmailIsInvalid));
         var manager = new User
         {
             Email = AuthenticationService.Normalize(email),

@@ -31,7 +31,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// </summary>
     /// <param name="value">Giá trị kiểu string dùng trong Normalize.</param>
     public static string Normalize(string value) => value.Trim().ToLowerInvariant();
-    private static void ValidateUsername(string value) => Ensure.That(value.Length is >= 3 and <= 80 && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-'), Messages.Get(MessageKey.InvalidUsername));
+    private static void ValidateUsername(string value) => Ensure.That(value.Length is >= 3 and <= 80 && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-'), Messages.Text(MessageKey.InvalidUsername));
     /// <summary>
     /// Chuyển User thành UserResponse; chỉ trả các trường hồ sơ được phép, không đưa password hash hoặc SecurityStamp ra API.
     /// </summary>
@@ -45,13 +45,13 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<User> Register(RegisterRequest r)
     {
-        Ensure.That(r.Password == r.ConfirmPassword, Messages.Get(MessageKey.PasswordsDoNotMatch));
+        Ensure.That(r.Password == r.ConfirmPassword, Messages.Text(MessageKey.PasswordsDoNotMatch));
         ValidatePassword(r.Password);
-        Ensure.That(!settings.RequireNationalId || !string.IsNullOrWhiteSpace(r.NationalId), Messages.Get(MessageKey.NationalIDIsRequiredByClubPolicy));
-        if (!string.IsNullOrWhiteSpace(r.NationalId)) Ensure.That(r.NationalId.Length == settings.NationalIdDigits && r.NationalId.All(char.IsAsciiDigit), Messages.Get(MessageKey.InvalidNationalIDFormat));
+        Ensure.That(!settings.RequireNationalId || !string.IsNullOrWhiteSpace(r.NationalId), Messages.Text(MessageKey.NationalIDIsRequiredByClubPolicy));
+        if (!string.IsNullOrWhiteSpace(r.NationalId)) Ensure.That(r.NationalId.Length == settings.NationalIdDigits && r.NationalId.All(char.IsAsciiDigit), Messages.Text(MessageKey.InvalidNationalIDFormat));
         var email = Normalize(r.Email); var name = Normalize(r.UserName); ValidateUsername(name);
         await cleanup.RemoveExpired(100, email: email, userName: name);
-        Ensure.That(!await repository.HasIdentityConflictAsync(email, name), Messages.Get(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
+        Ensure.That(!await repository.HasIdentityConflictAsync(email, name), Messages.Text(MessageKey.EmailOrUsernameIsAlreadyRegistered), 409, "account_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone.Trim(), Address = r.Address.Trim(), Role = Role.HorseOwner, CreatedAt = clock.GetUtcNow() };
         user.PasswordHash = hasher.HashPassword(user, r.Password);
         if (!string.IsNullOrWhiteSpace(r.NationalId)) user.NationalIdProtected = protection.CreateProtector("HorseClub.PersonalData.NationalId").Protect(r.NationalId);
@@ -67,10 +67,10 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<User> CreateStaff(StaffRequest r)
     {
-        Ensure.That(Enum.IsDefined(r.Role) && r.Role != Role.HorseOwner, Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
+        Ensure.That(Enum.IsDefined(r.Role) && r.Role != Role.HorseOwner, Messages.Text(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
         var email = Normalize(r.Email); var name = Normalize(r.UserName); ValidateUsername(name);
-        Ensure.That(!await repository.EmailExistsAsync(email), Messages.Get(MessageKey.EmailAlreadyRegistered), 409, "email_exists");
-        Ensure.That(!await repository.UsernameExistsAsync(name), Messages.Get(MessageKey.UsernameAlreadyRegistered), 409, "username_exists");
+        Ensure.That(!await repository.EmailExistsAsync(email), Messages.Text(MessageKey.EmailAlreadyRegistered), 409, "email_exists");
+        Ensure.That(!await repository.UsernameExistsAsync(name), Messages.Text(MessageKey.UsernameAlreadyRegistered), 409, "username_exists");
         var user = new User { Email = email, UserName = name, FirstName = r.FirstName.Trim(), LastName = r.LastName.Trim(), Phone = r.Phone, Address = r.Address, Role = r.Role };
         // Staff choose their own password with a one-use email invitation; no shared initial password.
         repository.AddUser(user);
@@ -184,7 +184,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <param name="password">Mật khẩu trong bộ nhớ cho kiểm/hash; không ghi ra log hoặc response.</param>
     /// <param name="settings">Các giới hạn/chính sách cấu hình áp dụng tại thời điểm chạy.</param>
     public static void CheckPassword(string password, SecurityOptions settings) => Ensure.That(password.Length >= settings.PasswordMinLength && password.Length <= settings.PasswordMaxLength && password.Any(char.IsUpper) && password.Any(char.IsLower) && password.Any(char.IsDigit),
-        Messages.Get(MessageKey.PasswordNeedsCharactersIncludingUppercaseLowercaseAndADigit, settings.PasswordMinLength, settings.PasswordMaxLength));
+        Messages.Text(MessageKey.PasswordNeedsCharactersIncludingUppercaseLowercaseAndADigit, settings.PasswordMinLength, settings.PasswordMaxLength));
 
     /// <summary>
     /// Bao bọc kết quả đăng ký thành phản hồi Created chứa hồ sơ; đăng ký không tự cấp token đăng nhập.
@@ -272,7 +272,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     {
         var u = await current.Get();
         // Chủ ngựa chỉ cần danh bạ HeadTrainer/Groom/Vet để chọn người ưu tiên khi đăng ký ngựa.
-        if (u.Role == Role.HorseOwner) Ensure.That(role.HasValue && RolePolicy.OwnerDirectoryRoles.Contains(role.Value), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
+        if (u.Role == Role.HorseOwner) Ensure.That(role.HasValue && RolePolicy.OwnerDirectoryRoles.Contains(role.Value), Messages.Text(MessageKey.PermissionDenied), 403, "forbidden");
         return PageReader.Map(await pager.Page(page, pageSize, (p, size) => repository.ListStaffAsync(role, true, p, size)), x => new StaffDirectoryResponse(x.Id, x.FirstName, x.LastName, x.Role));
     }
 
@@ -293,7 +293,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     }
     public async Task<PasswordChangedResponse> CompleteInvitation(InvitationPasswordRequest r)
     {
-        Ensure.That(r.Password==r.ConfirmPassword,Messages.Get(MessageKey.PasswordsDoNotMatch));ValidatePassword(r.Password);
+        Ensure.That(r.Password==r.ConfirmPassword,Messages.Text(MessageKey.PasswordsDoNotMatch));ValidatePassword(r.Password);
         string proof;try{proof=protection.CreateProtector("HorseClub.Invitation.PasswordSetup.v1").ToTimeLimitedDataProtector().Unprotect(r.SetupToken);}catch(CryptographicException){return new(false);}
         var u=await repository.GetUserByEmailAsync(Normalize(r.Email));
         if(u is not {Active:true,EmailVerified:false} || u.Role==Role.HorseOwner || proof!=u.Id+"|"+u.SecurityStamp)return new(false);
@@ -302,7 +302,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     public async Task<OperationResult> ResendInvitation(Guid id)
     {
         Ensure.Role(await current.Get(),Role.ClubManager);var u=Ensure.Found(await repository.FindUserAsync(id));
-        Ensure.That(u.Active && !u.EmailVerified && u.Role!=Role.HorseOwner,Messages.Get(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
+        Ensure.That(u.Active && !u.EmailVerified && u.Role!=Role.HorseOwner,Messages.Text(MessageKey.UseThisEndpointForInternalStaffRolesOnly));
         u.SecurityStamp=Guid.NewGuid().ToString();await Challenge(u,ChallengePurpose.Invite);
         await events.Audit(AuditAction.StaffInvitationResent,id);await unitOfWork.SaveChangesAsync();return OperationResult.NoContent();
     }
@@ -331,13 +331,13 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     {
         Ensure.Role(await current.Get(), Role.ClubManager);
         var u = Ensure.Found(await repository.FindUserAsync(id));
-        Ensure.That(u.Role != Role.ClubManager && u.Role != Role.HorseOwner, Messages.Get(MessageKey.OnlyStaffAccountsCanBeChangedHere));
-        Ensure.That(!r.Emergency || !r.Active && !string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.EmergencyDisableReasonRequired));
+        Ensure.That(u.Role != Role.ClubManager && u.Role != Role.HorseOwner, Messages.Text(MessageKey.OnlyStaffAccountsCanBeChangedHere));
+        Ensure.That(!r.Emergency || !r.Active && !string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Text(MessageKey.EmergencyDisableReasonRequired));
         var workload = await repository.GetWorkloadAsync(id);
         if (!r.Active && u.Active && workload.HasOpenWork)
         {
-            Ensure.That(r.Emergency, Messages.Get(MessageKey.StaffHasOpenWork), 409, "staff_open_work");
-            Ensure.That(!string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.EmergencyDisableReasonRequired));
+            Ensure.That(r.Emergency, Messages.Text(MessageKey.StaffHasOpenWork), 409, "staff_open_work");
+            Ensure.That(!string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Text(MessageKey.EmergencyDisableReasonRequired));
             await events.Managers(NotificationType.HorseAssignment, MessageKey.StaffDisabledWithOpenWork, id);
         }
         u.Active = r.Active; u.SecurityStamp = Guid.NewGuid().ToString();
@@ -354,7 +354,7 @@ public sealed class AuthenticationService(IAuthRepository repository, IUnitOfWor
     /// <remarks>Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback.</remarks>
     public async Task<OperationResult> ChangePassword(ResetRequest r, ChallengePurpose purpose)
     {
-        Ensure.That(r.Password == r.ConfirmPassword, Messages.Get(MessageKey.PasswordsDoNotMatch));
+        Ensure.That(r.Password == r.ConfirmPassword, Messages.Text(MessageKey.PasswordsDoNotMatch));
         ValidatePassword(r.Password);
         var u = await repository.GetUserByEmailAsync(AuthenticationService.Normalize(r.Email));
         var eligible = u is { Active: true } && (purpose == ChallengePurpose.Invite

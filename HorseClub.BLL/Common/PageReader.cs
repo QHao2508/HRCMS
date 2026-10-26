@@ -10,7 +10,7 @@ public sealed class PageReader(IOptions<BusinessOptions> options)
     public (int Page, int Size) Read(int? page, int? pageSize)
     {
         var p = page ?? 1; var size = pageSize ?? options.Value.DefaultPageSize;
-        Ensure.That(size >= 1 && size <= options.Value.MaxPageSize && p >= 1 && p <= int.MaxValue / size, Messages.Get(MessageKey.PageMustBePositiveAndPageSizeBetween1And, options.Value.MaxPageSize));
+        Ensure.That(size >= 1 && size <= options.Value.MaxPageSize && p >= 1 && p <= int.MaxValue / size, Messages.Text(MessageKey.PageMustBePositiveAndPageSizeBetween1And, options.Value.MaxPageSize));
         return (p, size);
     }
 

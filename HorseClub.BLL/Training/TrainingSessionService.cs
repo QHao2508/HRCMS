@@ -20,15 +20,15 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task Guard(Guid horseId, decimal distance, Intensity intensity, TrainingType type, DateTimeOffset at, DateTimeOffset? until = null)
     {
         var horse = Ensure.Found(await repository.FindHorseAsync(horseId));
-        Ensure.That(!horse.Archived, Messages.Get(MessageKey.HorseIsArchived), 409, "horse_archived");
+        Ensure.That(!horse.Archived, Messages.Text(MessageKey.HorseIsArchived), 409, "horse_archived");
         if (horse.HealthStatus == HealthStatus.Isolated || intensity == Intensity.Heavy && (horse.HealthStatus == HealthStatus.Injured
             || await repository.HasUnrecoveredInjuryAsync(horseId, calendar.DateAt(at))))
-            throw new ApiException(409, "medical_block", Messages.Get(MessageKey.CurrentHealthStatusPreventsThisTraining), horseId);
+            throw new ApiException(409, "medical_block", Messages.Text(MessageKey.CurrentHealthStatusPreventsThisTraining), horseId);
         var restrictions = await repository.GetRestrictionsAsync(horseId, at, until);
         foreach (var r in restrictions)
             if (r.BlockAllTraining || r.TrainingLock && intensity == Intensity.Heavy || r.MaxIntensity.HasValue && intensity > r.MaxIntensity
                 || r.MaxDistanceMetres.HasValue && distance > r.MaxDistanceMetres || r.NoSprint && type == TrainingType.Sprint)
-                throw new ApiException(409, "medical_restriction", Messages.Get(MessageKey.TrainingBlocked, r.Reason), r.MedicalRecordId);
+                throw new ApiException(409, "medical_restriction", Messages.Text(MessageKey.TrainingBlocked, r.Reason), r.MedicalRecordId);
     }
     /// <summary>
     /// Tạo mới buổi tập trong TrainingSessionService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -40,7 +40,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     {
         var plan = Ensure.Found(await repository.FindPlanAsync(planId));
         await access.Trainer(plan.HorseId);
-        Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
+        Ensure.That(plan.Status == PlanStatus.Active, Messages.Text(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var session = new TrainingSession { PlanId = planId, HorseId = plan.HorseId };
         await ApplySession(session, plan, r);
         repository.AddSession(session);
@@ -57,9 +57,9 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<TrainingSession> EditSession(Guid id, SessionRequest r)
     {
         var session = Ensure.Found(await repository.FindSessionAsync(id)); await access.Trainer(session.HorseId);
-        Ensure.That(session.Status is SessionStatus.Planned or SessionStatus.Assigned, Messages.Get(MessageKey.OnlyUnstartedSessionsCanBeEdited), 409, "invalid_state");
+        Ensure.That(session.Status is SessionStatus.Planned or SessionStatus.Assigned, Messages.Text(MessageKey.OnlyUnstartedSessionsCanBeEdited), 409, "invalid_state");
         var plan = Ensure.Found(await repository.FindPlanAsync(session.PlanId));
-        Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
+        Ensure.That(plan.Status == PlanStatus.Active, Messages.Text(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var oldRider = session.RiderId;
         await ApplySession(session, plan, r);
         await events.TrainingHistory(plan, session);
@@ -78,18 +78,18 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var template = Ensure.Found(await repository.FindTemplateAsync(p.TemplateId));
         await templates.ValidateTrainer(template.Id, (await current.Get()).Id); TemplateCurriculumPolicy.ValidateSession(template, r);
         var date = calendar.DateAt(r.ScheduledAt);
-        Ensure.That(r.ScheduledAt != default && date >= p.StartDate && date <= p.EndDate, Messages.Get(MessageKey.SessionMustFallWithinPlanDatesInTheClub));
-        Ensure.That(r.ScheduledAt >= clock.GetUtcNow().AddMinutes(-options.Value.ScheduleGraceMinutes), Messages.Get(MessageKey.ScheduleSessionsInTheFuture));
-        Ensure.That(!r.DurationMinutes.HasValue || r.DurationMinutes is >= 1 and <= 480, Messages.Get(MessageKey.InvalidSessionDuration));
+        Ensure.That(r.ScheduledAt != default && date >= p.StartDate && date <= p.EndDate, Messages.Text(MessageKey.SessionMustFallWithinPlanDatesInTheClub));
+        Ensure.That(r.ScheduledAt >= clock.GetUtcNow().AddMinutes(-options.Value.ScheduleGraceMinutes), Messages.Text(MessageKey.ScheduleSessionsInTheFuture));
+        Ensure.That(!r.DurationMinutes.HasValue || r.DurationMinutes is >= 1 and <= 480, Messages.Text(MessageKey.InvalidSessionDuration));
         var end = r.DurationMinutes.HasValue ? (DateTimeOffset?)r.ScheduledAt.AddMinutes(r.DurationMinutes.Value) : null;
-        Ensure.That(!end.HasValue || calendar.DateAt(end.Value.AddTicks(-1)) <= p.EndDate, Messages.Get(MessageKey.InvalidSessionDuration));
+        Ensure.That(!end.HasValue || calendar.DateAt(end.Value.AddTicks(-1)) <= p.EndDate, Messages.Text(MessageKey.InvalidSessionDuration));
         await Guard(s.HorseId, r.DistanceMetres, r.Intensity, r.TrainingType, r.ScheduledAt, end);
         await scheduling.ValidateSession(s.HorseId, r.RiderId, r.TrainingType, r.ScheduledAt, end, s.Id, p.TemplateId);
-        Ensure.That(!await repository.HasScheduleConflictAsync(s.Id,s.HorseId,r.RiderId,r.ScheduledAt,end), Messages.Get(MessageKey.SessionScheduleOverlap),409,"schedule_overlap");
+        Ensure.That(!await repository.HasScheduleConflictAsync(s.Id,s.HorseId,r.RiderId,r.ScheduledAt,end), Messages.Text(MessageKey.SessionScheduleOverlap),409,"schedule_overlap");
         if (r.RiderId.HasValue)
         {
             await access.Staff(r.RiderId.Value, Role.WorkRider);
-            Ensure.That(!await repository.HasRiderConflictAsync(s.Id, r.RiderId, r.ScheduledAt), Messages.Get(MessageKey.RiderAlreadyHasASessionAtThisTime), 409, "rider_conflict");
+            Ensure.That(!await repository.HasRiderConflictAsync(s.Id, r.RiderId, r.ScheduledAt), Messages.Text(MessageKey.RiderAlreadyHasASessionAtThisTime), 409, "rider_conflict");
         }
         s.DurationMinutes = r.DurationMinutes; s.ScheduledEndAt = end?.ToUniversalTime();
         s.ScheduledAt = r.ScheduledAt.ToUniversalTime(); s.TrainingType = r.TrainingType; s.DistanceMetres = r.DistanceMetres;
@@ -106,15 +106,15 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     {
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await repository.FindSessionAsync(id));
-        Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        Ensure.That(s.Status == SessionStatus.Assigned, Messages.Get(MessageKey.SessionIsNotAssignedReady), 409, "invalid_state");
+        Ensure.That(s.RiderId == u.Id, Messages.Text(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+        Ensure.That(s.Status == SessionStatus.Assigned, Messages.Text(MessageKey.SessionIsNotAssignedReady), 409, "invalid_state");
         await access.Horse(s.HorseId);
-        Ensure.That(s.ScheduledAt <= clock.GetUtcNow().AddMinutes(options.Value.StartEarlyMinutes), Messages.Get(MessageKey.SessionIsNotDueToStartYet), 409, "invalid_state");
+        Ensure.That(s.ScheduledAt <= clock.GetUtcNow().AddMinutes(options.Value.StartEarlyMinutes), Messages.Text(MessageKey.SessionIsNotDueToStartYet), 409, "invalid_state");
         var plan = Ensure.Found(await repository.FindPlanAsync(s.PlanId));
-        Ensure.That(plan.Status == PlanStatus.Active, Messages.Get(MessageKey.PlanIsNotActive), 409, "invalid_state");
+        Ensure.That(plan.Status == PlanStatus.Active, Messages.Text(MessageKey.PlanIsNotActive), 409, "invalid_state");
         var today = calendar.Today(clock);
-        Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Get(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
-        Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Get(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
+        Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Text(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
+        Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Text(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
         await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null);
         await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null, s.Id, plan.TemplateId);
         s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
@@ -131,10 +131,10 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     {
         var u = await current.Get(); Ensure.Role(u, Role.WorkRider);
         var s = Ensure.Found(await repository.FindSessionAsync(id));
-        Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
-        Ensure.That(s.Status == SessionStatus.InProgress, Messages.Get(MessageKey.StartSessionBeforeSubmittingResults), 409, "invalid_state");
+        Ensure.That(s.RiderId == u.Id, Messages.Text(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+        Ensure.That(s.Status == SessionStatus.InProgress, Messages.Text(MessageKey.StartSessionBeforeSubmittingResults), 409, "invalid_state");
         await access.Horse(s.HorseId);
-        Ensure.That(!await repository.HasResultAsync(id), Messages.Get(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
+        Ensure.That(!await repository.HasResultAsync(id), Messages.Text(MessageKey.ResultAlreadyExists), 409, "duplicate_result");
         // Always allow reporting actual activity, even if a medical lock was applied mid-session.
         // A newly conflicting restriction is recorded as an issue rather than discarding observations.
         var medicalIssue = false;
@@ -184,7 +184,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<TrainingSessionListItem>> ListSessions(Guid? horseId, SessionStatus? status, DateTimeOffset? from, DateTimeOffset? to, int? page, int? pageSize, string? search = null)
     {
-        Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(search is null || search.Length <= 100, Messages.Text(MessageKey.InvalidRequestBody));
         var u = await current.Get(); var scope = await access.Scope();
         if (horseId.HasValue && u.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
         var (p, size) = pager.Read(page, pageSize);
@@ -201,7 +201,7 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<SessionDetailResponse> GetSession(Guid id)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id)); var u = await current.Get();
-        Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+        Ensure.That(u.Role != Role.WorkRider || s.RiderId == u.Id, Messages.Text(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         if (u.Role != Role.WorkRider) await access.TrainingHistoryHorse(s.HorseId, Ensure.Found(await repository.FindPlanAsync(s.PlanId)).TrainerId);
         var names=(await repository.SessionNamesAsync([id])).Single();
         return new SessionDetailResponse(s, await repository.GetResultAsync(id), await repository.GetEvaluationAsync(id),names.HorseName,names.TrainerName,names.RiderName, Ensure.Found(await repository.FindHorseAsync(s.HorseId)).Archived, await repository.FindTemplateAsync(Ensure.Found(await repository.FindPlanAsync(s.PlanId)).TemplateId));
@@ -250,9 +250,9 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<OperationResult> SkipSession(Guid id, ReasonRequest r)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id)); var u = await current.Get();
-        if (u.Role == Role.WorkRider) Ensure.That(s.RiderId == u.Id, Messages.Get(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
+        if (u.Role == Role.WorkRider) Ensure.That(s.RiderId == u.Id, Messages.Text(MessageKey.SessionIsNotAssignedToYou), 403, "forbidden");
         else await access.Trainer(s.HorseId);
-        Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Get(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
+        Ensure.That(s.Status is SessionStatus.Planned or SessionStatus.Assigned or SessionStatus.InProgress, Messages.Text(MessageKey.SessionIsAlreadyFinal), 409, "invalid_state");
         if (u.Role == Role.WorkRider) await access.Horse(s.HorseId);
         s.Status = SessionStatus.Skipped; s.Notes += Messages.Get(MessageKey.Skipped, r.Reason);
         await events.TrainingHistory(Ensure.Found(await repository.FindPlanAsync(s.PlanId)), s);
@@ -269,10 +269,10 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
     public async Task<TrainerEvaluation> EvaluateSession(Guid id, EvaluationRequest r)
     {
         var s = Ensure.Found(await repository.FindSessionAsync(id)); await access.Trainer(s.HorseId);
-        Ensure.That(s.Status is SessionStatus.Completed or SessionStatus.IssueReported, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
-        Ensure.That(!await repository.HasEvaluationAsync(id), Messages.Get(MessageKey.EvaluationAlreadyExists), 409, "duplicate_evaluation");
+        Ensure.That(s.Status is SessionStatus.Completed or SessionStatus.IssueReported, Messages.Text(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
+        Ensure.That(!await repository.HasEvaluationAsync(id), Messages.Text(MessageKey.EvaluationAlreadyExists), 409, "duplicate_evaluation");
         var result = await repository.GetResultAsync(id);
-        Ensure.That(result is not null, Messages.Get(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
+        Ensure.That(result is not null, Messages.Text(MessageKey.OnlyResultsCanBeEvaluated), 409, "invalid_state");
         var e = new TrainerEvaluation { SessionId = id, TrainerId = (await current.Get()).Id, Comment = r.Comment, AdjustFutureSessions = r.AdjustFutureSessions };
         repository.AddEvaluation(e);
         await events.TrainingHistory(Ensure.Found(await repository.FindPlanAsync(s.PlanId)), s, result, e);

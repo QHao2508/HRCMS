@@ -7,7 +7,7 @@ public sealed record ReportRows(List<ReportSessionData> Sessions, List<ReportCar
 
 public interface IReportingQueries
 {
-    Task<DataPage<Notification>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size);
+    Task<DataPage<NotificationListItem>> ListNotificationsAsync(Guid recipientId, bool unread, int page, int size);
     Task<Notification?> GetNotificationAsync(Guid recipientId, Guid id);
     Task<DataPage<AuditEvent>> ListAuditAsync(Guid? referenceId, int page, int size);
     Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore);

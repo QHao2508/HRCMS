@@ -1,3 +1,4 @@
+using HorseClub.BLL.Messaging;
 using Azure;
 using Azure.Identity;
 using Azure.Storage.Blobs;
@@ -58,7 +59,7 @@ public sealed class AzureBlobStore
     {
         try { return (await Required().GetBlobClient(name).DownloadStreamingAsync(cancellationToken: token)).Value.Content; }
         catch (RequestFailedException error) when (error.Status == 404 && error.ErrorCode == "BlobNotFound")
-        { throw new ApiException(404, "not_found", "Stored attachment is unavailable."); }
+        { throw new ApiException(404, "not_found", Messages.Text(MessageKey.StoredAttachmentIsUnavailable)); }
     }
 
     /// <summary>

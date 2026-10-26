@@ -25,22 +25,22 @@ public sealed partial class MedicalService
     {
         await access.Vet(horseId);
         Ensure.That(request.RecordIds is { Length: > 0 and <= 25 } && request.RecordIds.Distinct().Count() == request.RecordIds.Length
-            && !string.IsNullOrWhiteSpace(request.Reason), Messages.Get(MessageKey.InvalidRequestBody));
+            && !string.IsNullOrWhiteSpace(request.Reason), Messages.Text(MessageKey.InvalidRequestBody));
         var records = await repository.GetTrackedRecordsAsync(horseId);
         var target = Ensure.Found(records.FirstOrDefault(x => x.Id == id));
-        Ensure.That(request.RecordIds.All(recordId => records.Any(x => x.Id == recordId)), Messages.Get(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
+        Ensure.That(request.RecordIds.All(recordId => records.Any(x => x.Id == recordId)), Messages.Text(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
         var followUps = await repository.GetFollowUpsAsync(horseId);
         var ids = CaseIds(target.Id, records, followUps);
         // A merge must join at least one record from another case: self-merge or records already in this case are rejected
         // so they cannot rewrite CaseRootId, history or audit without a real change (P14-BUG-001).
-        Ensure.That(request.RecordIds.All(recordId => !ids.Contains(recordId)), Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(request.RecordIds.All(recordId => !ids.Contains(recordId)), Messages.Text(MessageKey.InvalidRequestBody));
         var resolved = followUps.Any(x => x.Clearance && (ids.Contains(x.PreviousRecordId) || ids.Contains(x.CurrentRecordId)));
         foreach (var other in request.RecordIds)
         {
             var otherIds = CaseIds(other, records, followUps);
             // Different resolved/open episodes must not become one case through an accidental merge.
             Ensure.That(resolved == followUps.Any(x => x.Clearance && (otherIds.Contains(x.PreviousRecordId) || otherIds.Contains(x.CurrentRecordId))),
-                Messages.Get(MessageKey.InvalidRequestBody));
+                Messages.Text(MessageKey.InvalidRequestBody));
             ids.UnionWith(otherIds);
         }
         foreach (var record in records.Where(x => ids.Contains(x.Id)))

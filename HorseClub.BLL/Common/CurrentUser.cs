@@ -15,10 +15,10 @@ public sealed class CurrentUser(IAccessRepository repository, ICurrentIdentity i
     {
         if (cached is not null) return cached;
         var principal = identity.Principal;
-        Ensure.That(Guid.TryParse(principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var id), Messages.Get(MessageKey.AuthenticationRequired), 401, "unauthorized");
+        Ensure.That(Guid.TryParse(principal?.FindFirstValue(ClaimTypes.NameIdentifier), out var id), Messages.Text(MessageKey.AuthenticationRequired), 401, "unauthorized");
         var user = await repository.FindUserAsync(id);
         Ensure.That(user is { Active: true, EmailVerified: true } && principal?.FindFirstValue("stamp") == user.SecurityStamp,
-            Messages.Get(MessageKey.AccountOrTokenIsNoLongerValid), 401, "unauthorized");
+            Messages.Text(MessageKey.AccountOrTokenIsNoLongerValid), 401, "unauthorized");
         return cached = user!;
     }
 }

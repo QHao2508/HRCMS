@@ -18,7 +18,7 @@ public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnviron
     /// Chỉ cho phép storage key UUID dạng 32 ký tự hex để ngăn path traversal ở luồng upload hồ sơ.
     /// </summary>
     /// <param name="name">Tên/key đầu vào theo mục đích hàm; xem kiểu và điều kiện kiểm trong thân hàm.</param>
-    private static void ValidateName(string name) => Ensure.That(Regex.IsMatch(name, "^[a-f0-9]{32}$"), Messages.Get(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
+    private static void ValidateName(string name) => Ensure.That(Regex.IsMatch(name, "^[a-f0-9]{32}$"), Messages.Text(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
 
     /// <summary>
     /// Ghép đường dẫn local an toàn cho provider kiểm thử, kiểm tra symlink/reparse point; Azure không có thư mục local.
@@ -29,10 +29,10 @@ public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnviron
         ValidateName(storageName);
         Directory.CreateDirectory(Root);
         for (var directory = Root; !string.IsNullOrEmpty(directory); directory = Path.GetDirectoryName(directory))
-            Ensure.That((File.GetAttributes(directory) & FileAttributes.ReparsePoint) == 0, Messages.Get(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
+            Ensure.That((File.GetAttributes(directory) & FileAttributes.ReparsePoint) == 0, Messages.Text(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
         var path = Path.Combine(Root, storageName);
         if (File.Exists(path))
-            Ensure.That((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0, Messages.Get(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
+            Ensure.That((File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0, Messages.Text(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
         return path;
     }
 
@@ -111,7 +111,7 @@ public sealed class UploadStorage(IOptions<StorageOptions> options, IHostEnviron
         ValidateName(storageName);
         if (UsesAzure) return await blobs.OpenRead(storageName, token);
         var path = Resolve(storageName);
-        Ensure.That(File.Exists(path), Messages.Get(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
+        Ensure.That(File.Exists(path), Messages.Text(MessageKey.StoredAttachmentIsUnavailable), 404, "not_found");
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
     }
 

@@ -17,9 +17,9 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     {
         await access.Trainer(r.HorseId); var u = await current.Get();
         var template = Ensure.Found(await repository.FindTemplateAsync(r.TemplateId));
-        Ensure.That(!template.Archived, Messages.Get(MessageKey.TemplateIsArchived));
+        Ensure.That(!template.Archived, Messages.Text(MessageKey.TemplateIsArchived));
         await templates.ValidateTrainer(template.Id, u.Id); TemplateCurriculumPolicy.ValidatePlan(template, r);
-        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Get(MessageKey.InvalidPlanDates));
+        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Text(MessageKey.InvalidPlanDates));
         var p = new TrainingPlan { HorseId = r.HorseId, TrainerId = u.Id, TemplateId = r.TemplateId, Goal = r.Goal, Phase = r.Phase, StartDate = r.StartDate, EndDate = r.EndDate, Notes = r.Notes, TemplatePlanOptionKey = r.TemplatePlanOptionKey, UseCustomPlan = r.UseCustomPlan };
         repository.AddPlan(p); await events.TrainingHistory(p); await events.Audit(AuditAction.TrainingPlanCreated, p.Id); await events.RefreshHorse(p.HorseId); await unitOfWork.SaveChangesAsync(); return p;
     }
@@ -40,7 +40,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
     public async Task<PageResponse<TrainingPlanListItem>> ListPlans(Guid? horseId, int? page, int? pageSize, string? search = null)
     {
-        Ensure.That(search is null || search.Length <= 100, Messages.Get(MessageKey.InvalidRequestBody));
+        Ensure.That(search is null || search.Length <= 100, Messages.Text(MessageKey.InvalidRequestBody));
         var user = await current.Get();
         var scope = await access.Scope();
         if (horseId.HasValue && user.Role != Role.WorkRider) await access.Horse(horseId.Value, allowArchived: true);
@@ -61,7 +61,7 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     {
         var p = Ensure.Found(await repository.FindPlanAsync(id)); var u = await current.Get();
         var riderId = u.Role == Role.WorkRider ? (Guid?)u.Id : null;
-        if (riderId.HasValue) Ensure.That(await repository.HasRiderPlanSessionsAsync(id, riderId.Value), Messages.Get(MessageKey.PermissionDenied), 403, "forbidden");
+        if (riderId.HasValue) Ensure.That(await repository.HasRiderPlanSessionsAsync(id, riderId.Value), Messages.Text(MessageKey.PermissionDenied), 403, "forbidden");
         else await access.TrainingHistoryHorse(p.HorseId, p.TrainerId);
         var (page, size) = pager.Read(sessionPage, sessionPageSize);
         var data = await repository.ListPlanSessionsAsync(id, riderId, page, size);
@@ -79,11 +79,11 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     public async Task<TrainingPlan> UpdatePlan(Guid id, PlanRequest r)
     {
         var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.Trainer(p.HorseId);
-        Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Get(MessageKey.PlanCannotBeEditedInThisState), 409, "invalid_state");
-        Ensure.That(r.HorseId == p.HorseId && r.TemplateId == p.TemplateId, Messages.Get(MessageKey.HorseAndTemplateCannotBeChangedAfterPlanCreation));
-        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Get(MessageKey.InvalidDates));
+        Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Text(MessageKey.PlanCannotBeEditedInThisState), 409, "invalid_state");
+        Ensure.That(r.HorseId == p.HorseId && r.TemplateId == p.TemplateId, Messages.Text(MessageKey.HorseAndTemplateCannotBeChangedAfterPlanCreation));
+        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate, Messages.Text(MessageKey.InvalidDates));
         var sessions = await repository.GetPlanSessionsAsync(id);
-        Ensure.That(sessions.All(x => calendar.DateAt(x.ScheduledAt) >= r.StartDate && calendar.DateAt(x.ScheduledAt) <= r.EndDate), Messages.Get(MessageKey.DatesWouldExcludeExistingSessions));
+        Ensure.That(sessions.All(x => calendar.DateAt(x.ScheduledAt) >= r.StartDate && calendar.DateAt(x.ScheduledAt) <= r.EndDate), Messages.Text(MessageKey.DatesWouldExcludeExistingSessions));
         var template = Ensure.Found(await repository.FindTemplateAsync(p.TemplateId));
         await templates.ValidateTrainer(template.Id, (await current.Get()).Id); TemplateCurriculumPolicy.ValidatePlan(template, r);
         p.TemplatePlanOptionKey = r.TemplatePlanOptionKey; p.UseCustomPlan = r.UseCustomPlan;
@@ -100,14 +100,14 @@ public sealed class TrainingPlanService(ITrainingRepository repository, IUnitOfW
     public async Task<TrainingPlan> SetPlanStatus(Guid id, PlanStatusRequest r)
     {
         var p = Ensure.Found(await repository.FindPlanAsync(id)); await access.Trainer(p.HorseId);
-        Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Get(MessageKey.CompletedArchivedPlansCannotBeReopened), 409, "invalid_state");
+        Ensure.That(p.Status is PlanStatus.Active or PlanStatus.Paused, Messages.Text(MessageKey.CompletedArchivedPlansCannotBeReopened), 409, "invalid_state");
         if (r.Status == PlanStatus.Active && p.Status == PlanStatus.Paused)
             foreach (var session in await repository.GetPlanSessionsAsync(id, pendingOnly: true))
                 await scheduling.ValidateSession(session.HorseId, session.RiderId, session.TrainingType, session.ScheduledAt, session.ScheduledEndAt, session.Id);
         if (r.Status != PlanStatus.Active)
-            Ensure.That(!await repository.HasPlanSessionsAsync(id, SessionStatus.InProgress), Messages.Get(MessageKey.FinishActiveSessionsFirst), 409, "invalid_state");
+            Ensure.That(!await repository.HasPlanSessionsAsync(id, SessionStatus.InProgress), Messages.Text(MessageKey.FinishActiveSessionsFirst), 409, "invalid_state");
         if (r.Status == PlanStatus.Completed)
-            Ensure.That(!await repository.HasPlanSessionsAsync(id, SessionStatus.Assigned, SessionStatus.Planned), Messages.Get(MessageKey.CompleteOrSkipPendingSessionsFirst), 409, "invalid_state");
+            Ensure.That(!await repository.HasPlanSessionsAsync(id, SessionStatus.Assigned, SessionStatus.Planned), Messages.Text(MessageKey.CompleteOrSkipPendingSessionsFirst), 409, "invalid_state");
         if (r.Status == PlanStatus.Archived)
         {
             foreach (var session in await repository.GetPlanSessionsAsync(id, pendingOnly: true))

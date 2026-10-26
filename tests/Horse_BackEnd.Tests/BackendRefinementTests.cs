@@ -14,27 +14,29 @@ namespace Horse_BackEnd.Tests;
 public sealed class BackendRefinementTests
 {
     [Fact]
-    public async Task NotificationPresentationPreservesLegacyMessagesScopeAndReadState()
+    public async Task NotificationsReturnCodesWithHorseContextScopeAndReadState()
     {
         await using var factory = new ClubFactory();
-        var user = await factory.User(Role.Groom); var other = await factory.User(Role.Groom);
-        var reference = Guid.NewGuid();
-        var notification = new Notification { RecipientId = user.Id, Type = NotificationType.CareAssigned,
-            Message = HorseClub.BLL.Messaging.Messages.Get(HorseClub.BLL.Messaging.MessageKey.ACareTaskWasAssignedToYou), ReferenceId = reference };
+        var owner = await factory.User(Role.HorseOwner); var user = await factory.User(Role.Groom); var other = await factory.User(Role.Groom);
+        var horse = await factory.Horse(owner, user);
+        var notification = HorseClub.BLL.Common.ClubEvents.Create(user.Id, NotificationType.HorseAssignment, HorseClub.BLL.Messaging.MessageKey.YouHaveBeenAssignedToAHorse, horse.Id);
         await WorkerTests.Read(factory, async db =>
         {
             db.Notifications.Add(notification);
-            db.Notifications.Add(new Notification { RecipientId = other.Id, Type = NotificationType.CareAssigned, Message = "Private other notification" });
+            db.Notifications.Add(HorseClub.BLL.Common.ClubEvents.Create(other.Id, NotificationType.CareAssigned, HorseClub.BLL.Messaging.MessageKey.ACareTaskWasAssignedToYou));
             await db.SaveChangesAsync();
         });
         using var client = await factory.Client(user);
-        var list = await client.GetFromJsonAsync<PageResponse<Notification>>("/api/notifications", ClubFactory.Json);
-        var item = Assert.Single(list!.Items);
-        Assert.Equal(notification.Message, item.Message); Assert.Equal("ACareTaskWasAssignedToYou", item.MessageCode);
-        Assert.Contains("công việc chăm sóc", item.DisplayMessage); Assert.Equal(reference, item.ReferenceId); Assert.False(item.Read);
-        await ClubFactory.Post(client, $"/api/notifications/{item.Id}/read", new { });
-        var unread = await client.GetFromJsonAsync<PageResponse<Notification>>("/api/notifications?unread=true", ClubFactory.Json);
-        Assert.Empty(unread!.Items);
+        var list = await client.GetFromJsonAsync<JsonElement>("/api/notifications");
+        var item = list.GetProperty("items").EnumerateArray().Single(x => x.GetProperty("id").GetGuid() == notification.Id);
+        Assert.Equal("YouHaveBeenAssignedToAHorse", item.GetProperty("messageCode").GetString());
+        Assert.Equal("HorseAssignment", item.GetProperty("type").GetString());
+        Assert.Equal(horse.Id, item.GetProperty("horseId").GetGuid()); Assert.Equal(horse.Name, item.GetProperty("horseName").GetString());
+        Assert.False(item.TryGetProperty("message", out _)); Assert.False(item.GetProperty("read").GetBoolean());
+        Assert.DoesNotContain(list.GetProperty("items").EnumerateArray(), x => x.GetProperty("messageCode").GetString() == "ACareTaskWasAssignedToYou");
+        await ClubFactory.Post(client, $"/api/notifications/{notification.Id}/read", new { });
+        var unread = await client.GetFromJsonAsync<JsonElement>("/api/notifications?unread=true");
+        Assert.DoesNotContain(unread.GetProperty("items").EnumerateArray(), x => x.GetProperty("id").GetGuid() == notification.Id);
     }
 
     [Fact]

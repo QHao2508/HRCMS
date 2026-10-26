@@ -95,8 +95,8 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     {
         await access.Vet(horseId); ValidateExamination(r, clock);
         var previous = Ensure.Found(await repository.GetRecordAsync(horseId, id));
-        Ensure.That(r.ExaminationAt.ToUniversalTime() == previous.ExaminationAt, Messages.Get(MessageKey.CorrectionMustKeepAssessmentDate));
-        Ensure.That(!await repository.HasCorrectionAsync(id), Messages.Get(MessageKey.ACorrectionAlreadyExistsEditTheLatestRevision), 409, "invalid_state");
+        Ensure.That(r.ExaminationAt.ToUniversalTime() == previous.ExaminationAt, Messages.Text(MessageKey.CorrectionMustKeepAssessmentDate));
+        Ensure.That(!await repository.HasCorrectionAsync(id), Messages.Text(MessageKey.ACorrectionAlreadyExistsEditTheLatestRevision), 409, "invalid_state");
         var correction = Record(horseId, (await current.Get()).Id, r); correction.SupersedesRecordId = previous.Id;
         correction.CaseRootId = previous.CaseRootId;
         correction.InitialSnapshotJson = SnapshotJson(correction);
@@ -114,7 +114,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     public async Task<Injury> RecordInjury(Guid horseId, InjuryRequest r)
     {
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.MedicalRecordId);
-        Ensure.That(r.InjuryDate != default && r.InjuryDate <= calendar.Today(clock) && r.ReviewDate >= r.InjuryDate, Messages.Get(MessageKey.InvalidInjuryReviewDates));
+        Ensure.That(r.InjuryDate != default && r.InjuryDate <= calendar.Today(clock) && r.ReviewDate >= r.InjuryDate, Messages.Text(MessageKey.InvalidInjuryReviewDates));
         var injury = new Injury { HorseId = horseId, MedicalRecordId = r.MedicalRecordId, InjuryDate = r.InjuryDate, Type = r.Type, BodyLocation = r.BodyLocation, Severity = r.Severity, Cause = r.Cause, ReviewDate = r.ReviewDate };
         repository.AddInjury(injury);
         var latest = await repository.GetLatestAssessmentAsync(horseId);
@@ -143,8 +143,8 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     public async Task<MedicalRestriction> CreateRestriction(Guid horseId, RestrictionRequest r)
     {
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.MedicalRecordId);
-        Ensure.That(r.ValidFrom != default && (!r.ValidUntil.HasValue || r.ValidUntil >= r.ValidFrom), Messages.Get(MessageKey.InvalidRestrictionDates));
-        Ensure.That(r.TrainingLock || r.BlockAllTraining || r.MaxIntensity.HasValue || r.MaxDistanceMetres.HasValue || r.NoSprint, Messages.Get(MessageKey.SetAtLeastOneRestriction));
+        Ensure.That(r.ValidFrom != default && (!r.ValidUntil.HasValue || r.ValidUntil >= r.ValidFrom), Messages.Text(MessageKey.InvalidRestrictionDates));
+        Ensure.That(r.TrainingLock || r.BlockAllTraining || r.MaxIntensity.HasValue || r.MaxDistanceMetres.HasValue || r.NoSprint, Messages.Text(MessageKey.SetAtLeastOneRestriction));
         var restriction = new MedicalRestriction
         {
             HorseId = horseId,
@@ -185,8 +185,8 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     public async Task<TreatmentPlan> CreateTreatment(Guid horseId, TreatmentRequest r)
     {
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.MedicalRecordId);
-        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate && r.FollowUpDate >= r.StartDate, Messages.Get(MessageKey.InvalidTreatmentDates));
-        if (r.InjuryId.HasValue) Ensure.That(await repository.HasInjuryAsync(r.InjuryId, horseId, r.MedicalRecordId), Messages.Get(MessageKey.InjuryDoesNotBelongToThisMedicalRecord));
+        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate && r.FollowUpDate >= r.StartDate, Messages.Text(MessageKey.InvalidTreatmentDates));
+        if (r.InjuryId.HasValue) Ensure.That(await repository.HasInjuryAsync(r.InjuryId, horseId, r.MedicalRecordId), Messages.Text(MessageKey.InjuryDoesNotBelongToThisMedicalRecord));
         var treatment = new TreatmentPlan
         {
             HorseId = horseId,
@@ -225,25 +225,25 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
         // Lần khám trước được lưu snapshot trong audit; MedicalFollowUp giữ lịch sử từng lần tái khám.
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.PreviousRecordId);
         var record = Ensure.Found(await repository.GetRecordAsync(horseId, r.PreviousRecordId));
-        Ensure.That(!await repository.HasCorrectionAsync(record.Id), Messages.Get(MessageKey.MedicalCaseMustUseLatestVersion), 409, "invalid_state");
+        Ensure.That(!await repository.HasCorrectionAsync(record.Id), Messages.Text(MessageKey.MedicalCaseMustUseLatestVersion), 409, "invalid_state");
         Ensure.Validate(r.Examination); ValidateExamination(r.Examination, clock);
         var examinationAt = r.Examination.ExaminationAt.ToUniversalTime();
-        Ensure.That(examinationAt >= record.ExaminationAt, Messages.Get(MessageKey.InvalidDates));
+        Ensure.That(examinationAt >= record.ExaminationAt, Messages.Text(MessageKey.InvalidDates));
         var followUps = await repository.GetFollowUpsAsync(horseId);
         var caseIds = CaseIds(record.Id, await repository.GetRecordsAsync(horseId), followUps);
         var caseRecords = await repository.GetRecordsAsync(horseId);
         var head = CaseHead(caseIds, caseRecords);
-        Ensure.That(head.Id == record.Id, Messages.Get(MessageKey.MedicalCaseMustUseLatestVersion), 409, "invalid_state");
+        Ensure.That(head.Id == record.Id, Messages.Text(MessageKey.MedicalCaseMustUseLatestVersion), 409, "invalid_state");
         Ensure.That(!followUps.Any(x => x.Clearance && (caseIds.Contains(x.PreviousRecordId) || caseIds.Contains(x.CurrentRecordId))),
-            Messages.Get(MessageKey.MedicalCaseAlreadyResolved), 409, "invalid_state");
+            Messages.Text(MessageKey.MedicalCaseAlreadyResolved), 409, "invalid_state");
         var restrictionIds = r.RestrictionIds ?? [];
         var injuryIds = r.InjuryIds ?? [];
         var treatmentIds = r.TreatmentIds ?? [];
         var selectedCount = restrictionIds.Length + injuryIds.Length + treatmentIds.Length;
-        Ensure.That(r.Clearance || selectedCount == 0, Messages.Get(MessageKey.ClearanceRequiresExplicitSelection));
+        Ensure.That(r.Clearance || selectedCount == 0, Messages.Text(MessageKey.ClearanceRequiresExplicitSelection));
         Ensure.That(restrictionIds.Distinct().Count() == restrictionIds.Length
             && injuryIds.Distinct().Count() == injuryIds.Length && treatmentIds.Distinct().Count() == treatmentIds.Length,
-            Messages.Get(MessageKey.InvalidClearanceSelection));
+            Messages.Text(MessageKey.InvalidClearanceSelection));
         var examDate = calendar.DateAt(examinationAt);
         var activeRestrictions = (await repository.GetActiveRestrictionsAsync(horseId)).Where(x => x.ValidFrom <= examinationAt).ToList();
         var activeInjuries = (await repository.GetActiveInjuriesAsync(horseId)).Where(x => x.InjuryDate <= examDate).ToList();
@@ -252,7 +252,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
         var injuries = activeInjuries.Where(x => injuryIds.Contains(x.Id)).ToList();
         var treatments = activeTreatments.Where(x => treatmentIds.Contains(x.Id)).ToList();
         Ensure.That(restrictions.Count == restrictionIds.Length && injuries.Count == injuryIds.Length && treatments.Count == treatmentIds.Length,
-            Messages.Get(MessageKey.InvalidClearanceSelection));
+            Messages.Text(MessageKey.InvalidClearanceSelection));
         var previousSnapshot = SnapshotJson(record);
         if (string.IsNullOrEmpty(record.InitialSnapshotJson))
             record.InitialSnapshotJson = await RecoverInitialSnapshot(record, followUps);
@@ -340,7 +340,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<PreventiveCare> SchedulePreventiveCare(Guid horseId, PreventiveRequest r)
     {
-        await access.Vet(horseId); Ensure.That(Enum.IsDefined(r.Type), Messages.Get(MessageKey.UnknownPreventiveCareType)); Ensure.That(r.DueDate != default, Messages.Get(MessageKey.DueDateIsRequired));
+        await access.Vet(horseId); Ensure.That(Enum.IsDefined(r.Type), Messages.Text(MessageKey.UnknownPreventiveCareType)); Ensure.That(r.DueDate != default, Messages.Text(MessageKey.DueDateIsRequired));
         var p = new PreventiveCare { HorseId = horseId, Type = r.Type, DueDate = r.DueDate, Notes = r.Notes }; repository.AddPreventiveCare(p);
         await events.Audit(AuditAction.MedicalPreventiveScheduled, p.Id); await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return p;
     }
@@ -355,7 +355,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     public async Task<OperationResult> CompletePreventiveCare(Guid horseId, Guid id, PreventiveCompletionRequest r)
     {
         await access.Vet(horseId); var p = Ensure.Found(await repository.GetPreventiveAsync(horseId, id));
-        Ensure.That(!p.CompletedDate.HasValue && r.CompletedDate != default && r.CompletedDate <= calendar.Today(clock), Messages.Get(MessageKey.InvalidCompletion));
+        Ensure.That(!p.CompletedDate.HasValue && r.CompletedDate != default && r.CompletedDate <= calendar.Today(clock), Messages.Text(MessageKey.InvalidCompletion));
         p.CompletedDate = r.CompletedDate; p.Notes = r.Notes; await events.Audit(AuditAction.MedicalPreventiveCompleted, id); await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return OperationResult.NoContent();
     }
 
@@ -366,7 +366,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     /// <param name="horseId">ID ngựa cần kiểm sở hữu/phân công và phạm vi nghiệp vụ.</param>
     /// <param name="id">ID đối tượng được thao tác; quyền/phạm vi được kiểm trước khi đọc hoặc ghi.</param>
     public static async Task MedicalRecordFor(IMedicalRepository repository, Guid horseId, Guid id)
-        => Ensure.That(await repository.HasRecordAsync(horseId, id), Messages.Get(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
+        => Ensure.That(await repository.HasRecordAsync(horseId, id), Messages.Text(MessageKey.MedicalRecordDoesNotBelongToThisHorse));
     private async Task ApplyAssessment(MedicalRecord record)
     {
         if (await repository.IsLatestAssessmentAsync(record))
@@ -378,7 +378,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
     /// <param name="clock">Giá trị kiểu TimeProvider dùng trong ValidateExamination.</param>
     public static void ValidateExamination(MedicalRequest r, TimeProvider clock)
-        => Ensure.That(r.ExaminationAt != default && r.ExaminationAt <= clock.GetUtcNow(), Messages.Get(MessageKey.ExaminationDateCannotBeInTheFuture));
+        => Ensure.That(r.ExaminationAt != default && r.ExaminationAt <= clock.GetUtcNow(), Messages.Text(MessageKey.ExaminationDateCannotBeInTheFuture));
     /// <summary>
     /// Ghi dữ liệu khám/theo dõi vào MedicalService sau khi kiểm quyền và quan hệ ngựa/hồ sơ y tế.
     /// </summary>

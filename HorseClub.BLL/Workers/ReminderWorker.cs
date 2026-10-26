@@ -29,7 +29,7 @@ public sealed class ReminderWorker(IServiceScopeFactory scopes, TimeProvider clo
         // Tạo thông báo từ MessageKey cho người nhận trong lô công việc, tăng bộ đếm và chờ transaction commit.
         void Notify(Guid recipient, NotificationType type, MessageKey message, Guid reference)
         {
-            eventRepository.AddNotification(new Notification { RecipientId = recipient, Type = type, Message = Messages.Get(message), ReferenceId = reference });
+            eventRepository.AddNotification(ClubEvents.Create(recipient, type, message, reference));
             notificationCount++;
         }
 

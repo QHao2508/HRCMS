@@ -15,12 +15,11 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
     /// <param name="unread">Giá trị kiểu bool? dùng trong ListNotifications.</param>
     /// <param name="page">Giá trị kiểu int? dùng trong ListNotifications.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListNotifications.</param>
-    public async Task<PageResponse<Notification>> ListNotifications(bool? unread, int? page, int? pageSize)
+    public async Task<PageResponse<NotificationResponse>> ListNotifications(bool? unread, int? page, int? pageSize)
     {
         var id = (await current.Get()).Id;
         var data = await pager.Page(page, pageSize, (p, size) => queries.ListNotificationsAsync(id, unread == true, p, size));
-        foreach (var notification in data.Items) NotificationPresentation.Enrich(notification);
-        return data;
+        return PageReader.Map(data, x => new NotificationResponse(x.Id, x.Type.ToString(), x.MessageCode, x.ReferenceId, x.HorseId, x.HorseName, x.Subject, x.Read, x.CreatedAt));
     }
 
     /// <summary>
@@ -70,13 +69,13 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
     public async Task<OperationResult> BuildReport(Guid? horseId, DateTimeOffset? from, DateTimeOffset? to, ReportGrouping? groupBy)
     {
         var u = await current.Get(); var end = to ?? clock.GetUtcNow(); var start = from ?? end.AddDays(-options.Value.DefaultReportDays);
-        Ensure.That(end >= start && (end - start).TotalDays <= options.Value.MaxReportDays, Messages.Get(MessageKey.ReportRangeExceedsConfiguredLimits));
-        var grouping = groupBy ?? ReportGrouping.Day; Ensure.That(Enum.IsDefined(grouping), Messages.Get(MessageKey.InvalidReportGrouping));
+        Ensure.That(end >= start && (end - start).TotalDays <= options.Value.MaxReportDays, Messages.Text(MessageKey.ReportRangeExceedsConfiguredLimits));
+        var grouping = groupBy ?? ReportGrouping.Day; Ensure.That(Enum.IsDefined(grouping), Messages.Text(MessageKey.InvalidReportGrouping));
         var scope = await access.Scope();
         if (horseId.HasValue) await access.Horse(horseId.Value);
         var rows = await queries.ReportRowsAsync(scope, horseId, u.Role == Role.WorkRider ? u.Id : null, u.Role == Role.Groom ? u.Id : null, start, end, options.Value.MaxReportRecords);
         var sessions = rows.Sessions; var tasks = rows.Tasks;
-        Ensure.That(sessions.Count <= options.Value.MaxReportRecords && tasks.Count <= options.Value.MaxReportRecords, Messages.Get(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
+        Ensure.That(sessions.Count <= options.Value.MaxReportRecords && tasks.Count <= options.Value.MaxReportRecords, Messages.Text(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
         var sessionIds = sessions.Select(x => x.Id).ToArray();
         // Không có buổi tập thì không cần hỏi kết quả (bớt một lượt SQL).
         var results = sessionIds.Length == 0 ? new List<SessionResult>() : await queries.ResultsAsync(sessionIds);
@@ -86,7 +85,7 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
         if (u.Role == Role.Veterinarian)
         {
             clinical = await queries.ClinicalAsync(scope, horseId, start, end, options.Value.MaxReportRecords);
-            Ensure.That(clinical.Count <= options.Value.MaxReportRecords, Messages.Get(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
+            Ensure.That(clinical.Count <= options.Value.MaxReportRecords, Messages.Text(MessageKey.TooMuchReportDataNarrowHorseDateFilters), 413, "report_limit");
         }
         // Vet đã có danh sách hồ sơ (cùng điều kiện lọc) nên đếm trực tiếp, không cần thêm câu COUNT.
         var medicalCount = clinical is not null ? clinical.Count : medicalVisible ? await queries.MedicalCountAsync(scope, horseId, start, end) : 0;

@@ -66,7 +66,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     {
         var u = await current.Get(); Ensure.Role(u, RolePolicy.MeasurementWriters);
         var horse = await access.Horse(id);
-        Ensure.That(request.Date >= horse.DateOfBirth && request.Date <= calendar.Today(clock), Messages.Get(MessageKey.InvalidMeasurementDate));
+        Ensure.That(request.Date >= horse.DateOfBirth && request.Date <= calendar.Today(clock), Messages.Text(MessageKey.InvalidMeasurementDate));
         var m = new Measurement { HorseId = id, Date = request.Date, HeightCm = request.HeightCm, WeightKg = request.WeightKg };
         repository.AddMeasurement(m); await events.Audit(AuditAction.HorseMeasurementAdded, id); await events.RefreshHorse(id); await unitOfWork.SaveChangesAsync(); return m;
     }
@@ -79,9 +79,9 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     public async Task<OperationResult> ArchiveHorse(Guid id, HorseArchiveRequest r)
     {
         Ensure.Role(await current.Get(), Role.ClubManager); var horse = await access.Horse(id);
-        Ensure.That(!await repository.HasActiveSessionAsync(id), Messages.Get(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
-        Ensure.That(!await repository.HasActiveCareAsync(id), Messages.Get(MessageKey.FinishActiveCareBeforeArchiving), 409, "invalid_state");
-        Ensure.That(Enum.IsDefined(r.Category) && !string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Get(MessageKey.ArchiveReasonRequired));
+        Ensure.That(!await repository.HasActiveSessionAsync(id), Messages.Text(MessageKey.FinishActiveSessionsBeforeArchiving), 409, "invalid_state");
+        Ensure.That(!await repository.HasActiveCareAsync(id), Messages.Text(MessageKey.FinishActiveCareBeforeArchiving), 409, "invalid_state");
+        Ensure.That(Enum.IsDefined(r.Category) && !string.IsNullOrWhiteSpace(r.Reason) && r.Reason.Trim().Length <= 2000, Messages.Text(MessageKey.ArchiveReasonRequired));
         var now = clock.GetUtcNow();
         var assignments = await repository.GetActiveAssignmentsAsync(id);
         var plans = await repository.GetOpenPlansAsync(id);
