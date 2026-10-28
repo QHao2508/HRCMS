@@ -34,4 +34,4 @@ Mỗi request nạp một lần: buổi tập chưa xong của ngựa (join kế
 
 ## Frontend
 
-`src/pages/horses/AssignmentForm.jsx` (form) và `src/components/TrainerCandidates.jsx` (bảng ứng viên + lý do). Các hàm thuần `assignableRoles`, `currentHeadTrainer`, `staffOptions`, `assignmentRequest` có test ở `tests/assignment-form.test.js`.
+`src/pages/horses/AssignmentForm.jsx` (form) và `src/components/TrainerCandidates.jsx` (bảng ứng viên + lý do). Các hàm thuần `assignableRoles`, `currentHeadTrainer`, `staffOptions`, `assignmentRequest` nằm ở `src/pages/horses/assignmentRules.js`, có test ở `tests/assignment-form.test.js`.
