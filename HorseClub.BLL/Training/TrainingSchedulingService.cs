@@ -147,7 +147,7 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         return hours.Any(x => x.DayOfWeek == day.DayOfWeek && calendar.At(day, x.StartMinute) <= start && calendar.At(day, x.EndMinute) >= end);
     }
 
-    public async Task ValidateSession(Guid horseId, Guid? riderId, TrainingType trainingType, DateTimeOffset start, DateTimeOffset? end, Guid exceptSessionId, Guid? templateId = null)
+    public async Task ValidateSession(Guid horseId, Guid? riderId, TrainingType trainingType, DateTimeOffset start, DateTimeOffset? end, Guid exceptSessionId, Guid? templateId = null, bool startingNow = false)
     {
         var trainerId = await repository.CurrentTrainerAsync(horseId);
         Check(trainerId.HasValue, "trainer_unassigned");
@@ -166,17 +166,27 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
                 : end.HasValue ? r.Start < end && r.End > start : r.Start <= start && r.End > start);
             if (r.TrainerId == trainerId) Check(!conflict, "trainer_schedule_overlap");
         }
-        await ValidateHours(trainer, start, end);
-        if (riderId.HasValue) await ValidateHours(await access.Staff(riderId.Value, Role.WorkRider), start, end);
+        await ValidateHours(trainer, start, end, startingNow);
+        if (riderId.HasValue) await ValidateHours(await access.Staff(riderId.Value, Role.WorkRider), start, end, startingNow);
     }
 
-    private async Task ValidateHours(User staff, DateTimeOffset start, DateTimeOffset? end)
+    private async Task ValidateHours(User staff, DateTimeOffset start, DateTimeOffset? end, bool startingNow = false)
     {
         var hours = await repository.HoursAsync(staff.Id);
         if (hours.Count > 0)
         {
-            Check(end.HasValue, "duration_required");
-            Check(Covers(hours.Select(x => new WorkingHoursInput(x.DayOfWeek, x.StartMinute, x.EndMinute)), start, end!.Value), "outside_working_hours");
+            if (startingNow)
+            {
+                // Execution may finish after the shift, but must start before its exclusive end.
+                var day = calendar.DateAt(start);
+                Check(hours.Any(x => x.DayOfWeek == day.DayOfWeek && calendar.At(day, x.StartMinute) <= start
+                    && start < calendar.At(day, x.EndMinute)), "outside_working_hours");
+            }
+            else
+            {
+                Check(end.HasValue, "duration_required");
+                Check(Covers(hours.Select(x => new WorkingHoursInput(x.DayOfWeek, x.StartMinute, x.EndMinute)), start, end!.Value), "outside_working_hours");
+            }
         }
         Check((await repository.TimeOffAsync(staff.Id, start, end ?? start.AddTicks(1))).Count == 0, "staff_time_off");
     }

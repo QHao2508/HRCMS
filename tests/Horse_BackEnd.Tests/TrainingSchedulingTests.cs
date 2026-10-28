@@ -14,6 +14,61 @@ namespace Horse_BackEnd.Tests;
 
 public sealed class TrainingSchedulingTests
 {
+    private sealed class StartClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    [Theory]
+    [InlineData(17, 38, 1080, 1080, false, false, null)]
+    [InlineData(18, 0, 1080, 1080, false, false, "outside_working_hours")]
+    [InlineData(17, 38, 1050, 1080, false, false, "outside_working_hours")]
+    [InlineData(17, 38, 1080, 1050, false, false, "outside_working_hours")]
+    [InlineData(17, 38, 1080, 1080, true, false, "staff_time_off")]
+    [InlineData(17, 38, 1080, 1080, false, true, "trainer_schedule_overlap")]
+    public async Task StartOnlyRequiresShiftCoverageAtStartButKeepsFullDurationConflicts(
+        int hour, int minute, int trainerEnd, int riderEnd, bool timeOff, bool overlap, string? error)
+    {
+        var date = new DateOnly(2026, 10, 28);
+        DateTimeOffset Local(int h, int m) => new(2026, 10, 28, h, m, 0, TimeSpan.FromHours(7));
+        var now = Local(hour, minute);
+        await using var factory = new ClubFactory(new Dictionary<string, string?> { ["Business:TimeZoneId"] = "Asia/Ho_Chi_Minh" }, clock: new StartClock(now));
+        var trainer = await factory.User(Role.Trainer); var rider = await factory.User(Role.WorkRider);
+        var horse = await factory.Horse(await factory.User(Role.HorseOwner), trainer);
+        var session = new TrainingSession();
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            var template = new TrainingTemplate { Name = "Late start" };
+            var plan = new TrainingPlan { HorseId = horse.Id, TrainerId = trainer.Id, TemplateId = template.Id,
+                Goal = "Endurance", Phase = "Preparation", StartDate = date, EndDate = date.AddDays(1) };
+            session = new TrainingSession { HorseId = horse.Id, PlanId = plan.Id, RiderId = rider.Id,
+                ScheduledAt = Local(17, 25), ScheduledEndAt = Local(17, 55), DurationMinutes = 30,
+                TrainingType = TrainingType.Trot, DistanceMetres = 1000, Intensity = Intensity.Light, Status = SessionStatus.Assigned };
+            db.Templates.Add(template); db.Plans.Add(plan); db.Sessions.Add(session);
+            db.StaffWorkingHours.AddRange(
+                new StaffWorkingHours { StaffId = trainer.Id, DayOfWeek = date.DayOfWeek, StartMinute = 900, EndMinute = trainerEnd },
+                new StaffWorkingHours { StaffId = rider.Id, DayOfWeek = date.DayOfWeek, StartMinute = 900, EndMinute = riderEnd });
+            if (timeOff) db.StaffTimeOff.Add(new StaffTimeOff { StaffId = rider.Id, Start = Local(18, 0), End = Local(19, 0) });
+            if (overlap) db.Sessions.Add(new TrainingSession { HorseId = horse.Id, PlanId = plan.Id,
+                ScheduledAt = Local(18, 0), ScheduledEndAt = Local(18, 30), DurationMinutes = 30,
+                TrainingType = TrainingType.Trot, DistanceMetres = 1000, Intensity = Intensity.Light });
+            await db.SaveChangesAsync();
+        }
+        using var client = await factory.Client(rider);
+        var response = await client.PostAsJsonAsync($"/api/training/sessions/{session.Id}/start", new { });
+        if (error is not null)
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal(error, (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        }
+        else Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        using var verify = factory.Services.CreateScope();
+        var stored = await verify.ServiceProvider.GetRequiredService<ClubDbContext>().Sessions.FindAsync(session.Id);
+        Assert.Equal(error is null ? SessionStatus.InProgress : SessionStatus.Assigned, stored!.Status);
+        if (error is null) Assert.Equal(now, stored.StartedAt);
+    }
+
     private static readonly DateOnly Day = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3));
     private static DateTimeOffset At(int hour) => new(Day.ToDateTime(new TimeOnly(hour, 0)), TimeSpan.Zero);
     private static StaffTrainingProfileRequest Profile(int level = 2, params TimeOffInput[] timeOff) => new(

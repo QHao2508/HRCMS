@@ -115,9 +115,11 @@ public sealed class TrainingSessionService(ITrainingRepository repository, IUnit
         var today = calendar.Today(clock);
         Ensure.That(today >= plan.StartDate && today <= plan.EndDate, Messages.Text(MessageKey.PlanIsOutsideItsActiveDates), 409, "invalid_state");
         Ensure.That(!await repository.HasActiveSessionAsync(u.Id, s.HorseId), Messages.Text(MessageKey.RiderOrHorseAlreadyHasAnActiveSession), 409, "session_conflict");
-        await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null);
-        await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, clock.GetUtcNow(), s.DurationMinutes.HasValue ? clock.GetUtcNow().AddMinutes(s.DurationMinutes.Value) : null, s.Id, plan.TemplateId);
-        s.Status = SessionStatus.InProgress; s.StartedAt = clock.GetUtcNow();
+        var startedAt = clock.GetUtcNow();
+        var end = s.DurationMinutes.HasValue ? (DateTimeOffset?)startedAt.AddMinutes(s.DurationMinutes.Value) : null;
+        await Guard(s.HorseId, s.DistanceMetres, s.Intensity, s.TrainingType, startedAt, end);
+        await scheduling.ValidateSession(s.HorseId, s.RiderId, s.TrainingType, startedAt, end, s.Id, plan.TemplateId, startingNow: true);
+        s.Status = SessionStatus.InProgress; s.StartedAt = startedAt;
         await events.TrainingHistory(plan, s);
         await events.Audit(AuditAction.TrainingSessionStarted, id); await events.RefreshHorse(s.HorseId); await unitOfWork.SaveChangesAsync();
     }
