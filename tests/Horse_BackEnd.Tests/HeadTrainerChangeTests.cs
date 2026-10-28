@@ -36,7 +36,7 @@ public sealed class HeadTrainerChangeTests
         {
             var heads = await db.Assignments.Where(x => x.HorseId == horse.Id && x.Role == Role.HeadTrainer).ToListAsync();
             Assert.Equal(newHead.Id, Assert.Single(heads, x => x.Active).StaffId);
-            Assert.False(heads.Single(x => x.StaffId == oldHead.Id).Active);
+            Assert.All(heads.Where(x => x.StaffId == oldHead.Id), x => Assert.False(x.Active)); // gồm cả lần xác nhận lại
             Assert.Equal("HLV cũ nghỉ phép dài hạn", heads.Single(x => x.Active).Notes);
             var codes = await db.Notifications.Where(x => x.ReferenceId == horse.Id).Select(x => new { x.RecipientId, x.MessageCode }).ToListAsync();
             Assert.Contains(codes, x => x.RecipientId == owner.Id && x.MessageCode == "HeadTrainerChangedForOwner");
