@@ -6,6 +6,18 @@ Backend hỗ trợ Gmail SMTP gửi mail xác thực qua hàng đợi hiện có
 
 `Storage:Provider=AzureBlob` upload/download trực tiếp bằng SDK, không ghi file vào `App_Data/uploads` và không tự fallback về local khi Azure lỗi. Container phải private; frontend tải qua API có kiểm tra quyền. Tên blob là ID ngẫu nhiên; upload không ghi đè. Khi transaction SQL thất bại, upload chưa được tham chiếu sẽ được dọn; nếu không kiểm chứng được SQL, giữ blob để đối soát.
 
+### Lỗi Managed Identity khi chạy local
+
+Nếu log có `ManagedIdentityCredential` và `169.254.169.254`, backend đang dò Azure Instance Metadata trên máy local. Với credential mode `Default`, code chỉ loại Managed Identity trong Development; production vẫn giữ cơ chế này. Development vẫn cần đăng nhập Azure trong công cụ phát triển được SDK hỗ trợ hoặc cấu hình connection string. Không đổi provider thành Local để đọc các blob đã lưu trên Azure.
+
+Với máy chưa có Azure CLI/phiên đăng nhập Azure, cấu hình connection string bằng prompt ẩn:
+
+```powershell
+.\tools\Set-AzureBlobStorage.ps1 -ServiceUri 'https://hrcmsg2.blob.core.windows.net/' -Container 'hrcms-files'
+```
+
+Nhập connection string của đúng Storage Account khi script yêu cầu, rồi dừng/chạy lại backend. Không đưa connection string vào frontend hoặc source control. Chỉ đổi code loại bỏ việc dò IMDS không tự cấp quyền vào Blob Storage.
+
 `Local` được giữ cho test và cấu hình cũ trong thời gian chuyển đổi. File đang có ở local chưa tự chuyển lên Azure. Không xóa file cũ trước khi chuyển đúng `StorageName` và xác nhận tải lại. Data Protection key ring là cấu hình độc lập; chuyển attachment sang Blob không tự chuyển các khóa mã hóa.
 
 ## 1. Gmail
@@ -25,7 +37,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Set-GmailEmail.ps1 -
 
 Nhập App Password ở prompt ẩn. Script lưu SMTP `smtp.gmail.com`, cổng `587`, TLS, người gửi và thông tin đăng nhập vào User Secrets, bật worker. Không gửi App Password vào chat hoặc commit vào Git.
 
-Development hiện chọn SMTP thật; không mặc định ghi mail vào file nữa. Kiểm tra thông tin đăng nhập, không gửi email thử:
+Development mặc định dùng DevelopmentFile để chạy local khi chưa cấu hình SMTP. Script Gmail lưu cấu hình SMTP vào User Secrets, ưu tiên cao hơn cấu hình Development. Khi dùng SMTP, kiểm tra thông tin đăng nhập mà không gửi email thử:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\Test-GmailConnection.ps1
@@ -63,8 +75,8 @@ Script chọn `AzureCliCredential` trên máy local để dùng phiên `az login
 - Storage Account: `hrcmsg2`, resource group `g2-HRCMS`.
 - Blob endpoint: `https://hrcmsg2.blob.core.windows.net/`.
 - Container: `hrcms-files`, private; account tắt anonymous Blob access.
-- Local User Secrets đã chọn `AzureBlob` và `AzureCli`, không lưu access key.
-- Tài khoản Azure đang đăng nhập được cấp `Storage Blob Data Contributor` chỉ trong container này.
+- Local có thể chọn `AzureBlob` và `AzureCli` để không lưu access key, nhưng cần cài Azure CLI và đăng nhập trước khi chạy API.
+- Tài khoản Azure dùng cho local cần quyền Blob phù hợp trong container này (luồng upload cần `Storage Blob Data Contributor`). Nếu không dùng phiên đăng nhập Azure, cấu hình connection string qua prompt ẩn như hướng dẫn trên.
 
 Nếu Azure CLI hết phiên đăng nhập, chạy `az login` rồi khởi động lại API. Quyền mới trên Azure có thể cần vài phút để có hiệu lực.
 

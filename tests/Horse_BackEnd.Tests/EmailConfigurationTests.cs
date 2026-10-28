@@ -7,6 +7,14 @@ namespace Horse_BackEnd.Tests;
 public sealed class EmailConfigurationTests
 {
     [Fact]
+    public void DevelopmentFileDeliveryRequiresDevelopmentEnvironment()
+    {
+        var settings = new EmailOptions { Provider = EmailDeliveryMode.DevelopmentFile };
+        Assert.True(settings.CanDeliver(true));
+        Assert.False(settings.CanDeliver(false));
+    }
+
+    [Fact]
     public void UserSecretsStyleKeysBindSmtpSettingsAndGmailRequiresTls()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
