@@ -31,12 +31,16 @@ public sealed class TrainingSchedulingRepository(ClubDbContext db) : ITrainingSc
                 && (s.Status == SessionStatus.InProgress || s.ScheduledAt < rangeEnd && (s.ScheduledEndAt == null ? s.ScheduledAt >= rangeStart : s.ScheduledEndAt > rangeStart))
             select new ScheduledResource(s.Id, s.HorseId, trainer, s.RiderId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
     public Task<List<ScheduledResource>> OtherHorseSessionsAsync(Guid[] trainerIds, Guid exceptHorseId, DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
-        => (from s in OpenSessions()
+    {
+        // Guid? để so trực tiếp với kết quả subquery (nullable) mà EF dịch được thành IN (...).
+        var ids = trainerIds.Select(id => (Guid?)id).ToArray();
+        return (from s in OpenSessions()
             let trainer = db.Assignments.Where(a => a.HorseId == s.HorseId && a.Active && a.Role == Role.Trainer)
                 .OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.Id).Select(a => (Guid?)a.StaffId).FirstOrDefault()
-            where s.HorseId != exceptHorseId && trainer != null && trainerIds.Contains(trainer.Value)
+            where s.HorseId != exceptHorseId && ids.Contains(trainer)
                 && (s.Status == SessionStatus.InProgress || s.ScheduledAt < rangeEnd && (s.ScheduledEndAt == null ? s.ScheduledAt >= rangeStart : s.ScheduledEndAt > rangeStart))
             select new ScheduledResource(s.Id, s.HorseId, trainer, s.RiderId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
+    }
     public Task<List<PendingTrainingSession>> PendingHorseSessionsAsync(Guid horseId)
         => (from s in OpenSessions().Where(s => s.HorseId == horseId)
             join p in db.Plans on s.PlanId equals p.Id
