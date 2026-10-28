@@ -88,6 +88,9 @@ public sealed class IntakeTests
         Assert.Equal(HttpStatusCode.OK, (await manager.PutAsJsonAsync($"/api/registrations/{id}", new { name = "Thunder corrected" })).StatusCode);
         await WorkerTests.Read(f, async db =>
         { var row = (await db.Registrations.FindAsync(id))!; Assert.Equal("CLUB-002", row.RegistrationNumber); Assert.Equal(Today(f).AddMonths(2), row.BoardingEnd); });
+        var clearDocument = await manager.PutAsJsonAsync($"/api/registrations/{id}", new { externalRegistrationNumber = " " });
+        clearDocument.EnsureSuccessStatusCode();
+        Assert.Equal(JsonValueKind.Null, (await clearDocument.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("externalRegistrationNumber").ValueKind);
         var approved = await ClubFactory.Post(manager, $"/api/registrations/{id}/review", new { approve = true });
         await WorkerTests.Read(f, async db => Assert.Equal("Thunder corrected", (await db.Horses.FindAsync(approved.GetProperty("horseId").GetGuid()))!.Name));
     }
@@ -185,10 +188,24 @@ public sealed class IntakeTests
         for (var i = 0; i < 2; i++)
         {
             using var owner = await f.Client(await f.User(Role.HorseOwner));
-            var id = (await ClubFactory.Post(owner, "/api/registrations", Complete(f) with { RegistrationNumber = "OWNER-1" })).GetProperty("id").GetGuid();
+            var created = await ClubFactory.Post(owner, "/api/registrations", Complete(f) with { RegistrationNumber = null, ExternalRegistrationNumber = "  001/OWNER-1  " });
+            Assert.Equal("001/OWNER-1", created.GetProperty("externalRegistrationNumber").GetString());
+            Assert.Equal("001/OWNER-1", created.GetProperty("registrationNumber").GetString());
+            var id = created.GetProperty("id").GetGuid();
             await Upload(owner, id, AttachmentType.HorsePhoto); await Upload(owner, id, AttachmentType.Certificate);
             await ClubFactory.Post(owner, $"/api/registrations/{id}/submit", new { });
             horseIds.Add((await ClubFactory.Post(manager, $"/api/registrations/{id}/review", new { approve = true })).GetProperty("horseId").GetGuid());
+            var detail = await owner.GetFromJsonAsync<JsonElement>($"/api/horses/{horseIds[^1]}");
+            var responseHorse = detail.GetProperty("horse");
+            Assert.Equal("001/OWNER-1", responseHorse.GetProperty("externalRegistrationNumber").GetString());
+            Assert.StartsWith("HRC-", responseHorse.GetProperty("systemRegistrationCode").GetString());
+            Assert.Equal(responseHorse.GetProperty("registrationNumber").GetString(), responseHorse.GetProperty("systemRegistrationCode").GetString());
+            var search = await owner.GetFromJsonAsync<JsonElement>("/api/horses?search=001%2FOWNER-1");
+            var item = Assert.Single(search.GetProperty("items").EnumerateArray());
+            Assert.Equal(horseIds[^1], item.GetProperty("id").GetGuid());
+            Assert.Equal("001/OWNER-1", item.GetProperty("externalRegistrationNumber").GetString());
+            var bySystemCode = await owner.GetFromJsonAsync<JsonElement>("/api/horses?search=" + responseHorse.GetProperty("systemRegistrationCode").GetString());
+            Assert.Equal(horseIds[^1], Assert.Single(bySystemCode.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
         }
         var legacy = await f.Horse(await f.User(Role.HorseOwner));
         await WorkerTests.Read(f, async db =>
@@ -197,11 +214,36 @@ public sealed class IntakeTests
             Assert.All(horses, h => Assert.Matches("^HRC-[0-9]{6}$", h.RegistrationNumber!));
             Assert.Equal(2, horses.Select(h => h.RegistrationNumber).Distinct().Count());
             // Số chủ ngựa khai vẫn giữ trên hồ sơ đăng ký.
-            foreach (var h in horses) Assert.Equal("OWNER-1", (await db.Registrations.FindAsync(h.RegistrationId))!.RegistrationNumber);
+            foreach (var h in horses) Assert.Equal("001/OWNER-1", (await db.Registrations.FindAsync(h.RegistrationId))!.RegistrationNumber);
             // Cơ sở dữ liệu chặn trùng mã kể cả khi ghi trực tiếp.
             (await db.Horses.FindAsync(legacy.Id))!.RegistrationNumber = horses[0].RegistrationNumber;
             await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         });
+    }
+
+    [Fact]
+    public async Task DocumentNumberSupportsLegacyRequestsAndRejectsConflictingAliases()
+    {
+        await using var f = new ClubFactory(); using var owner = await f.Client(await f.User(Role.HorseOwner));
+        var legacy = await ClubFactory.Post(owner, "/api/registrations", new { registrationNumber = "  000123/A  " });
+        Assert.Equal("000123/A", legacy.GetProperty("externalRegistrationNumber").GetString());
+        var id = legacy.GetProperty("id").GetGuid();
+        var conflict = await owner.PutAsJsonAsync($"/api/registrations/{id}", new { registrationNumber = "OLD", externalRegistrationNumber = "NEW" });
+        Assert.Equal(HttpStatusCode.BadRequest, conflict.StatusCode);
+        Assert.Equal("registration_number_conflict", (await conflict.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("title").GetString());
+        var matching = await ClubFactory.Post(owner, "/api/registrations", new { registrationNumber = " PAPER-1 ", externalRegistrationNumber = "PAPER-1" });
+        Assert.Equal("PAPER-1", matching.GetProperty("externalRegistrationNumber").GetString());
+        var hrcDocument = await ClubFactory.Post(owner, "/api/registrations", new { externalRegistrationNumber = "HRC-000123" });
+        Assert.Equal("HRC-000123", hrcDocument.GetProperty("externalRegistrationNumber").GetString());
+        Assert.False(hrcDocument.TryGetProperty("systemRegistrationCode", out _));
+        var cleared = await owner.PutAsJsonAsync($"/api/registrations/{id}", new { externalRegistrationNumber = "  " });
+        cleared.EnsureSuccessStatusCode();
+        Assert.Equal(JsonValueKind.Null, (await cleared.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("externalRegistrationNumber").ValueKind);
+        var spoofed = await owner.PostAsJsonAsync("/api/registrations", new { name = "No papers yet", systemRegistrationCode = "HRC-999999" });
+        Assert.Equal(HttpStatusCode.BadRequest, spoofed.StatusCode);
+        var absent = await ClubFactory.Post(owner, "/api/registrations", new { name = "No papers yet" });
+        Assert.Equal(JsonValueKind.Null, absent.GetProperty("externalRegistrationNumber").ValueKind);
+        Assert.False(absent.TryGetProperty("systemRegistrationCode", out _));
     }
 
     private static DateOnly Today(ClubFactory f)

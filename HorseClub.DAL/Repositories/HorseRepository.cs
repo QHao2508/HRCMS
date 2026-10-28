@@ -18,9 +18,19 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
     public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size)
     {
         var query = ScopedHorses.For(db, scope);
-        if (!string.IsNullOrWhiteSpace(search)) query = query.Where(x => x.Name.Contains(search) || x.RegistrationNumber != null && x.RegistrationNumber.Contains(search));
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            search = search.Trim();
+            query = query.Where(x => x.Name.Contains(search) || x.RegistrationNumber != null && x.RegistrationNumber.Contains(search)
+                || db.Registrations.Any(r => r.Id == x.RegistrationId && r.RegistrationNumber != null && r.RegistrationNumber.Contains(search)));
+        }
         if (healthStatus.HasValue) query = query.Where(x => x.HealthStatus == healthStatus);
-        return await query.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id).ToPageAsync(page, size);
+        var result = await query.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id).ToPageAsync(page, size);
+        var registrationIds = result.Items.Select(x => x.RegistrationId).ToArray();
+        var numbers = await db.Registrations.AsNoTracking().Where(r => registrationIds.Contains(r.Id))
+            .Select(r => new { r.Id, r.RegistrationNumber }).ToDictionaryAsync(r => r.Id, r => r.RegistrationNumber);
+        foreach (var horse in result.Items) horse.ExternalRegistrationNumber = numbers.GetValueOrDefault(horse.RegistrationId);
+        return result;
     }
     public Task<Attachment?> GetPhotoAsync(Guid registrationId) => db.Attachments.AsNoTracking().Where(x => x.RegistrationId == registrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync();
     public Task<Measurement?> GetLatestMeasurementAsync(Guid horseId) => db.Measurements.Where(x => x.HorseId == horseId).OrderByDescending(x => x.Date).FirstOrDefaultAsync();

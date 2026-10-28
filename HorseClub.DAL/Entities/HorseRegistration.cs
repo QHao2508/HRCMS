@@ -13,6 +13,9 @@ public sealed class HorseRegistration : Entity
     public HorseGender? Gender { get; set; }
     public string? Breed { get; set; }
     public string? RegistrationNumber { get; set; }
+    // The legacy registrationNumber response remains an alias for the document number.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? ExternalRegistrationNumber => RegistrationNumber;
     public decimal? HeightCm { get; set; }
     public decimal? WeightKg { get; set; }
     public DateOnly? MeasurementDate { get; set; }

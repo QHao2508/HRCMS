@@ -23,6 +23,12 @@ public sealed class AdditionalTests
         Assert.True(document.GetProperty("paths").TryGetProperty("/api/auth/login", out _));
         Assert.True(document.GetProperty("paths").TryGetProperty("/api/horses/{horseId}/medical/restrictions", out _));
         Assert.True(document.GetProperty("paths").TryGetProperty("/api/training/sessions/{id}/start", out _));
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+        var horse = schemas.GetProperty("Horse").GetProperty("properties");
+        Assert.True(horse.GetProperty("registrationNumber").GetProperty("deprecated").GetBoolean());
+        Assert.True(horse.TryGetProperty("systemRegistrationCode", out _));
+        Assert.True(horse.TryGetProperty("externalRegistrationNumber", out _));
+        Assert.True(schemas.GetProperty("RegistrationDraftRequest").GetProperty("properties").TryGetProperty("externalRegistrationNumber", out _));
     }
 
     [Fact]

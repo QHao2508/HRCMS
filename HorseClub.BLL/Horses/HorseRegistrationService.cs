@@ -32,6 +32,8 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     /// <remarks>Quyền role được kiểm trong thân hàm (các tên enum không dịch khi gửi API). ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi. Có ghi dữ liệu SQL Server; transaction của API/worker quyết định commit hoặc rollback. Audit/thông báo/lịch sử được xếp và lưu cùng thao tác, tránh phản ánh một mutation chưa commit.</remarks>
     public async Task<HorseRegistration> Edit(Guid id, RegistrationDraftRequest r)
     {
+        var documentNumberProvided = r.ExternalRegistrationNumber is not null || r.RegistrationNumber is not null;
+        r = NormalizeRegistrationNumber(r);
         var reg = await access.Registration(id); var u = await current.Get();
         if (u.Role == Role.ClubManager)
         {
@@ -49,7 +51,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
             var administrative = Draft(reg) with
             {
                 Name = r.Name ?? reg.Name,
-                RegistrationNumber = r.RegistrationNumber ?? reg.RegistrationNumber,
+                RegistrationNumber = documentNumberProvided ? r.RegistrationNumber : reg.RegistrationNumber,
                 BoardingStart = r.BoardingStart ?? reg.BoardingStart,
                 BoardingEnd = r.BoardingEnd ?? reg.BoardingEnd
             };
@@ -132,7 +134,7 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
     private async Task Apply(HorseRegistration entity, RegistrationDraftRequest r)
     {
-        Ensure.Validate(r);
+        r = NormalizeRegistrationNumber(r);
         var today = calendar.Today(clock);
         Ensure.That(!r.DateOfBirth.HasValue || (r.DateOfBirth.Value != default && r.DateOfBirth <= today), Messages.Text(MessageKey.DateOfBirthMustBeValidAndNotIn));
         Ensure.That(!r.MeasurementDate.HasValue || (r.MeasurementDate.Value != default && r.MeasurementDate <= today && (!r.DateOfBirth.HasValue || r.MeasurementDate >= r.DateOfBirth)), Messages.Text(MessageKey.MeasurementDateIsInvalid));
@@ -170,9 +172,21 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
     }
 
     /// <summary>
-    /// Chuyển hồ sơ intake sang response nháp với các trường được phép xem/sửa.
+    /// Chuẩn hóa mã giấy tờ và kiểm tra alias cũ trước khi lưu hồ sơ.
     /// </summary>
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
+    private static RegistrationDraftRequest NormalizeRegistrationNumber(RegistrationDraftRequest r)
+    {
+        Ensure.Validate(r);
+        static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        var legacy = Normalize(r.RegistrationNumber);
+        var external = Normalize(r.ExternalRegistrationNumber);
+        Ensure.That(r.RegistrationNumber is null || r.ExternalRegistrationNumber is null || legacy == external,
+            Messages.Text(MessageKey.Invalid, "externalRegistrationNumber, registrationNumber"), 400, "registration_number_conflict");
+        return r with { RegistrationNumber = external ?? legacy, ExternalRegistrationNumber = null };
+    }
+
+    // Chuyển hồ sơ intake sang request nháp với các trường được phép xem/sửa.
     private static RegistrationDraftRequest Draft(HorseRegistration r) => new(r.Name, r.Sire, r.Dam, r.DateOfBirth, r.Gender,
         r.Breed, r.RegistrationNumber, r.HeightCm, r.WeightKg, r.MeasurementDate, r.DeclaredHealth, r.HealthNotes,
         r.BoardingStart, r.BoardingEnd, r.PreferredHeadTrainerId, r.PreferredGroomId, r.PreferredVeterinarianId);

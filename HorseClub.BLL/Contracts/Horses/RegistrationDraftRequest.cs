@@ -13,4 +13,5 @@ public sealed record RegistrationDraftRequest(
     decimal? HeightCm = null, decimal? WeightKg = null, DateOnly? MeasurementDate = null,
     [property: MaxLength(1000)] string? DeclaredHealth = null, [property: MaxLength(2000)] string? HealthNotes = null,
     DateOnly? BoardingStart = null, DateOnly? BoardingEnd = null,
-    Guid? PreferredHeadTrainerId = null, Guid? PreferredGroomId = null, Guid? PreferredVeterinarianId = null);
+    Guid? PreferredHeadTrainerId = null, Guid? PreferredGroomId = null, Guid? PreferredVeterinarianId = null,
+    [property: MaxLength(100)] string? ExternalRegistrationNumber = null);

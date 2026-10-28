@@ -11,6 +11,12 @@ public sealed class Horse : Entity
     public HorseGender Gender { get; set; }
     public string Breed { get; set; } = "";
     public string? RegistrationNumber { get; set; }
+    // Legacy persisted name retained for compatibility. This is the club-issued code.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? SystemRegistrationCode => RegistrationNumber;
+    // Enriched from the approved registration; never persisted as a second copy.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? ExternalRegistrationNumber { get; set; }
     public DateOnly BoardingStart { get; set; }
     public DateOnly? BoardingEnd { get; set; }
     public HealthStatus HealthStatus { get; set; } = HealthStatus.Monitoring;

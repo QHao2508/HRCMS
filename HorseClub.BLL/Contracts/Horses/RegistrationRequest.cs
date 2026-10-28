@@ -12,4 +12,5 @@ public sealed record RegistrationRequest(
     [property: Required, MaxLength(100)] string Breed, [property: MaxLength(100)] string? RegistrationNumber,
     [property: Range(1, 300)] decimal HeightCm, [property: Range(1, 2000)] decimal WeightKg, DateOnly MeasurementDate,
     [property: Required, MaxLength(1000)] string DeclaredHealth, [property: MaxLength(2000)] string HealthNotes,
-    DateOnly BoardingStart, DateOnly? BoardingEnd, Guid? PreferredHeadTrainerId, Guid? PreferredGroomId, Guid? PreferredVeterinarianId);
+    DateOnly BoardingStart, DateOnly? BoardingEnd, Guid? PreferredHeadTrainerId, Guid? PreferredGroomId, Guid? PreferredVeterinarianId,
+    [property: MaxLength(100)] string? ExternalRegistrationNumber = null);

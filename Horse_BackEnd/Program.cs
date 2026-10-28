@@ -13,7 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using Horse_BackEnd.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddOpenApi(options => options.AddOperationTransformer<ApiContractTransformer>());
+builder.Services.AddOpenApi(options => options.AddOperationTransformer<ApiContractTransformer>()
+    .AddSchemaTransformer<HorseIdentifierSchemaTransformer>());
 builder.Services.AddOptions<SecurityOptions>().BindConfiguration(SecurityOptions.Section).ValidateDataAnnotations().Validate(x => x.PasswordMaxLength >= x.PasswordMinLength && x.RefreshTokenMinutes >= x.AccessTokenMinutes).ValidateOnStart();
 builder.Services.AddOptions<StorageOptions>().BindConfiguration(StorageOptions.Section).ValidateDataAnnotations()
     .Validate(x => x.IsValid(), "Storage requires Local or AzureBlob with a valid private container and HTTPS service connection.").ValidateOnStart();

@@ -34,6 +34,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
         var horse = await access.Horse(id, allowArchived: true);
         var detail = await repository.GetDetailAsync(id, horse.RegistrationId);
         var attachment = detail.Photo; var registration = detail.Registration;
+        horse.ExternalRegistrationNumber = registration.RegistrationNumber;
         var photo = attachment is null ? null : new HorsePhotoResponse(attachment.Id, attachment.FileName, attachment.StorageName, attachment.ContentType, attachment.Length, $"/api/horses/{id}/photo");
         return new HorseDetailResponse(horse, detail.LatestMeasurement, detail.Assignments, detail.Occupancy, new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo, detail.StaffNames);
     }
