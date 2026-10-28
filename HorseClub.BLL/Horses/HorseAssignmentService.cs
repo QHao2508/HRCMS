@@ -37,12 +37,10 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         }
         var active = await repository.GetActiveAsync(horseId, r.Role);
         var changeReason = r.ChangeReason?.Trim();
-        var replacingHead = r.Role == Role.HeadTrainer && active.Count > 0;
-        if (r.Role == Role.HeadTrainer)
-        {
-            Ensure.That(active.All(x => x.StaffId != r.StaffId), Messages.Text(MessageKey.StaffAlreadyAssignedToHorse), 409, "already_assigned");
-            if (replacingHead) Ensure.That(!string.IsNullOrEmpty(changeReason), Messages.Text(MessageKey.HeadTrainerChangeReasonRequired));
-        }
+        // Đổi sang người khác mới là "thay HeadTrainer" (bắt buộc lý do, báo người cũ/mới/chủ ngựa).
+        // Xác nhận lại đúng người đang phụ trách (cập nhật ngày, ghi chú) giữ như trước, không cần lý do.
+        var replacingHead = r.Role == Role.HeadTrainer && active.Any(x => x.StaffId != r.StaffId);
+        if (replacingHead) Ensure.That(!string.IsNullOrEmpty(changeReason), Messages.Text(MessageKey.HeadTrainerChangeReasonRequired));
         foreach (var old in active)
         {
             Ensure.That(r.StartDate >= old.StartDate, Messages.Text(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));

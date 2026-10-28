@@ -23,8 +23,8 @@ public sealed class HeadTrainerChangeTests
 
         // Lần giao đầu tiên không cần lý do.
         await ClubFactory.Post(manager, url, new AssignmentRequest(oldHead.Id, Role.HeadTrainer, today, ""));
-        // Giao lại đúng người đang phụ trách bị chặn.
-        Assert.Equal(HttpStatusCode.Conflict, (await manager.PostAsJsonAsync(url, new AssignmentRequest(oldHead.Id, Role.HeadTrainer, today, "", ChangeReason: "Again"), ClubFactory.Json)).StatusCode);
+        // Xác nhận lại đúng người đang phụ trách không phải là đổi người: không cần lý do.
+        await ClubFactory.Post(manager, url, new AssignmentRequest(oldHead.Id, Role.HeadTrainer, today, "Confirmed"));
         // Đổi sang người khác mà không có lý do bị từ chối, dữ liệu giữ nguyên.
         var missing = await manager.PostAsJsonAsync(url, new AssignmentRequest(newHead.Id, Role.HeadTrainer, today, "", ChangeReason: "   "), ClubFactory.Json);
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
