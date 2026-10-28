@@ -176,6 +176,34 @@ public sealed class IntakeTests
         });
     }
 
+    [Fact]
+    public async Task ApprovalIssuesUniqueClubRegistrationNumbers()
+    {
+        // Mã đăng ký của ngựa do câu lạc bộ cấp khi duyệt, không trùng giữa các ngựa.
+        await using var f = new ClubFactory(); using var manager = await f.Client();
+        var horseIds = new List<Guid>();
+        for (var i = 0; i < 2; i++)
+        {
+            using var owner = await f.Client(await f.User(Role.HorseOwner));
+            var id = (await ClubFactory.Post(owner, "/api/registrations", Complete(f) with { RegistrationNumber = "OWNER-1" })).GetProperty("id").GetGuid();
+            await Upload(owner, id, AttachmentType.HorsePhoto); await Upload(owner, id, AttachmentType.Certificate);
+            await ClubFactory.Post(owner, $"/api/registrations/{id}/submit", new { });
+            horseIds.Add((await ClubFactory.Post(manager, $"/api/registrations/{id}/review", new { approve = true })).GetProperty("horseId").GetGuid());
+        }
+        var legacy = await f.Horse(await f.User(Role.HorseOwner));
+        await WorkerTests.Read(f, async db =>
+        {
+            var horses = await db.Horses.Where(h => horseIds.Contains(h.Id)).ToListAsync();
+            Assert.All(horses, h => Assert.Matches("^HRC-[0-9]{6}$", h.RegistrationNumber!));
+            Assert.Equal(2, horses.Select(h => h.RegistrationNumber).Distinct().Count());
+            // Số chủ ngựa khai vẫn giữ trên hồ sơ đăng ký.
+            foreach (var h in horses) Assert.Equal("OWNER-1", (await db.Registrations.FindAsync(h.RegistrationId))!.RegistrationNumber);
+            // Cơ sở dữ liệu chặn trùng mã kể cả khi ghi trực tiếp.
+            (await db.Horses.FindAsync(legacy.Id))!.RegistrationNumber = horses[0].RegistrationNumber;
+            await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+        });
+    }
+
     private static DateOnly Today(ClubFactory f)
     {
         using var scope = f.Services.CreateScope();

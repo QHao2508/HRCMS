@@ -114,7 +114,8 @@ public sealed class HorseRegistrationService(IRegistrationRepository repository,
             DateOfBirth = r.DateOfBirth!.Value,
             Gender = r.Gender!.Value,
             Breed = r.Breed!,
-            RegistrationNumber = r.RegistrationNumber,
+            // Mã đăng ký của câu lạc bộ, cấp khi duyệt và không trùng. Số chủ ngựa khai (mã bên ngoài) vẫn nằm trên hồ sơ đăng ký.
+            RegistrationNumber = await repository.NextHorseRegistrationNumberAsync(),
             BoardingStart = r.BoardingStart!.Value,
             BoardingEnd = r.BoardingEnd
         };

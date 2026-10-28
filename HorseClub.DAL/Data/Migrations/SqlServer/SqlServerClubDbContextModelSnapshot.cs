@@ -22,6 +22,8 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("HorseRegistrationNumbers");
+
             modelBuilder.Entity("HorseClub.DAL.Entities.Attachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -331,8 +333,8 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("RegistrationNumber")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Sire")
                         .IsRequired()
@@ -347,6 +349,10 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
 
                     b.HasIndex("RegistrationId")
                         .IsUnique();
+
+                    b.HasIndex("RegistrationNumber")
+                        .IsUnique()
+                        .HasFilter("[RegistrationNumber] IS NOT NULL");
 
                     b.HasIndex("OwnerId", "Archived");
 

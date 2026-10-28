@@ -52,6 +52,25 @@ jobs:
         run: dotnet build HorseClub.slnx --configuration Release --no-restore
       - name: SQL Server workflows and concurrency
         run: dotnet test HorseClub.slnx --configuration Release --no-build --no-restore --logger trx --results-directory TestResults
+      - name: Report failed tests
+        # Ghi test lỗi vào trang Summary của lần chạy (xem được mà không cần mở log).
+        if: failure()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import glob, xml.etree.ElementTree as ET
+          ns = {'t': 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010'}
+          print('## Failed tests')
+          for path in glob.glob('TestResults/**/*.trx', recursive=True):
+              for result in ET.parse(path).getroot().iterfind('.//t:UnitTestResult', ns):
+                  if result.get('outcome') != 'Failed':
+                      continue
+                  message = result.find('.//t:Message', ns); stack = result.find('.//t:StackTrace', ns)
+                  print(f"### {result.get('testName')}")
+                  print('```')
+                  print((message.text or '')[:4000] if message is not None else '')
+                  print((stack.text or '')[:3000] if stack is not None else '')
+                  print('```')
+          PY
       - name: Upload SQL Server test results
         if: always()
         uses: actions/upload-artifact@v4
