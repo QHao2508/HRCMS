@@ -83,6 +83,10 @@ internal static class ClubModelConfiguration
             }
         }
         b.Entity<User>().Property(x => x.Email).HasMaxLength(254);
+        // Mã đăng ký ngựa: duy nhất (bỏ qua ngựa chưa có mã), số lấy từ sequence.
+        b.Entity<Horse>().Property(x => x.RegistrationNumber).HasMaxLength(HorseRegistrationNumbers.MaxLength);
+        b.Entity<Horse>().HasIndex(x => x.RegistrationNumber).IsUnique().HasFilter("[RegistrationNumber] IS NOT NULL");
+        b.HasSequence<int>(HorseRegistrationNumbers.Sequence);
         b.Entity<PublicReferenceRecord>().HasIndex(x => x.ExternalKey).IsUnique();
         b.Entity<PublicReferenceRecord>().Property(x => x.ExternalKey).HasMaxLength(300);
         b.Entity<PublicReferenceRecord>().Property(x => x.Kind).HasMaxLength(40);
