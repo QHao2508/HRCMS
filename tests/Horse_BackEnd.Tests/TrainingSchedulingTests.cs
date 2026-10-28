@@ -70,6 +70,42 @@ public sealed class TrainingSchedulingTests
     }
 
     [Fact]
+    public async Task CandidatesUseTheSameRulesAsAssignmentAndExplainTemplateBlockers()
+    {
+        // Ngựa đang có kế hoạch theo giáo án "steady-canter": Trainer mới phải được giao giáo án đó, không chỉ có chuyên môn đang chọn.
+        await using var factory = new ClubFactory(); using var manager = await factory.Client();
+        var head = await factory.User(Role.HeadTrainer); var outsider = await factory.User(Role.Trainer); var qualified = await factory.User(Role.Trainer);
+        var horse = await factory.Horse(await factory.User(Role.HorseOwner), head);
+        var template = DefaultTrainingTemplates.All.Single(t => t.SystemKey == "steady-canter");
+        foreach (var trainer in new[] { outsider, qualified })
+            Assert.Equal(HttpStatusCode.OK, (await manager.PutAsJsonAsync($"/api/staff/{trainer.Id}/training-profile",
+                new StaffTrainingProfileRequest([new(TrainingType.Canter, 3), new(TrainingType.Trot, 3)], [], []), ClubFactory.Json)).StatusCode);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            var plan = new TrainingPlan { HorseId = horse.Id, TrainerId = head.Id, TemplateId = template.Id, Goal = "Endurance", Phase = "Preparation", StartDate = Day, EndDate = Day.AddDays(5) };
+            db.Plans.Add(plan);
+            db.Sessions.Add(new TrainingSession { HorseId = horse.Id, PlanId = plan.Id, ScheduledAt = At(8), ScheduledEndAt = At(9), DurationMinutes = 60, TrainingType = TrainingType.Canter, DistanceMetres = 1000, Intensity = Intensity.Light });
+            db.TrainerTemplateAssignments.Add(new() { TemplateId = template.Id, TrainerId = qualified.Id, AssignedBy = head.Id });
+            await db.SaveChangesAsync();
+        }
+        using var headClient = await factory.Client(head);
+        var candidates = await headClient.GetFromJsonAsync<List<TrainerCandidateResponse>>($"/api/training/trainer-candidates?horseId={horse.Id}&trainingType=Trot", ClubFactory.Json);
+        var fit = candidates!.Single(x => x.Id == qualified.Id); Assert.True(fit.Matches); Assert.Empty(fit.Issues!);
+        Assert.True(candidates.IndexOf(fit) < candidates.FindIndex(x => x.Id == outsider.Id));
+        var blocked = candidates.Single(x => x.Id == outsider.Id);
+        Assert.False(blocked.Matches); Assert.Equal(3, blocked.MatchLevel);
+        var issue = Assert.Single(blocked.Issues!);
+        Assert.Equal("TrainerNotQualifiedForTemplate", issue.MessageKey); Assert.Equal(new[] { template.Name }, issue.Args);
+
+        var url = $"/api/horses/{horse.Id}/assignments"; var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var refused = await headClient.PostAsJsonAsync(url, new AssignmentRequest(outsider.Id, Role.Trainer, today, "", RequiredTrainingType: TrainingType.Trot), ClubFactory.Json);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal("TrainerNotQualifiedForTemplate", (await refused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("messageKey").GetString());
+        await ClubFactory.Post(headClient, url, new AssignmentRequest(qualified.Id, Role.Trainer, today, "", RequiredTrainingType: TrainingType.Trot));
+    }
+
+    [Fact]
     public async Task AvailabilityCombinesHorseTrainerRiderAndTimeOffWithoutLeakingOtherHorseDetails()
     {
         await using var factory = new ClubFactory(); using var manager = await factory.Client();

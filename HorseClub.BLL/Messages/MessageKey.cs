@@ -201,4 +201,5 @@ public enum MessageKey
     HeadTrainerChangedForOwner,
     YouWereReplacedAsHeadTrainer,
     YouAreNowHeadTrainer,
+    TrainerNotQualifiedForTemplate,
 }

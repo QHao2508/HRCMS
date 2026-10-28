@@ -16,6 +16,8 @@ public sealed class TrainingSchedulingRepository(ClubDbContext db) : ITrainingSc
     public Task<List<TrainingType>> RequiredTypesAsync(Guid staffId) => db.Assignments.Where(x => x.Active && x.Role == Role.Trainer && x.StaffId == staffId && x.RequiredTrainingType != null)
         .Select(x => x.RequiredTrainingType!.Value).Distinct().ToListAsync();
     public Task<List<StaffWorkingHours>> HoursAsync(Guid staffId) => db.StaffWorkingHours.AsNoTracking().Where(x => x.StaffId == staffId).OrderBy(x => x.DayOfWeek).ThenBy(x => x.StartMinute).ToListAsync();
+    public Task<List<StaffWorkingHours>> HoursAsync(Guid[] staffIds) => db.StaffWorkingHours.AsNoTracking().Where(x => staffIds.Contains(x.StaffId)).ToListAsync();
+    public Task<List<StaffTimeOff>> TimeOffAsync(Guid[] staffIds, DateTimeOffset from, DateTimeOffset to) => db.StaffTimeOff.AsNoTracking().Where(x => staffIds.Contains(x.StaffId) && x.Start < to && x.End > from).ToListAsync();
     public Task<List<StaffTimeOff>> TimeOffAsync(Guid staffId, DateTimeOffset from, DateTimeOffset to) => db.StaffTimeOff.AsNoTracking().Where(x => x.StaffId == staffId && x.Start < to && x.End > from).OrderBy(x => x.Start).ToListAsync();
 
     private IQueryable<TrainingSession> OpenSessions() => db.Sessions.AsNoTracking().Where(s => s.Status == SessionStatus.InProgress
@@ -28,8 +30,17 @@ public sealed class TrainingSchedulingRepository(ClubDbContext db) : ITrainingSc
             where s.Id != exceptSessionId && (s.HorseId == horseId || trainerId != null && trainer == trainerId || riderId != null && s.RiderId == riderId)
                 && (s.Status == SessionStatus.InProgress || s.ScheduledAt < rangeEnd && (s.ScheduledEndAt == null ? s.ScheduledAt >= rangeStart : s.ScheduledEndAt > rangeStart))
             select new ScheduledResource(s.Id, s.HorseId, trainer, s.RiderId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
-    public Task<List<ScheduledResource>> PendingHorseSessionsAsync(Guid horseId) => OpenSessions().Where(s => s.HorseId == horseId)
-        .Select(s => new ScheduledResource(s.Id, s.HorseId, null, s.RiderId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
+    public Task<List<ScheduledResource>> OtherHorseSessionsAsync(Guid[] trainerIds, Guid exceptHorseId, DateTimeOffset rangeStart, DateTimeOffset rangeEnd)
+        => (from s in OpenSessions()
+            let trainer = db.Assignments.Where(a => a.HorseId == s.HorseId && a.Active && a.Role == Role.Trainer)
+                .OrderByDescending(a => a.CreatedAt).ThenByDescending(a => a.Id).Select(a => (Guid?)a.StaffId).FirstOrDefault()
+            where s.HorseId != exceptHorseId && trainer != null && trainerIds.Contains(trainer.Value)
+                && (s.Status == SessionStatus.InProgress || s.ScheduledAt < rangeEnd && (s.ScheduledEndAt == null ? s.ScheduledAt >= rangeStart : s.ScheduledEndAt > rangeStart))
+            select new ScheduledResource(s.Id, s.HorseId, trainer, s.RiderId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
+    public Task<List<PendingTrainingSession>> PendingHorseSessionsAsync(Guid horseId)
+        => (from s in OpenSessions().Where(s => s.HorseId == horseId)
+            join p in db.Plans on s.PlanId equals p.Id
+            select new PendingTrainingSession(s.Id, p.TemplateId, s.ScheduledAt, s.ScheduledEndAt, s.Status == SessionStatus.InProgress, s.TrainingType)).ToListAsync();
 
     public async Task ReplaceProfileAsync(Guid staffId, List<TrainerExpertise> expertise, List<StaffWorkingHours> hours, List<StaffTimeOff> timeOff)
     {

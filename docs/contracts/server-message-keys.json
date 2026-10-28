@@ -164,6 +164,7 @@
     "TemplateMustBeAssignedToQualifiedTrainer": 0,
     "ThePlanWasArchivedAndThisSessionWasCancelled": 0,
     "TooMuchReportDataNarrowHorseDateFilters": 0,
+    "TrainerNotQualifiedForTemplate": 1,
     "TrainerScheduleOverlap": 0,
     "TrainerSessionInProgress": 0,
     "TrainerSpecialtyMismatch": 0,

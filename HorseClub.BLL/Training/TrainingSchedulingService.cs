@@ -83,23 +83,6 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         return await Profile(staffId);
     }
 
-    public async Task<List<TrainerCandidateResponse>> Candidates(Guid horseId, TrainingType trainingType)
-    {
-        var user = await current.Get(); Ensure.Role(user, Role.HeadTrainer, Role.ClubManager);
-        await access.Horse(horseId);
-        Check(Enum.IsDefined(trainingType), "invalid_training_type");
-        if (user.Role == Role.HeadTrainer)
-            Ensure.That(await repository.IsHeadTrainerAsync(horseId, user.Id), Messages.Text(MessageKey.PermissionDenied), 403, "forbidden");
-        var trainers = await repository.TrainersAsync();
-        var expertise = await repository.ExpertiseAsync(trainers.Select(x => x.User.Id).ToArray());
-        return trainers.Select(x =>
-        {
-            var skills = expertise.Where(e => e.StaffId == x.User.Id).Select(e => new ExpertiseInput(e.TrainingType, e.Level)).ToList();
-            var level = skills.FirstOrDefault(e => e.TrainingType == trainingType)?.Level ?? 0;
-            return new TrainerCandidateResponse(x.User.Id, Name(x.User), skills, x.AssignedHorses, level > 0, level);
-        }).OrderByDescending(x => x.Matches).ThenByDescending(x => x.MatchLevel).ThenBy(x => x.AssignedHorses).ThenBy(x => x.Name).ToList();
-    }
-
     public async Task<TrainingAvailabilityResponse> Availability(Guid horseId, DateOnly date, int durationMinutes, TrainingType trainingType,
         Intensity intensity, decimal distanceMetres, Guid? riderId, Guid? exceptSessionId)
     {
@@ -198,27 +181,127 @@ public sealed class TrainingSchedulingService(ITrainingSchedulingRepository repo
         Check((await repository.TimeOffAsync(staff.Id, start, end ?? start.AddTicks(1))).Count == 0, "staff_time_off");
     }
 
+    // ===== Chọn Trainer cho ngựa: một bộ quy tắc cho cả danh sách ứng viên lẫn thao tác phân công =====
+
+    /// <summary>Dữ liệu của ngựa: Trainer hiện tại, chuyên môn yêu cầu, buổi tập chưa xong và giáo án của chúng.</summary>
+    private sealed record HorseTrainingContext(Guid HorseId, Guid? CurrentTrainerId, TrainingType? RequiredType,
+        List<PendingTrainingSession> Sessions, Dictionary<Guid, TrainingTemplate> Templates, Dictionary<Guid, HashSet<Guid>> TemplateTrainers);
+
+    /// <summary>Dữ liệu của các ứng viên, nạp theo lô một lần thay vì mỗi người, mỗi buổi tập một truy vấn.</summary>
+    private sealed record CandidateSchedules(ILookup<Guid, TrainerExpertise> Expertise, ILookup<Guid, StaffWorkingHours> Hours,
+        ILookup<Guid, StaffTimeOff> TimeOff, ILookup<Guid, ScheduledResource> OtherHorseSessions);
+
+    private async Task<HorseTrainingContext> LoadHorseContext(Guid horseId, TrainingType? requiredType)
+    {
+        var sessions = await repository.PendingHorseSessionsAsync(horseId);
+        var templates = new Dictionary<Guid, TrainingTemplate>(); var templateTrainers = new Dictionary<Guid, HashSet<Guid>>();
+        foreach (var templateId in sessions.Select(s => s.TemplateId).Distinct())
+        {
+            var template = Ensure.Found(await training.FindTemplateAsync(templateId));
+            // Giáo án cũ chưa khai báo chương trình thì không ràng buộc chuyên môn (giữ tương thích dữ liệu cũ).
+            if (TemplateCurriculumPolicy.Read(template) is null) continue;
+            templates[templateId] = template;
+            templateTrainers[templateId] = (await training.TemplateAssignmentsAsync(templateId)).Select(a => a.TrainerId).ToHashSet();
+        }
+        return new(horseId, await repository.CurrentTrainerAsync(horseId), requiredType, sessions, templates, templateTrainers);
+    }
+
+    private async Task<CandidateSchedules> LoadSchedules(HorseTrainingContext horse, Guid[] trainerIds)
+    {
+        var expertise = (await repository.ExpertiseAsync(trainerIds)).ToLookup(x => x.StaffId);
+        if (horse.Sessions.Count == 0) return new(expertise, Empty<StaffWorkingHours>(), Empty<StaffTimeOff>(), Empty<ScheduledResource>());
+        // Một khoảng thời gian bao trùm mọi buổi tập chưa xong của ngựa.
+        var from = horse.Sessions.Min(s => calendar.DayRange(s.Start).Start);
+        var to = horse.Sessions.Max(s => s.End ?? calendar.DayRange(s.Start).End);
+        return new(expertise,
+            (await repository.HoursAsync(trainerIds)).ToLookup(x => x.StaffId),
+            (await repository.TimeOffAsync(trainerIds, from, to.AddTicks(1))).ToLookup(x => x.StaffId),
+            (await repository.OtherHorseSessionsAsync(trainerIds, horse.HorseId, from, to)).ToLookup(x => x.TrainerId!.Value));
+    }
+
+    private static ILookup<Guid, T> Empty<T>() => Array.Empty<(Guid, T)>().ToLookup(x => x.Item1, x => x.Item2);
+
+    /// <summary>
+    /// Các lý do Trainer chưa nhận được ngựa, theo thứ tự kiểm tra; danh sách rỗng nghĩa là phù hợp.
+    /// 1. Có chuyên môn Head Trainer yêu cầu. 2. Được giao và đủ chuyên môn cho giáo án của các kế hoạch đang chạy.
+    /// 3. Với từng buổi tập chưa xong: không đang do người khác thực hiện, đúng chuyên môn, trong ca làm, không nghỉ phép, không trùng lịch ngựa khác.
+    /// </summary>
+    private List<TrainerFitIssue> Evaluate(HorseTrainingContext horse, CandidateSchedules data, Guid trainerId)
+    {
+        var issues = new List<TrainerFitIssue>();
+        void Add(TrainerFitIssue issue) { if (!issues.Any(x => x.Text.Key == issue.Key && x.Text.Args.SequenceEqual(issue.Text.Args))) issues.Add(issue); }
+        var skills = data.Expertise[trainerId].ToList();
+
+        if (horse.RequiredType is { } required && !skills.Any(x => x.TrainingType == required))
+            Add(new(MessageKey.TrainerSpecialtyMismatch, "trainer_specialty_mismatch"));
+
+        foreach (var (templateId, template) in horse.Templates)
+            if (!TemplateCurriculumPolicy.Matches(template, skills) || !horse.TemplateTrainers[templateId].Contains(trainerId))
+                Add(new(MessageKey.TrainerNotQualifiedForTemplate, "template_trainer_mismatch", new object?[] { template.Name }));
+
+        var hours = data.Hours[trainerId].Select(x => new WorkingHoursInput(x.DayOfWeek, x.StartMinute, x.EndMinute)).ToList();
+        var timeOff = data.TimeOff[trainerId].ToList();
+        var others = data.OtherHorseSessions[trainerId].ToList();
+        foreach (var session in horse.Sessions)
+        {
+            if (session.InProgress && horse.CurrentTrainerId != trainerId)
+                Add(new(MessageKey.TrainerSessionInProgress, "trainer_session_in_progress"));
+            // Trainer chưa khai hồ sơ chuyên môn được giữ hành vi cũ: không chặn theo loại buổi tập.
+            if (skills.Count > 0 && !skills.Any(x => x.TrainingType == session.TrainingType))
+                Add(new(MessageKey.TrainerSpecialtyMismatch, "trainer_specialty_mismatch"));
+            if (hours.Count > 0)
+            {
+                if (session.End is not { } end) Add(new(MessageKey.SchedulingDurationRequired, "duration_required"));
+                else if (!Covers(hours, session.Start, end)) Add(new(MessageKey.StaffOutsideWorkingHours, "outside_working_hours"));
+            }
+            var until = session.End ?? session.Start.AddTicks(1);
+            if (timeOff.Any(x => x.Start < until && x.End > session.Start))
+                Add(new(MessageKey.StaffTimeOffConflict, "staff_time_off"));
+            if (others.Any(x => Overlaps(x, session)))
+                Add(new(MessageKey.TrainerScheduleOverlap, "trainer_schedule_overlap"));
+        }
+        return issues;
+    }
+
+    /// <summary>Buổi tập ở ngựa khác có chiếm cùng thời gian với buổi tập của ngựa này không (buổi chưa có giờ kết thúc tính theo giờ bắt đầu).</summary>
+    private bool Overlaps(ScheduledResource other, PendingTrainingSession session)
+    {
+        if (other.InProgress) return true;
+        // Chỉ xét buổi nằm trong ngày của buổi tập (đến giờ kết thúc nếu có), giống truy vấn lịch theo ngày.
+        var day = calendar.DayRange(session.Start); var rangeEnd = session.End ?? day.End;
+        if (!(other.Start < rangeEnd && (other.End is null ? other.Start >= day.Start : other.End > day.Start))) return false;
+        return other.End is null
+            ? session.End.HasValue ? other.Start >= session.Start && other.Start < session.End : other.Start == session.Start
+            : session.End.HasValue ? other.Start < session.End && other.End > session.Start : other.Start <= session.Start && other.End > session.Start;
+    }
+
+    /// <summary>Danh sách Trainer cho ngựa: mỗi người kèm lý do chưa phù hợp, người phù hợp xếp trước.</summary>
+    public async Task<List<TrainerCandidateResponse>> Candidates(Guid horseId, TrainingType trainingType)
+    {
+        var user = await current.Get(); Ensure.Role(user, Role.HeadTrainer, Role.ClubManager);
+        await access.Horse(horseId);
+        Check(Enum.IsDefined(trainingType), "invalid_training_type");
+        if (user.Role == Role.HeadTrainer)
+            Ensure.That(await repository.IsHeadTrainerAsync(horseId, user.Id), Messages.Text(MessageKey.PermissionDenied), 403, "forbidden");
+        var trainers = await repository.TrainersAsync();
+        var horse = await LoadHorseContext(horseId, trainingType);
+        var data = await LoadSchedules(horse, trainers.Select(x => x.User.Id).ToArray());
+        return trainers.Select(x =>
+        {
+            var skills = data.Expertise[x.User.Id].Select(e => new ExpertiseInput(e.TrainingType, e.Level)).ToList();
+            var issues = Evaluate(horse, data, x.User.Id);
+            return new TrainerCandidateResponse(x.User.Id, Name(x.User), skills, x.AssignedHorses, issues.Count == 0,
+                skills.FirstOrDefault(e => e.TrainingType == trainingType)?.Level ?? 0,
+                issues.Select(i => new CandidateIssue(i.Key.ToString(), i.Text.Args)).ToList());
+        }).OrderByDescending(x => x.Matches).ThenByDescending(x => x.MatchLevel).ThenBy(x => x.AssignedHorses).ThenBy(x => x.Name).ToList();
+    }
+
+    /// <summary>Chặn phân công Trainer bằng lý do đầu tiên của <see cref="Evaluate"/> (cùng quy tắc với danh sách ứng viên).</summary>
     public async Task ValidateAssignment(Guid horseId, Guid trainerId, TrainingType? requiredType)
     {
-        var expertise = await repository.ExpertiseAsync([trainerId]);
-        if (requiredType.HasValue)
-        {
-            Check(Enum.IsDefined(requiredType.Value), "invalid_training_type");
-            Check(expertise.Any(x => x.TrainingType == requiredType), "trainer_specialty_mismatch");
-        }
-        foreach (var session in await repository.PendingHorseSessionsAsync(horseId))
-        {
-            var pendingSession = Ensure.Found(await training.FindSessionAsync(session.SessionId));
-            var pendingPlan = Ensure.Found(await training.FindPlanAsync(pendingSession.PlanId));
-            await templates.ValidateTrainer(pendingPlan.TemplateId, trainerId);
-            Check(!session.InProgress || await repository.CurrentTrainerAsync(horseId) == trainerId, "trainer_session_in_progress");
-            if (expertise.Count > 0) Check(expertise.Any(x => x.TrainingType == session.TrainingType), "trainer_specialty_mismatch");
-            await ValidateHours(Ensure.Found(await repository.FindStaffAsync(trainerId)), session.Start, session.End);
-            var range = calendar.DayRange(session.Start);
-            var other = await repository.ReservationsAsync(Guid.Empty, trainerId, null, range.Start, session.End ?? range.End, session.SessionId);
-            Check(!other.Any(x => x.HorseId != horseId && (x.InProgress || (x.End is null
-                ? session.End.HasValue ? x.Start >= session.Start && x.Start < session.End : x.Start == session.Start
-                : session.End.HasValue ? x.Start < session.End && x.End > session.Start : x.Start <= session.Start && x.End > session.Start))), "trainer_schedule_overlap");
-        }
+        if (requiredType.HasValue) Check(Enum.IsDefined(requiredType.Value), "invalid_training_type");
+        var horse = await LoadHorseContext(horseId, requiredType);
+        var issue = Evaluate(horse, await LoadSchedules(horse, [trainerId]), trainerId).FirstOrDefault();
+        if (issue is not null) Ensure.That(false, issue.Text, 409, issue.Code);
     }
 }

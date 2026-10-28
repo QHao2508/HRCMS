@@ -200,5 +200,6 @@
   "StaffAlreadyAssignedToHorse": "This staff member is already assigned to the horse in this role.",
   "HeadTrainerChangedForOwner": "The head trainer of your horse was changed.",
   "YouWereReplacedAsHeadTrainer": "You are no longer the head trainer of this horse.",
-  "YouAreNowHeadTrainer": "You are now the head trainer of this horse."
+  "YouAreNowHeadTrainer": "You are now the head trainer of this horse.",
+  "TrainerNotQualifiedForTemplate": "This horse has sessions from the template \"{0}\". The trainer must be assigned to that template and hold every required specialty at the required level."
 }
