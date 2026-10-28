@@ -10,6 +10,7 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
 {
     /// <summary>
     /// Kiểm vai trò người phân công, nhân sự được chọn và ngày bắt đầu; kết thúc phân công cũ, ghi phân công mới cùng audit/thông báo.
+    /// Mỗi ngựa chỉ có một huấn luyện viên trưởng: Manager đổi người phải ghi lý do; chủ ngựa, người cũ và người mới đều nhận thông báo.
     /// </summary>
     /// <param name="horseId">ID ngựa cần kiểm sở hữu/phân công và phạm vi nghiệp vụ.</param>
     /// <param name="r">DTO request của thao tác; các field được kiểm ở API và quy tắc BLL.</param>
@@ -21,7 +22,7 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
         Ensure.That(r.EndDate is null || r.EndDate >= r.StartDate, Messages.Text(MessageKey.InvalidRequestBody));
         if (r.Role == Role.Trainer)
         {
-            // Manager được phân công Trainer thay HeadTrainer (ví dụ HeadTrainer vắng) nhưng bắt buộc ghi lý do vào ghi chú.
+            // Chỉ HeadTrainer đang phụ trách ngựa chọn Trainer. Manager muốn đổi người huấn luyện thì đổi HeadTrainer (kèm lý do).
             Ensure.Role(u, Role.HeadTrainer);
             Ensure.That(await repository.IsAssignedAsync(horseId, u.Id, Role.HeadTrainer), Messages.Text(MessageKey.OnlyTheAssignedHeadTrainerCanAssignATrainer), 403, "forbidden");
         }
@@ -34,7 +35,15 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
             requiredType ??= (await repository.GetActiveAsync(horseId, Role.Trainer)).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefault()?.RequiredTrainingType;
             await scheduling.ValidateAssignment(horseId, r.StaffId, requiredType);
         }
-        foreach (var old in await repository.GetActiveAsync(horseId, r.Role))
+        var active = await repository.GetActiveAsync(horseId, r.Role);
+        var changeReason = r.ChangeReason?.Trim();
+        var replacingHead = r.Role == Role.HeadTrainer && active.Count > 0;
+        if (r.Role == Role.HeadTrainer)
+        {
+            Ensure.That(active.All(x => x.StaffId != r.StaffId), Messages.Text(MessageKey.StaffAlreadyAssignedToHorse), 409, "already_assigned");
+            if (replacingHead) Ensure.That(!string.IsNullOrEmpty(changeReason), Messages.Text(MessageKey.HeadTrainerChangeReasonRequired));
+        }
+        foreach (var old in active)
         {
             Ensure.That(r.StartDate >= old.StartDate, Messages.Text(MessageKey.ReplacementAssignmentCannotPrecedeTheCurrentAssignment));
             if (r.Role == Role.Groom && old.StaffId != r.StaffId)
@@ -54,14 +63,18 @@ public sealed class HorseAssignmentService(IAssignmentRepository repository, IUn
                     events.Notify(r.StaffId, NotificationType.CareAssigned, MessageKey.ACareTaskWasAssignedToYou, task.Id);
                 }
             }
-            events.Notify(old.StaffId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
+            events.Notify(old.StaffId, NotificationType.HorseAssignment, replacingHead ? MessageKey.YouWereReplacedAsHeadTrainer : MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
             old.Active = false; old.EndDate = r.StartDate;
         }
-        var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, EndDate = r.EndDate, Notes = r.Notes, RequiredTrainingType = requiredType };
+        // Lý do đổi HeadTrainer được lưu vào ghi chú phân công để chủ ngựa và nhân sự xem trong lịch sử.
+        var notes = replacingHead && string.IsNullOrWhiteSpace(r.Notes) ? changeReason! : r.Notes;
+        var a = new StaffAssignment { HorseId = horseId, StaffId = r.StaffId, Role = r.Role, StartDate = r.StartDate, EndDate = r.EndDate, Notes = notes, RequiredTrainingType = requiredType };
         repository.Add(a);
-        events.Notify(r.StaffId, NotificationType.HorseAssignment, MessageKey.YouHaveBeenAssignedToAHorse, horseId);
-        events.Notify(horse.OwnerId, NotificationType.HorseAssignment, MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
-        await events.Audit(AuditAction.HorseStaffAssigned, horseId, r.Role.ToString());
+        events.Notify(r.StaffId, NotificationType.HorseAssignment, r.Role == Role.HeadTrainer ? MessageKey.YouAreNowHeadTrainer : MessageKey.YouHaveBeenAssignedToAHorse, horseId);
+        events.Notify(horse.OwnerId, NotificationType.HorseAssignment, replacingHead ? MessageKey.HeadTrainerChangedForOwner : MessageKey.OfficialHorseStaffAssignmentChanged, horseId);
+        await events.Audit(AuditAction.HorseStaffAssigned, horseId, replacingHead
+            ? System.Text.Json.JsonSerializer.Serialize(new { Role = r.Role.ToString(), From = active.Select(x => x.StaffId).ToArray(), To = r.StaffId, Reason = changeReason })
+            : r.Role.ToString());
         await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return a;
     }
 

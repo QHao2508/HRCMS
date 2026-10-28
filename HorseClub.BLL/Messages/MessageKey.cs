@@ -195,4 +195,10 @@ public enum MessageKey
     MedicalCaseMustUseLatestVersion = 191,
     ManagerTrainerAssignmentReasonRequired = 192,
 
-    ChooseTemplatePlanOption,     ChooseTemplateSessionOption,     DefaultTemplateReadOnly,     InvalidTemplateCurriculum,     TemplateMustBeAssignedToQualifiedTrainer,}
+    ChooseTemplatePlanOption,     ChooseTemplateSessionOption,     DefaultTemplateReadOnly,     InvalidTemplateCurriculum,     TemplateMustBeAssignedToQualifiedTrainer,
+    HeadTrainerChangeReasonRequired,
+    StaffAlreadyAssignedToHorse,
+    HeadTrainerChangedForOwner,
+    YouWereReplacedAsHeadTrainer,
+    YouAreNowHeadTrainer,
+}

@@ -195,5 +195,10 @@
   "ChooseTemplateSessionOption": "Select an exercise option from the template or explicitly choose Other.",
   "DefaultTemplateReadOnly": "Default templates are shared reference curricula. Create a copy to customize.",
   "InvalidTemplateCurriculum": "Define valid plan choices, exercise choices and required trainer specialties.",
-  "TemplateMustBeAssignedToQualifiedTrainer": "The template must be assigned to a trainer with all required specialties at the required level."
+  "TemplateMustBeAssignedToQualifiedTrainer": "The template must be assigned to a trainer with all required specialties at the required level.",
+  "HeadTrainerChangeReasonRequired": "Enter a reason when replacing the head trainer.",
+  "StaffAlreadyAssignedToHorse": "This staff member is already assigned to the horse in this role.",
+  "HeadTrainerChangedForOwner": "The head trainer of your horse was changed.",
+  "YouWereReplacedAsHeadTrainer": "You are no longer the head trainer of this horse.",
+  "YouAreNowHeadTrainer": "You are now the head trainer of this horse."
 }
