@@ -81,8 +81,8 @@ public sealed class Flow34CompletionTests
         var exam = (await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/records", new MedicalRequest(now.AddMinutes(-2), "Check", "Symptoms", "Findings", "Private diagnosis", HealthStatus.Monitoring, "Clinical notes"))).GetProperty("id").GetGuid();
         var treatment = (await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/treatments", new TreatmentRequest(exam, null, today, today.AddDays(3), today.AddDays(1), "Recover", "Private care instructions", "Private medication", "Daily"))).GetProperty("id").GetGuid();
         var task = (await ClubFactory.Post(vc, "/api/care/tasks", new CareRequest(horse.Id, groom.Id, treatment, CareType.Treatment, now, "Private care instructions", null))).GetProperty("id").GetGuid();
-        Assert.DoesNotContain("Private care instructions", await oc.GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
-        Assert.DoesNotContain("Private care instructions", await mc.GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
+        Assert.Contains("Private care instructions", await oc.GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
+        Assert.Contains("Private care instructions", await mc.GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
         Assert.Contains("Private care instructions", await gc.GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
         await ClubFactory.Post(gc, $"/api/care/tasks/{task}/record", new CareCompletionRequest(CareStatus.InProgress, null, "Started"));
         await ClubFactory.Post(gc, $"/api/care/tasks/{task}/record", new CareCompletionRequest(CareStatus.IssueReported, null, "Observed swelling"));

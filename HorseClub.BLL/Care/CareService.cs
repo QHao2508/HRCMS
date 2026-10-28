@@ -23,9 +23,8 @@ public sealed class CareService(ClubAccess access, CurrentUser current, ICareRep
         var u = await current.Get(); var scope = await access.Scope();
         Ensure.Role(u, RolePolicy.CareReaders);
         if (horseId.HasValue) await access.Horse(horseId.Value);
-        var clinical = u.Role is Role.Groom or Role.Veterinarian;
         var data = await pager.Page(page, pageSize, (p, size) => repository.ListTasksAsync(scope, horseId, u.Role == Role.Groom ? u.Id : null, status, from, to, p, size));
-        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Instructions : null, clinical || x.Type is not (CareType.Treatment or CareType.IceBath) ? x.Notes : null, x.TreatmentPlanId));
+        return PageReader.Map(data, x => new CareTaskSummaryResponse(x.Id, x.HorseId, x.GroomId, x.Type, x.ScheduledAt, x.Status, x.CompletedAt, x.ApprovedPortionKg, x.ActualPortionKg, x.Instructions, x.Notes, x.TreatmentPlanId));
     }
 
     /// <summary>

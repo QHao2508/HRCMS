@@ -185,7 +185,7 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
     public async Task<TreatmentPlan> CreateTreatment(Guid horseId, TreatmentRequest r)
     {
         await access.Vet(horseId); await MedicalRecordFor(repository, horseId, r.MedicalRecordId);
-        Ensure.That(r.StartDate != default && r.EndDate >= r.StartDate && r.FollowUpDate >= r.StartDate, Messages.Text(MessageKey.InvalidTreatmentDates));
+        Ensure.That(r.StartDate != default && (!r.EndDate.HasValue || r.EndDate >= r.StartDate) && r.FollowUpDate >= r.StartDate, Messages.Text(MessageKey.InvalidTreatmentDates));
         if (r.InjuryId.HasValue) Ensure.That(await repository.HasInjuryAsync(r.InjuryId, horseId, r.MedicalRecordId), Messages.Text(MessageKey.InjuryDoesNotBelongToThisMedicalRecord));
         var treatment = new TreatmentPlan
         {
@@ -198,7 +198,8 @@ public sealed partial class MedicalService(ClubAccess access, IMedicalRepository
             Objective = r.Objective,
             Instructions = r.Instructions,
             Medication = r.Medication,
-            Frequency = r.Frequency
+            Frequency = System.Text.RegularExpressions.Regex.IsMatch(r.Frequency.Trim(), @"^\d+\s*(/\s*ngày)?$")
+                ? r.Frequency.Trim().Split('/')[0].Trim() + " lần/ngày" : r.Frequency.Trim()
         };
         repository.AddTreatmentPlan(treatment); await events.Audit(AuditAction.MedicalTreatmentCreated, treatment.Id); await events.RefreshHorse(horseId); await unitOfWork.SaveChangesAsync(); return treatment;
     }

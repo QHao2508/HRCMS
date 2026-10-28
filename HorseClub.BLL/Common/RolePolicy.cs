@@ -18,7 +18,7 @@ public static class RolePolicy
     public static bool CanViewIncidentPhotos(Role role) => role is Role.ClubManager or Role.HeadTrainer or Role.HorseOwner;
 
     // Chăm sóc
-    public static readonly Role[] CareReaders = [Role.ClubManager, Role.HeadTrainer, Role.Trainer, Role.Veterinarian, Role.Groom, Role.HorseOwner];
+    public static readonly Role[] CareReaders = [Role.ClubManager, Role.HeadTrainer, Role.Trainer, Role.WorkRider, Role.Veterinarian, Role.Groom, Role.HorseOwner];
 
     // Y tế
     /// <summary>Hồ sơ khám đầy đủ: Vet ghi, Manager chỉ đọc.</summary>

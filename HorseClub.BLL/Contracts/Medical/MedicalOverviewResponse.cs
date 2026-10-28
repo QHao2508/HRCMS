@@ -19,4 +19,4 @@ public sealed record MedicalCaseSummaryResponse(
 
 public sealed record TreatmentSummaryResponse(
     Guid Id, Guid MedicalRecordId, string Objective, string Instructions, string Medication, string Frequency,
-    DateOnly StartDate, DateOnly EndDate, DateOnly FollowUpDate, bool Completed);
+    DateOnly StartDate, DateOnly? EndDate, DateOnly FollowUpDate, bool Completed);

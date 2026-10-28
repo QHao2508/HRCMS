@@ -1891,7 +1891,7 @@ namespace HorseClub.DAL.Data.Migrations.SqlServer
                     b.Property<long>("CreatedAt")
                         .HasColumnType("bigint");
 
-                    b.Property<DateOnly>("EndDate")
+                    b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
                     b.Property<DateOnly>("FollowUpDate")

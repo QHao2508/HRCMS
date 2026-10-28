@@ -209,7 +209,7 @@ public sealed class WorkflowTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var treatment = await ClubFactory.Post(vc, $"/api/horses/{horse.Id}/medical/treatments", new TreatmentRequest(record.GetProperty("id").GetGuid(), null, today, today.AddDays(5), today.AddDays(3), "Recover", "Private medication instruction", "Medicine", "Daily"));
         await ClubFactory.Post(vc, "/api/care/tasks", new CareRequest(horse.Id, groom.Id, treatment.GetProperty("id").GetGuid(), CareType.Treatment, DateTimeOffset.UtcNow, "Private medication instruction", null));
-        Assert.DoesNotContain("Private medication instruction", await (await f.Client(owner)).GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
+        Assert.Contains("Private medication instruction", await (await f.Client(owner)).GetStringAsync($"/api/care/tasks?horseId={horse.Id}"));
         var item = await ClubFactory.Post(manager, "/api/inventory", new InventoryRequest("Feed", "Food", "kg", 5)); var itemId = item.GetProperty("id").GetGuid();
         await ClubFactory.Post(manager, $"/api/inventory/{itemId}/movements", new MovementRequest(10, "Received"));
         Assert.Equal(HttpStatusCode.Conflict, (await gc.PostAsJsonAsync($"/api/inventory/{itemId}/movements", new MovementRequest(-11, "Use"), ClubFactory.Json)).StatusCode);
