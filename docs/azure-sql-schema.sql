@@ -2664,3 +2664,30 @@ END;
 
 COMMIT;
 GO
+
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261028112219_OptionalTreatmentEndDate'
+)
+BEGIN
+    DECLARE @var13 nvarchar(max);
+    SELECT @var13 = QUOTENAME([d].[name])
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Treatments]') AND [c].[name] = N'EndDate');
+    IF @var13 IS NOT NULL EXEC(N'ALTER TABLE [Treatments] DROP CONSTRAINT ' + @var13 + ';');
+    ALTER TABLE [Treatments] ALTER COLUMN [EndDate] date NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261028112219_OptionalTreatmentEndDate'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261028112219_OptionalTreatmentEndDate', N'10.0.12');
+END;
+
+COMMIT;
+GO

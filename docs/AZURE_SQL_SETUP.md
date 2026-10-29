@@ -16,9 +16,13 @@ Run from the backend repository in your own PowerShell terminal:
 
 The script prompts for a hidden password and updates only the SQL connection/provider/migration settings. It keeps other existing secrets. It does not apply migrations, print credentials or write a password into the repository. User Secrets are local development storage; for deployment provide the connection via the hosting environment's secret configuration.
 
-Current schema (26/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), generated from all fifteen migrations. It contains 38 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
+Current schema (28/10/2026): [azure-sql-schema.sql](azure-sql-schema.sql), containing all seventeen migrations through `20261028112219_OptionalTreatmentEndDate`. It contains 38 application tables plus __EFMigrationsHistory. Use only an empty database or one already managed by these migrations. No DROP TABLE or DROP DATABASE is included.
 
 After saving the password, [Update-AzureSqlDatabase.ps1](../tools/Update-AzureSqlDatabase.ps1) applies this script and verifies the application table count from the EF model snapshot and the migrations present in DAL source. It reads the connection from User Secrets and supplies the password through SQLCMDPASSWORD instead of command-line arguments. It rejects the wrong target, existing unmanaged tables or unknown migration history. Requires sqlcmd.
+
+Before reading credentials or connecting, the updater checks that the SQL artifact contains exactly the migration IDs in source. Run `./tools/Update-AzureSqlDatabase.ps1 -ValidateOnly` for this offline check. An `Unexpected migration count` from the older updater can mean the SQL artifact is stale: the 16-migration artifact omitted `OptionalTreatmentEndDate`. Use the corrected artifact and rerun the updater; its idempotent guards retain migrations already applied. Verification failure does not imply the earlier SQL transactions were rolled back.
+
+When regenerating SQL, retain the leading SET options needed for filtered indexes and the existing dynamic SQL wrappers that avoid compile-time references to newly added columns. Do not replace the deployment artifact blindly with raw EF output; review its diff and test it with sqlcmd.
 
 Verified on 07/10/2026: the Azure database was empty before migration. All three migrations were applied successfully; 31 business tables plus __EFMigrationsHistory are present. The full SQL Login connection is stored in local User Secrets, without a password in source.
 

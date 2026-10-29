@@ -64,8 +64,8 @@ public sealed class ReportingService(CurrentUser current, IReportingQueries quer
     {
         var u = await current.Get(); var scope = await access.Scope(); var now = clock.GetUtcNow();
         var (start, end) = calendar.DayRange(now);
-        var data = await queries.DashboardAsync(scope, u.Id, u.Role == Role.WorkRider ? u.Id : null, u.Role == Role.Groom ? u.Id : null, now, start, end, now.AddMinutes(-options.Value.OverdueAfterMinutes));
-        return new(data.HorseCount, data.ActivePlans, data.SessionsToday, data.OverdueSessions, data.CareTasksToday, data.RestrictedHorses, data.UnreadNotifications);
+        var data = await queries.DashboardAsync(scope, u.Id, u.Role == Role.WorkRider ? u.Id : null, u.Role == Role.Groom ? u.Id : null, now, start, end, now.AddMinutes(-options.Value.OverdueAfterMinutes), u.Role == Role.ClubManager, u.Role is Role.ClubManager or Role.Groom);
+        return new(data.HorseCount, data.ActivePlans, data.SessionsToday, data.OverdueSessions, data.CareTasksToday, data.RestrictedHorses, data.UnreadNotifications, data.OpenIncidents, data.PendingReviews, data.LowStockItems);
     }
 
     /// <summary>

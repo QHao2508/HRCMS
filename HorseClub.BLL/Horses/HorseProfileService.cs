@@ -20,7 +20,7 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     public async Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize)
     {
         var scope = await access.Scope(); var (p, size) = pager.Read(page, pageSize);
-        var data = await repository.ListAsync(scope, search, healthStatus, p, size);
+        var data = await repository.ListAsync(scope, search, healthStatus, p, size, clock.GetUtcNow());
         return new(data.Items, p, size, data.Total);
     }
 

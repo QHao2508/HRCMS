@@ -1,9 +1,30 @@
 param(
     [string]$SchemaPath = (Join-Path $PSScriptRoot '../docs/azure-sql-schema.sql'),
     # Must match the database saved by Set-AzureSqlConnection.ps1; HRCMS_SQL_DATABASE overrides the default hrcms2.
-    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'hrcms2' })
+    [string]$DatabaseName = $(if ($env:HRCMS_SQL_DATABASE) { $env:HRCMS_SQL_DATABASE } else { 'hrcms2' }),
+    [switch]$ValidateOnly
 )
 $ErrorActionPreference = 'Stop'
+$schemaPath = (Resolve-Path -LiteralPath $SchemaPath).Path
+$migrationFolder = Join-Path $PSScriptRoot '../HorseClub.DAL/Data/Migrations/SqlServer'
+$migrationIds = @(Get-ChildItem -LiteralPath $migrationFolder -File | Where-Object { $_.Name -match '^\d{14}_[A-Za-z0-9_]+\.cs$' } | Sort-Object BaseName | ForEach-Object { $_.BaseName })
+if ($migrationIds.Count -eq 0) { throw 'No SQL Server migrations found.' }
+$expectedMigrationCount = $migrationIds.Count
+$snapshotPath = Join-Path $migrationFolder 'SqlServerClubDbContextModelSnapshot.cs'
+$expectedTableCount = ([regex]::Matches([System.IO.File]::ReadAllText($snapshotPath), '\.ToTable\(')).Count
+if ($expectedTableCount -lt 1) { throw 'No application tables found in the EF model snapshot.' }
+# Check the deploy artifact before reading credentials or touching the target database.
+$schemaText = [System.IO.File]::ReadAllText($schemaPath)
+$schemaMigrationIds = @([regex]::Matches($schemaText, "(?im)^\s*VALUES\s*\(N'(?<id>\d{14}_[A-Za-z0-9_]+)'") | ForEach-Object { $_.Groups['id'].Value } | Sort-Object -Unique)
+$missingSql = @($migrationIds | Where-Object { $_ -notin $schemaMigrationIds })
+$unknownSql = @($schemaMigrationIds | Where-Object { $_ -notin $migrationIds })
+if ($missingSql.Count -gt 0 -or $unknownSql.Count -gt 0) {
+    throw "Schema SQL does not match DAL migrations. Missing: $($missingSql -join ', '). Unknown: $($unknownSql -join ', '). Regenerate docs/azure-sql-schema.sql with dotnet ef migrations script --idempotent --project HorseClub.DAL --startup-project Horse_BackEnd --context SqlServerClubDbContext --output docs/azure-sql-schema.sql. No database connection was opened."
+}
+if ($ValidateOnly) {
+    Write-Host "Schema artifact verified: $expectedTableCount application tables and $expectedMigrationCount migrations. No database connection was opened."
+    return
+}
 $secretPath = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'Microsoft/UserSecrets/horseclub-backend/secrets.json'
 $secrets = if (Test-Path -LiteralPath $secretPath) { Get-Content -Raw -LiteralPath $secretPath | ConvertFrom-Json } else { $null }
 $connectionText = $secrets.'ConnectionStrings:SqlServer'
@@ -19,14 +40,6 @@ $connection = [System.Data.SqlClient.SqlConnectionStringBuilder]::new($connectio
 if ($connection.DataSource -ne 'tcp:hrcms.database.windows.net,1433' -or $connection.InitialCatalog -ne $DatabaseName -or $connection.IntegratedSecurity -or !$connection.Encrypt -or $connection.TrustServerCertificate -or [string]::IsNullOrEmpty($connection.Password)) {
     throw "Expected the authenticated, encrypted Azure SQL connection for hrcms.database.windows.net / $DatabaseName. Run Set-AzureSqlConnection.ps1 first."
 }
-$schemaPath = $SchemaPath
-$migrationFolder = Join-Path $PSScriptRoot '../HorseClub.DAL/Data/Migrations/SqlServer'
-$migrationIds = @(Get-ChildItem -LiteralPath $migrationFolder -File | Where-Object { $_.Name -match '^\d{14}_[A-Za-z0-9_]+\.cs$' } | Sort-Object BaseName | ForEach-Object { $_.BaseName })
-if ($migrationIds.Count -eq 0) { throw 'No SQL Server migrations found.' }
-$expectedMigrationCount = $migrationIds.Count
-$snapshotPath = Join-Path $migrationFolder 'SqlServerClubDbContextModelSnapshot.cs'
-$expectedTableCount = ([regex]::Matches([System.IO.File]::ReadAllText($snapshotPath), '\.ToTable\(')).Count
-if ($expectedTableCount -lt 1) { throw 'No application tables found in the EF model snapshot.' }
 $allowedMigrations = ($migrationIds | ForEach-Object { "'$_'" }) -join ', '
 $historyCheck = "IF EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId NOT IN ($allowedMigrations)) THROW 51000, 'Unexpected migration history: review before migration.', 1;"
 $quotedHistoryCheck = $historyCheck.Replace("'", "''")

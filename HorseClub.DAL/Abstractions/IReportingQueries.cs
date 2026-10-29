@@ -1,6 +1,6 @@
 namespace HorseClub.DAL.Abstractions;
 
-public sealed record DashboardData(int HorseCount, int ActivePlans, int SessionsToday, int OverdueSessions, int CareTasksToday, int RestrictedHorses, int UnreadNotifications);
+public sealed record DashboardData(int HorseCount, int ActivePlans, int SessionsToday, int OverdueSessions, int CareTasksToday, int RestrictedHorses, int UnreadNotifications, int OpenIncidents, int PendingReviews, int LowStockItems);
 public sealed record ReportSessionData(Guid Id, Guid HorseId, DateTimeOffset ScheduledAt, SessionStatus Status, decimal DistanceMetres, string Target);
 public sealed record ReportCareData(Guid Id, Guid HorseId, CareType Type, CareStatus Status, DateTimeOffset ScheduledAt, decimal? ApprovedPortionKg, decimal? ActualPortionKg);
 public sealed record ReportRows(List<ReportSessionData> Sessions, List<ReportCareData> Tasks);
@@ -11,7 +11,7 @@ public interface IReportingQueries
     Task<Notification?> GetNotificationAsync(Guid recipientId, Guid id);
     Task<List<Notification>> ListUnreadNotificationsAsync(Guid recipientId);
     Task<DataPage<AuditEvent>> ListAuditAsync(Guid? referenceId, int page, int size);
-    Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore);
+    Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore, bool includeReviews = false, bool includeInventory = false);
     Task<ReportRows> ReportRowsAsync(HorseScope scope, Guid? horseId, Guid? riderId, Guid? groomId, DateTimeOffset start, DateTimeOffset end, int limit);
     Task<List<SessionResult>> ResultsAsync(Guid[] sessionIds);
     Task<int> MedicalCountAsync(HorseScope scope, Guid? horseId, DateTimeOffset start, DateTimeOffset end);

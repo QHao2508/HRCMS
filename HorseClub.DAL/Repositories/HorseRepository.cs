@@ -15,7 +15,7 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
         return (row?.Horse, row?.Assigned ?? false);
     }
     public ValueTask<Stall?> FindStallAsync(Guid id) => db.Stalls.FindAsync(id);
-    public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size)
+    public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null)
     {
         var query = ScopedHorses.For(db, scope);
         if (!string.IsNullOrWhiteSpace(search))
@@ -30,7 +30,40 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
         var numbers = await db.Registrations.AsNoTracking().Where(r => registrationIds.Contains(r.Id))
             .Select(r => new { r.Id, r.RegistrationNumber }).ToDictionaryAsync(r => r.Id, r => r.RegistrationNumber);
         foreach (var horse in result.Items) horse.ExternalRegistrationNumber = numbers.GetValueOrDefault(horse.RegistrationId);
+        await EnrichListAsync(result.Items, now ?? DateTimeOffset.UtcNow);
         return result;
+    }
+    // Cột phụ cho danh sách ngựa (chuồng hiện tại, HLV phụ trách, buổi tập kế tiếp, có ảnh) trong MỘT câu SQL cho cả trang.
+    private async Task EnrichListAsync(IReadOnlyCollection<Horse> horses, DateTimeOffset now)
+    {
+        if (horses.Count == 0) return;
+        var ids = horses.Select(x => x.Id).ToArray();
+        var rows = await db.Horses.AsNoTracking().Where(h => ids.Contains(h.Id)).Select(h => new
+        {
+            h.Id,
+            Stall = (from o in db.Occupancies
+                     join s in db.Stalls on o.StallId equals s.Id
+                     where o.HorseId == h.Id && o.EndedAt == null
+                     orderby o.CreatedAt descending
+                     select s.Name).FirstOrDefault(),
+            // Ưu tiên huấn luyện viên đang phụ trách; chưa có thì dùng huấn luyện viên trưởng.
+            Trainer = (from a in db.Assignments
+                       join u in db.Users on a.StaffId equals u.Id
+                       where a.HorseId == h.Id && a.Active && (a.Role == Role.Trainer || a.Role == Role.HeadTrainer)
+                       orderby a.Role == Role.Trainer ? 0 : 1, a.CreatedAt descending
+                       select u.FirstName + " " + u.LastName).FirstOrDefault(),
+            Next = db.Sessions.Where(x => x.HorseId == h.Id && x.ScheduledAt >= now && (x.Status == SessionStatus.Planned || x.Status == SessionStatus.Assigned))
+                .Min(x => (DateTimeOffset?)x.ScheduledAt),
+            HasPhoto = db.Attachments.Any(x => x.RegistrationId == h.RegistrationId && x.Type == AttachmentType.HorsePhoto),
+        }).ToDictionaryAsync(x => x.Id);
+        foreach (var horse in horses)
+        {
+            if (!rows.TryGetValue(horse.Id, out var row)) continue;
+            horse.StallName = row.Stall;
+            horse.LeadTrainerName = string.IsNullOrWhiteSpace(row.Trainer) ? null : row.Trainer.Trim();
+            horse.NextSessionAt = row.Next;
+            horse.HasPhoto = row.HasPhoto;
+        }
     }
     public Task<Attachment?> GetPhotoAsync(Guid registrationId) => db.Attachments.AsNoTracking().Where(x => x.RegistrationId == registrationId && x.Type == AttachmentType.HorsePhoto).OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id).FirstOrDefaultAsync();
     public Task<Measurement?> GetLatestMeasurementAsync(Guid horseId) => db.Measurements.Where(x => x.HorseId == horseId).OrderByDescending(x => x.Date).FirstOrDefaultAsync();

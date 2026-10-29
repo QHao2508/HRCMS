@@ -4,7 +4,7 @@ public interface IHorseRepository
 {
     ValueTask<Horse?> FindAsync(Guid id);
     Task<(Horse? Horse, bool Assigned)> FindWithAssignmentAsync(Guid id, Guid staffId);
-    Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size);
+    Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null);
     Task<Attachment?> GetPhotoAsync(Guid registrationId);
     Task<Measurement?> GetLatestMeasurementAsync(Guid horseId);
     Task<List<StaffAssignment>> GetAssignmentsAsync(Guid horseId);

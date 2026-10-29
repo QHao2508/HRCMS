@@ -17,6 +17,15 @@ public sealed class Horse : Entity
     // Enriched from the approved registration; never persisted as a second copy.
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public string? ExternalRegistrationNumber { get; set; }
+    // List-only enrichment for GET /api/horses (null/false on other endpoints); never persisted.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? StallName { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? LeadTrainerName { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public DateTimeOffset? NextSessionAt { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool HasPhoto { get; set; }
     public DateOnly BoardingStart { get; set; }
     public DateOnly? BoardingEnd { get; set; }
     public HealthStatus HealthStatus { get; set; } = HealthStatus.Monitoring;

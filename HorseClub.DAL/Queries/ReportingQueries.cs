@@ -40,7 +40,7 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
         if (referenceId.HasValue) query = query.Where(x => x.ReferenceId == referenceId);
         return Page(query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id), page, size);
     }
-    public Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore)
+    public Task<DashboardData> DashboardAsync(HorseScope scope, Guid userId, Guid? riderId, Guid? groomId, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end, DateTimeOffset overdueBefore, bool includeReviews = false, bool includeInventory = false)
     {
         var horses = ScopedHorses.For(db, scope).Select(x => x.Id);
         var sessions = db.Sessions.Where(x => horses.Contains(x.HorseId));
@@ -53,7 +53,11 @@ public sealed class ReportingQueries(ClubDbContext db) : IReportingQueries
             sessions.Count(x => x.ScheduledAt < overdueBefore && x.Status == SessionStatus.Assigned && db.Plans.Any(p => p.Id == x.PlanId && p.Status == PlanStatus.Active)),
             care.Count(x => x.ScheduledAt >= start && x.ScheduledAt < end),
             db.Restrictions.Where(x => horses.Contains(x.HorseId) && !x.Cleared && x.ValidFrom <= now && (x.ValidUntil == null || x.ValidUntil >= now)).Select(x => x.HorseId).Distinct().Count(),
-            db.Notifications.Count(x => x.RecipientId == userId && !x.Read))).SingleAsync();
+            db.Notifications.Count(x => x.RecipientId == userId && !x.Read),
+            // Thêm vào cùng câu SQL tổng hợp: sự cố chưa đóng trong phạm vi ngựa, hồ sơ chờ duyệt (Quản lý), vật tư dưới mức tối thiểu (Quản lý, Nhân viên chuồng).
+            db.Incidents.Count(x => horses.Contains(x.HorseId) && !x.Resolved),
+            includeReviews ? db.Registrations.Count(x => x.Status == RegistrationStatus.PendingReview) : 0,
+            includeInventory ? db.Inventory.Count(x => !x.Archived && x.Stock <= x.MinimumStock) : 0)).SingleAsync();
     }
     private IQueryable<Guid> HorseIds(HorseScope scope, Guid? horseId)
     {

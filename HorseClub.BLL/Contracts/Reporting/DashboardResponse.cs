@@ -7,4 +7,7 @@ public sealed record DashboardResponse(
     int OverdueSessions,
     int CareTasksToday,
     int RestrictedHorses,
-    int UnreadNotifications);
+    int UnreadNotifications,
+    int OpenIncidents = 0,
+    int PendingReviews = 0,
+    int LowStockItems = 0);
