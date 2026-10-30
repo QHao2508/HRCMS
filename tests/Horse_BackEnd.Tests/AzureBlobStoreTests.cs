@@ -10,6 +10,14 @@ namespace Horse_BackEnd.Tests;
 
 public sealed class AzureBlobStoreTests
 {
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    public void OnlyDevelopmentExcludesManagedIdentityMetadataProbe(bool isDevelopment, bool excluded)
+    {
+        Assert.Equal(excluded, AzureBlobStore.DefaultCredentialOptions(isDevelopment).ExcludeManagedIdentityCredential);
+    }
+
     [Fact]
     public async Task UploadIsConditionalAndDownloadStreamsBytesWithoutLocalFiles()
     {

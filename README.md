@@ -31,6 +31,16 @@ Script kết nối chỉ cần chạy khi cấu hình máy/kết nối mới; sc
 - Swagger development: `http://localhost:5299/swagger`
 - OpenAPI: `http://localhost:5299/openapi/v1.json`
 
+### Email khi chạy local
+
+Profile `http`/`https` chạy trong Development. Mặc định email được ghi thành file `.eml` tại `Horse_BackEnd/App_Data/mail`; mở file để xem mã OTP, không có email gửi ra hộp thư thật. Production vẫn yêu cầu cấu hình SMTP hợp lệ.
+
+Muốn gửi Gmail thật, chạy `tools/Set-GmailEmail.ps1` để cấu hình User Secrets rồi khởi động lại API. User Secrets và biến môi trường có độ ưu tiên cao hơn `appsettings.Development.json`; nếu cấu hình SMTP cũ còn thiếu và bạn muốn dùng email file cho lần chạy local, dùng:
+
+```powershell
+dotnet run --project Horse_BackEnd --launch-profile http -- --Email:Provider=DevelopmentFile
+```
+
 ## Frontend
 
 React/Vite/JavaScript tại `E:\SWP391\HorseClub-frontend\HRCMS-Frontend`, repository [HRCMS-Frontend](https://github.com/QHao2508/HRCMS-Frontend). Đã có auth, dashboard, registration/review, horse và training. Vite cổng 5173 proxy API tới 5299. Frontend không kết nối SQL trực tiếp. Xem [FRONTEND_READINESS.md](docs/archive/FRONTEND_READINESS.md) và `docs/API_INTEGRATION.md` trong frontend.

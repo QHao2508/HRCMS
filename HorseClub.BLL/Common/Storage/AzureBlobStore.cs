@@ -22,16 +22,25 @@ public sealed class AzureBlobStore
     /// Tạo adapter BlobContainerClient từ credential cấu hình hoặc client được inject trong kiểm thử; không xuất khóa ra frontend.
     /// </summary>
     /// <param name="options">Cấu hình/hợp đồng tùy hàm; các giá trị được truyền rõ ràng từ caller.</param>
-    public AzureBlobStore(IOptions<StorageOptions> options)
+    public AzureBlobStore(IOptions<StorageOptions> options, IHostEnvironment environment)
     {
         var settings = options.Value;
         if (settings.Provider != "AzureBlob") return;
         container = string.IsNullOrWhiteSpace(settings.ConnectionString)
             ? new BlobServiceClient(new Uri(settings.ServiceUri!), settings.IdentityCredential == "AzureCli"
                 ? new AzureCliCredential(new AzureCliCredentialOptions { ProcessTimeout = TimeSpan.FromSeconds(15) })
-                : new DefaultAzureCredential()).GetBlobContainerClient(settings.Container)
+                : new DefaultAzureCredential(DefaultCredentialOptions(environment.IsDevelopment()))).GetBlobContainerClient(settings.Container)
             : new BlobServiceClient(settings.ConnectionString).GetBlobContainerClient(settings.Container);
     }
+
+    /// <summary>
+    /// Local development uses developer credentials without probing Azure VM metadata.
+    /// Production retains Managed Identity; explicit AzureCli and connection-string modes are unchanged.
+    /// </summary>
+    public static DefaultAzureCredentialOptions DefaultCredentialOptions(bool isDevelopment) => new()
+    {
+        ExcludeManagedIdentityCredential = isDevelopment
+    };
 
     /// <summary>
     /// Upload blob với điều kiện If-None-Match để không ghi đè, giữ MIME của nội dung.
