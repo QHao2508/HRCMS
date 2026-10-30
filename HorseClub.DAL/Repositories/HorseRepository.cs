@@ -15,7 +15,7 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
         return (row?.Horse, row?.Assigned ?? false);
     }
     public ValueTask<Stall?> FindStallAsync(Guid id) => db.Stalls.FindAsync(id);
-    public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null)
+    public async Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null, string? breed = null, Guid? stallId = null)
     {
         var query = ScopedHorses.For(db, scope);
         if (!string.IsNullOrWhiteSpace(search))
@@ -25,6 +25,8 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
                 || db.Registrations.Any(r => r.Id == x.RegistrationId && r.RegistrationNumber != null && r.RegistrationNumber.Contains(search)));
         }
         if (healthStatus.HasValue) query = query.Where(x => x.HealthStatus == healthStatus);
+        if (!string.IsNullOrWhiteSpace(breed)) { breed = breed.Trim(); query = query.Where(x => x.Breed == breed); }
+        if (stallId.HasValue) query = query.Where(x => db.Occupancies.Any(o => o.HorseId == x.Id && o.StallId == stallId && o.EndedAt == null));
         var result = await query.AsNoTracking().OrderBy(x => x.Name).ThenBy(x => x.Id).ToPageAsync(page, size);
         var registrationIds = result.Items.Select(x => x.RegistrationId).ToArray();
         var numbers = await db.Registrations.AsNoTracking().Where(r => registrationIds.Contains(r.Id))
@@ -32,6 +34,20 @@ public sealed class HorseRepository(ClubDbContext db) : IHorseRepository
         foreach (var horse in result.Items) horse.ExternalRegistrationNumber = numbers.GetValueOrDefault(horse.RegistrationId);
         await EnrichListAsync(result.Items, now ?? DateTimeOffset.UtcNow);
         return result;
+    }
+    // Ba truy vấn gọn trên cùng phạm vi ngựa: đếm theo sức khỏe, giống đang có, chuồng đang ở (chỉ chuồng của ngựa người xem thấy).
+    public async Task<HorseListSummary> SummaryAsync(HorseScope scope)
+    {
+        var query = ScopedHorses.For(db, scope).AsNoTracking();
+        var health = await query.GroupBy(x => x.HealthStatus).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+        foreach (var status in Enum.GetValues<HealthStatus>()) health.TryAdd(status, 0);
+        var breeds = await query.Where(x => x.Breed != "").Select(x => x.Breed).Distinct().OrderBy(x => x).Take(100).ToListAsync();
+        var ids = query.Select(x => x.Id);
+        var stalls = await (from o in db.Occupancies
+                            join s in db.Stalls on o.StallId equals s.Id
+                            where o.EndedAt == null && ids.Contains(o.HorseId)
+                            select new { s.Id, s.Name }).Distinct().OrderBy(x => x.Name).Take(200).ToListAsync();
+        return new(health, breeds, stalls.Select(x => new HorseStallOption(x.Id, x.Name)).ToList());
     }
     // Cột phụ cho danh sách ngựa (chuồng hiện tại, HLV phụ trách, buổi tập kế tiếp, có ảnh) trong MỘT câu SQL cho cả trang.
     private async Task EnrichListAsync(IReadOnlyCollection<Horse> horses, DateTimeOffset now)

@@ -17,12 +17,15 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
     /// <param name="page">Giá trị kiểu int? dùng trong ListHorses.</param>
     /// <param name="pageSize">Giá trị kiểu int? dùng trong ListHorses.</param>
     /// <remarks>ClubAccess giới hạn dữ liệu theo user/phân công; không chỉ dựa vào role hoặc ID client gửi.</remarks>
-    public async Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize)
+    public async Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize, string? breed = null, Guid? stallId = null)
     {
         var scope = await access.Scope(); var (p, size) = pager.Read(page, pageSize);
-        var data = await repository.ListAsync(scope, search, healthStatus, p, size, clock.GetUtcNow());
+        var data = await repository.ListAsync(scope, search, healthStatus, p, size, clock.GetUtcNow(), breed, stallId);
         return new(data.Items, p, size, data.Total);
     }
+
+    /// <summary>Số ngựa theo sức khỏe và lựa chọn bộ lọc của danh sách ngựa, cùng phạm vi ClubAccess như ListHorses.</summary>
+    public async Task<HorseListSummary> GetListSummary() => await repository.SummaryAsync(await access.Scope());
 
     /// <summary>
     /// Đọc chi tiết ngựa trong HorseProfileService; áp dụng quyền, điều kiện và lưu dữ liệu theo phần thân hàm.
@@ -35,6 +38,8 @@ public sealed class HorseProfileService(ClubAccess access, PageReader pager, IHo
         var detail = await repository.GetDetailAsync(id, horse.RegistrationId);
         var attachment = detail.Photo; var registration = detail.Registration;
         horse.ExternalRegistrationNumber = registration.RegistrationNumber;
+        // Tên chuồng đang ở cho phần đầu hồ sơ; chỉ đọc, cùng phạm vi đã kiểm ở access.Horse.
+        if (detail.Occupancy is { EndedAt: null } occupancy) horse.StallName = (await repository.FindStallAsync(occupancy.StallId))?.Name;
         var photo = attachment is null ? null : new HorsePhotoResponse(attachment.Id, attachment.FileName, attachment.StorageName, attachment.ContentType, attachment.Length, $"/api/horses/{id}/photo");
         return new HorseDetailResponse(horse, detail.LatestMeasurement, detail.Assignments, detail.Occupancy, new HorsePreferencesResponse(registration.PreferredHeadTrainerId, registration.PreferredGroomId, registration.PreferredVeterinarianId), photo, detail.StaffNames);
     }

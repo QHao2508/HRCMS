@@ -8,7 +8,8 @@ namespace HorseClub.BLL.Abstractions.Services;
 /// <summary>Application operations implemented by HorseProfileService.</summary>
 public interface IHorseProfileService
 {
-    Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize);
+    Task<PageResponse<Horse>> ListHorses(string? search, HealthStatus? healthStatus, int? page, int? pageSize, string? breed = null, Guid? stallId = null);
+    Task<HorseClub.DAL.Abstractions.HorseListSummary> GetListSummary();
     Task<HorseDetailResponse> GetHorse(Guid id);
     Task<HorseAssignmentHistoryResponse> GetAssignmentHistory(Guid id);
     Task<PageResponse<Measurement>> ListMeasurements(Guid id, int? page, int? pageSize);

@@ -22,7 +22,8 @@ public static class HorseEndpoints
         r.MapPost("/{id:guid}/cancel", async (Guid id, IHorseRegistrationService moduleService) => (await moduleService.CancelRegistration(id)).ToHttpResult()).Produces(204);
 
         var h = api.MapGroup("/horses").WithTags("Horses").RequireAuthorization();
-        h.MapGet("", async (string? search, HealthStatus? healthStatus, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListHorses(search, healthStatus, page, pageSize)).Produces<PageResponse<Horse>>(200);
+        h.MapGet("", async (string? search, HealthStatus? healthStatus, string? breed, Guid? stallId, int? page, int? pageSize, IHorseProfileService moduleService) => await moduleService.ListHorses(search, healthStatus, page, pageSize, breed, stallId)).Produces<PageResponse<Horse>>(200);
+        h.MapGet("/summary", async (IHorseProfileService moduleService) => await moduleService.GetListSummary()).Produces<HorseClub.DAL.Abstractions.HorseListSummary>(200);
         h.MapGet("/{id:guid}", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetHorse(id)).Produces<HorseDetailResponse>(200);
         h.MapGet("/{id:guid}/assignment-history", async (Guid id, IHorseProfileService moduleService) => await moduleService.GetAssignmentHistory(id)).Produces<HorseAssignmentHistoryResponse>(200);
         h.MapPost("/{id:guid}/assignments", async (Guid id, AssignmentRequest request, IHorseAssignmentService moduleService) => await moduleService.AssignStaff(id, request)).Produces<StaffAssignment>(200);

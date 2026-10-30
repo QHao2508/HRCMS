@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Horse_BackEnd.Tests;
 
-/// <summary>Dữ liệu chỉ đọc bổ sung cho giao diện mới: cột phụ của danh sách ngựa (B1) và số đếm trên Tổng quan (B2).</summary>
+/// <summary>Dữ liệu chỉ đọc bổ sung cho giao diện mới: cột phụ của danh sách ngựa (B1), số đếm trên Tổng quan (B2), tổng hợp sức khỏe (B3) và lọc giống/chuồng (B4).</summary>
 public sealed class RedesignApiTests
 {
     [Fact]
@@ -55,6 +55,10 @@ public sealed class RedesignApiTests
         using var ownerClient = await f.Client(owner);
         var own = (await ownerClient.GetFromJsonAsync<JsonElement>("/api/horses")).GetProperty("items").EnumerateArray().ToList();
         Assert.Equal(horse.Id, Assert.Single(own).GetProperty("id").GetGuid());
+
+        // Hồ sơ chi tiết có tên chuồng đang ở cho phần đầu trang.
+        var detail = await manager.GetFromJsonAsync<JsonElement>($"/api/horses/{horse.Id}");
+        Assert.Equal("A-04", detail.GetProperty("horse").GetProperty("stallName").GetString());
     }
 
     [Fact]
@@ -93,5 +97,44 @@ public sealed class RedesignApiTests
         Assert.Equal(1, g.GetProperty("openIncidents").GetInt32());
         Assert.Equal(0, g.GetProperty("pendingReviews").GetInt32());
         Assert.True(g.GetProperty("lowStockItems").GetInt32() >= 1);
+    }
+
+    [Fact]
+    public async Task HorseListFiltersByBreedAndStallAndSummaryStaysInScope()
+    {
+        await using var f = new ClubFactory();
+        var owner = await f.User(Role.HorseOwner);
+        var arabian = await f.Horse(owner);
+        var thoroughbred = await f.Horse(owner);
+        var other = await f.Horse(await f.User(Role.HorseOwner));
+        Guid stallId;
+        using (var scope = f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClubDbContext>();
+            (await db.Horses.FindAsync(arabian.Id))!.Breed = "Arabian";
+            var t = (await db.Horses.FindAsync(thoroughbred.Id))!; t.Breed = "Thoroughbred"; t.HealthStatus = HealthStatus.Injured;
+            (await db.Horses.FindAsync(other.Id))!.Breed = "Akhal-Teke";
+            var stable = new Stable { Name = "Khu B" };
+            var stall = new Stall { StableId = stable.Id, Name = "B-02" };
+            var hidden = new Stall { StableId = stable.Id, Name = "B-09" };
+            db.Stables.Add(stable); db.Stalls.AddRange(stall, hidden);
+            db.Occupancies.Add(new StallOccupancy { StallId = stall.Id, HorseId = thoroughbred.Id });
+            db.Occupancies.Add(new StallOccupancy { StallId = hidden.Id, HorseId = other.Id });
+            await db.SaveChangesAsync(); stallId = stall.Id;
+        }
+        using var client = await f.Client(owner);
+        var byBreed = (await client.GetFromJsonAsync<JsonElement>("/api/horses?breed=Arabian")).GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(arabian.Id, Assert.Single(byBreed).GetProperty("id").GetGuid());
+        var byStall = (await client.GetFromJsonAsync<JsonElement>($"/api/horses?stallId={stallId}")).GetProperty("items").EnumerateArray().ToList();
+        Assert.Equal(thoroughbred.Id, Assert.Single(byStall).GetProperty("id").GetGuid());
+
+        var summary = await client.GetFromJsonAsync<JsonElement>("/api/horses/summary");
+        var health = summary.GetProperty("health");
+        Assert.Equal(1, health.GetProperty("Fit").GetInt32());
+        Assert.Equal(1, health.GetProperty("Injured").GetInt32());
+        Assert.Equal(0, health.GetProperty("Isolated").GetInt32());
+        // Giống và chuồng của ngựa chủ khác không lộ ra.
+        Assert.Equal(new[] { "Arabian", "Thoroughbred" }, summary.GetProperty("breeds").EnumerateArray().Select(x => x.GetString()).ToArray());
+        Assert.Equal("B-02", Assert.Single(summary.GetProperty("stalls").EnumerateArray().ToList()).GetProperty("name").GetString());
     }
 }

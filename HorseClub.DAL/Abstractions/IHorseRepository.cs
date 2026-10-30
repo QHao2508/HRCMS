@@ -1,10 +1,15 @@
 namespace HorseClub.DAL.Abstractions;
 
+/// <summary>Số ngựa theo tình trạng sức khỏe và lựa chọn bộ lọc (giống, chuồng đang ở) trong phạm vi người xem.</summary>
+public sealed record HorseListSummary(Dictionary<HealthStatus, int> Health, List<string> Breeds, List<HorseStallOption> Stalls);
+public sealed record HorseStallOption(Guid Id, string Name);
+
 public interface IHorseRepository
 {
     ValueTask<Horse?> FindAsync(Guid id);
     Task<(Horse? Horse, bool Assigned)> FindWithAssignmentAsync(Guid id, Guid staffId);
-    Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null);
+    Task<DataPage<Horse>> ListAsync(HorseScope scope, string? search, HealthStatus? healthStatus, int page, int size, DateTimeOffset? now = null, string? breed = null, Guid? stallId = null);
+    Task<HorseListSummary> SummaryAsync(HorseScope scope);
     Task<Attachment?> GetPhotoAsync(Guid registrationId);
     Task<Measurement?> GetLatestMeasurementAsync(Guid horseId);
     Task<List<StaffAssignment>> GetAssignmentsAsync(Guid horseId);
