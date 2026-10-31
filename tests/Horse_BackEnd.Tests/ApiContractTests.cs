@@ -65,11 +65,11 @@ public sealed class ApiContractTests
                 Assert.Equal(!anonymous, secured);
                 if (!anonymous) Assert.True(responses.TryGetProperty("401", out _));
             }
-        Assert.Equal(123, operationCount);
+        Assert.Equal(124, operationCount);
         Assert.True(paths.GetProperty("/api/notifications/read-all").GetProperty("post").GetProperty("responses").TryGetProperty("204", out _));
         foreach (var medicalPath in new[] { "/api/horses/{horseId}/medical/overview", "/api/horses/{horseId}/medical/records/{id}/history", "/api/horses/{horseId}/medical/records/{id}/merge", "/api/horses/{horseId}/medical/treatments/{id}/status" })
             Assert.True(paths.TryGetProperty(medicalPath, out _), medicalPath);
-        foreach (var addedPath in new[] { "/api/training/availability", "/api/training/trainer-candidates", "/api/training/reference-data", "/api/staff/{id}/training-profile" })
+        foreach (var addedPath in new[] { "/api/training/availability", "/api/training/trainer-candidates", "/api/training/reference-data", "/api/staff/{id}/training-profile", "/api/horses/summary" })
             Assert.True(paths.TryGetProperty(addedPath, out _));
         Assert.True(paths.TryGetProperty("/api/staff/{id}/workload", out _));
         Assert.True(paths.TryGetProperty("/api/inventory/replenishments/{id}/receive", out _));
